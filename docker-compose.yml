@@ -1,0 +1,38 @@
+version: '3'
+
+services: 
+  db:
+    image: postgres:13.1
+    environment:
+      - POSTGRES_PASSWORD=postgres
+
+  memcached:
+    image: memcached
+
+  nginx:
+    image: nginx
+    command: [nginx-debug, '-g', 'daemon off;']  # Run nginx in debug mode
+    volumes:
+      - ./nginx/mime.types:/etc/nginx/mime.types:ro
+      - ./nginx/proxy.conf:/etc/nginx/proxy.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+
+  application:
+    build: 
+      context: .
+    image: "socialsirius/didcomm:${VERSION-dev}"
+    environment:
+      - MEMCACHED=memcached
+      - DATABASE_HOST=db
+      - DATABASE_NAME=postgres
+      - WEBROOT=http://localhost
+    volumes:
+      - ./app:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - db
+      - memcached
+      - nginx
