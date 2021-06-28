@@ -6,8 +6,10 @@ services:
     environment:
       - POSTGRES_PASSWORD=postgres
 
-  memcached:
-    image: memcached
+  redis1:
+    image: redis
+  redis2:
+    image: redis
 
   nginx:
     image: nginx
@@ -24,9 +26,11 @@ services:
       context: .
     image: "socialsirius/didcomm:${VERSION-dev}"
     environment:
-      - MEMCACHED=memcached
+      - REDIS=redis1,redis2
       - DATABASE_HOST=db
+      - DATABASE_USER=postgres
       - DATABASE_NAME=postgres
+      - DATABASE_PASSWORD=postgres
       - WEBROOT=http://localhost
     volumes:
       - ./app:/app
@@ -34,5 +38,6 @@ services:
       - "8000:8000"
     depends_on:
       - db
-      - memcached
+      - redis1
+      - redis2
       - nginx

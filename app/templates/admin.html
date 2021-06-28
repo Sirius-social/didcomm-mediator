@@ -7,12 +7,12 @@
     <script src="{{ url_for('static', path='/vue.min.js') }}"></script>
 </head>
 
-<body id="app">
+<body id="top">
 <!-- Navigation-->
 <nav class="navbar navbar-expand-lg navbar-light fixed-top shadow-sm" id="mainNav">
     <div class="container px-5">
         <img src="{{ url_for('static', path='/icons/logo.png') }}" style="max-width: 70px; max-height:70px;">
-        <a class="navbar-brand fw-bold" href="#app">Launch DIDComm server components</a>
+        <a class="navbar-brand fw-bold" href="#top">Launch DIDComm server components</a>
         <button aria-controls="navbarResponsive" aria-expanded="false" aria-label="Toggle navigation" class="navbar-toggler"
                 data-bs-target="#navbarResponsive" data-bs-toggle="collapse" type="button">
             Menu
@@ -36,20 +36,52 @@
     </div>
 </nav>
 <!-- Mashead header-->
-<header class="masthead">
+<header class="masthead" id="app">
     <div class="container px-5">
         <div class="row gx-5 align-items-center">
             <div class="col-lg-6">
-                <!-- Mashead text and app badges-->
-                <div class="mb-5 mb-lg-0 text-center text-lg-start">
-                    <h1 class="display-1 lh-1 mb-3">Showcase your app beautifully.</h1>
-                    <p class="lead fw-normal text-muted mb-5">Launch your mobile app landing page faster with this free,
-                        open source theme from Start Bootstrap!</p>
-                    <div class="d-flex flex-column flex-lg-row align-items-center">
-                        <a class="me-lg-3 mb-4 mb-lg-0" href="#!"><img alt="..."
-                                                                       class="app-badge"
-                                                                       src="assets/img/google-play-badge.svg"/></a>
-                        <a href="#!"><img alt="..." class="app-badge" src="assets/img/app-store-badge.svg"/></a>
+                <!-- Register form-->
+                <div class="row justify-content-center">
+                    <div class="col-md-8">
+                        <div class="card">
+                            <div class="card-header">Step-1: Create Admin account</div>
+                            <div class="card-body">
+
+                                <form class="form-horizontal" method="post" action="#">
+                                    <div class="form-group">
+                                        <label for="username" class="cols-sm-2 control-label">Username</label>
+                                        <div class="cols-sm-10">
+                                            <div class="input-group">
+                                                <span class="input-group-addon"><i class="fa fa-users fa" aria-hidden="true"></i></span>
+                                                <input type="text" class="form-control" name="username" id="username" placeholder="Enter your Username" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="password" class="cols-sm-2 control-label">Password</label>
+                                        <div class="cols-sm-10">
+                                            <div class="input-group">
+                                                <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+                                                <input type="password" class="form-control" name="password" id="password" placeholder="Enter your Password" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="confirm" class="cols-sm-2 control-label">Confirm Password</label>
+                                        <div class="cols-sm-10">
+                                            <div class="input-group">
+                                                <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+                                                <input type="password" class="form-control" name="confirm" id="confirm" placeholder="Confirm your Password" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="form-group ">
+                                        <button type="button" class="btn btn-primary btn-lg btn-block login-button">Register</button>
+                                    </div>
+                                </form>
+                            </div>
+
+                        </div>
                     </div>
                 </div>
             </div>
@@ -88,8 +120,17 @@
     </div>
 </footer>
 
-<!-- Core theme JS-->
-<script src="{{ url_for('static', path='/admin/js/scripts.js') }}"></script>
+<!-- VueJS  -->
+<script>
+    app = new Vue({
+            el: '#app',
+            delimiters: ['[[', ']]'],
+            data: {
+                caption: 'XXX'
+            }
+        });
+</script>
+
 </body>
 
 </html>

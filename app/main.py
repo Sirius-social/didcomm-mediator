@@ -4,7 +4,7 @@ import uvicorn
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import maintenance
+from app.routers import maintenance, relay
 from app.internal import admin
 
 
@@ -12,12 +12,8 @@ app = FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
-@app.get("/")
-async def index():
-    return {"Hello": "World"}
-
-
 app.include_router(maintenance.router)
+app.include_router(relay.router)
 app.include_router(
     admin.router,
     prefix="/admin",
