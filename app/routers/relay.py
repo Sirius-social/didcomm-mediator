@@ -10,6 +10,7 @@ router = APIRouter(
 @router.websocket("/")
 async def onboard(websocket: WebSocket):
     await websocket.accept()
+    await websocket.send_json({'ok': True})
 
 
 @router.post('/')
@@ -17,6 +18,6 @@ async def endpoint(request: Request):
     pass
 
 
-@router.post('/endpoint/{{agent_id}}')
+@router.post('/{{agent_id}}')
 async def endpoint(request: Request, agent_id: str):
     pass

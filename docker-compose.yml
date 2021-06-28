@@ -32,6 +32,7 @@ services:
       - DATABASE_NAME=postgres
       - DATABASE_PASSWORD=postgres
       - WEBROOT=http://localhost
+      - SEED=000000000000000000000000000RELAY
     volumes:
       - ./app:/app
     ports:

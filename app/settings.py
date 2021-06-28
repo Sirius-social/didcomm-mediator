@@ -1,5 +1,6 @@
 import os
 
+import sirius_sdk
 from fastapi.templating import Jinja2Templates
 
 
@@ -24,3 +25,9 @@ DATABASE_PORT = int(os.getenv('DATABASE_PORT', 5432))
 
 SQLALCHEMY_DATABASE_URL = \
     f"postgresql://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_NAME}"
+
+
+RELAY_KEYPAIR = (None, None)
+if os.getenv('SEED'):
+    pub, priv = sirius_sdk.encryption.ed25519.create_keypair(seed=os.getenv('SEED').encode())
+    RELAY_KEYPAIR = sirius_sdk.encryption.ed25519.bytes_to_b58(pub), sirius_sdk.encryption.ed25519.bytes_to_b58(priv)
