@@ -8,6 +8,7 @@ class Company(Base):
     __tablename__ = "companies"
 
     id = Column(Integer, primary_key=True, index=True)
+    label = Column(String, index=True)
     users = relationship("User", back_populates="company")
 
 
