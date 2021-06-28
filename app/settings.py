@@ -21,3 +21,6 @@ assert DATABASE_USER is not None, 'You must set DATABASE_USER env variable'
 DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD')
 assert DATABASE_PASSWORD is not None, 'You must set DATABASE_PASSWORD env variable'
 DATABASE_PORT = int(os.getenv('DATABASE_PORT', 5432))
+
+SQLALCHEMY_DATABASE_URL = \
+    f"postgresql://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_NAME}"
