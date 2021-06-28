@@ -1,9 +1,7 @@
-from app.db.database import SessionLocal
+from app.db.database import database
 
 
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+async def get_db():
+    if not database.is_connected:
+        await database.connect()
+    return database

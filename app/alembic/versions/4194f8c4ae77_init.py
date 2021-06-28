@@ -18,17 +18,11 @@ depends_on = None
 
 def upgrade():
     op.create_table(
-        'companies',
-        sa.Column('id', sa.Integer, primary_key=True, index=True),
-        sa.Column('label', sa.String, index=True),
-    )
-    op.create_table(
         'users',
         sa.Column('id', sa.String, primary_key=True, index=True),
         sa.Column('username', sa.String, unique=True, index=True),
         sa.Column('hashed_password', sa.String),
         sa.Column('is_active', sa.Boolean, default=True),
-        sa.Column('company_id', sa.Integer, sa.ForeignKey('companies.id')),
     )
     op.create_table(
         'agents',
@@ -40,6 +34,5 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_table('companies')
     op.drop_table('users')
     op.drop_table('agents')

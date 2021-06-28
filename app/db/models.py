@@ -1,32 +1,23 @@
-from sqlalchemy import Boolean, Column, ForeignKey, Integer, String, JSON
-from sqlalchemy.orm import relationship
+import sqlalchemy
 
-from .database import Base
-
-
-class Company(Base):
-    __tablename__ = "companies"
-
-    id = Column(Integer, primary_key=True, index=True)
-    label = Column(String, index=True)
-    users = relationship("User", back_populates="company")
+from .database import metadata
 
 
-class User(Base):
-    __tablename__ = "users"
+users = sqlalchemy.Table(
+    "users",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.String, primary_key=True),
+    sqlalchemy.Column("username", sqlalchemy.String, unique=True, index=True),
+    sqlalchemy.Column("hashed_password", sqlalchemy.String),
+    sqlalchemy.Column("is_active", sqlalchemy.Boolean, default=True)
+)
 
-    id = Column(String, primary_key=True, index=True)
-    username = Column(String, unique=True, index=True)
-    hashed_password = Column(String)
-    is_active = Column(Boolean, default=True)
-    company_id = Column(Integer, ForeignKey("companies.id"))
-    company = relationship("Company", back_populates="users")
 
-
-class Agent(Base):
-    __tablename__ = 'agents'
-
-    id = Column(String, primary_key=True, index=True)
-    did = Column(String, unique=True, index=True)
-    verkey = Column(String, index=True)
-    metadata = Column(JSON)
+agents = sqlalchemy.Table(
+    "agents",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.String, primary_key=True),
+    sqlalchemy.Column("did", sqlalchemy.String, unique=True, index=True),
+    sqlalchemy.Column("verkey", sqlalchemy.String, index=True),
+    sqlalchemy.Column("metadata", sqlalchemy.JSON)
+)
