@@ -29,7 +29,7 @@ def upgrade():
         sa.Column('id', sa.String, primary_key=True, index=True),
         sa.Column('did', sa.String, unique=True, index=True),
         sa.Column('verkey', sa.String, index=True),
-        sa.Column('metadata', sa.JSON)
+        sa.Column('metadata', sa.JSON, nullable=True)
     )
 
 
