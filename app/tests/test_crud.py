@@ -28,3 +28,7 @@ async def test_agent_ops(test_database: Database, random_me: (str, str, str)):
     await ensure_agent_exists(test_database, did, verkey2, metadata)
     agent = await load_agent(test_database, did)
     assert agent['metadata'] == metadata
+    # Check-5: call to ensure_exists don't clear metadata
+    await ensure_agent_exists(test_database, did, verkey2)
+    agent = await load_agent(test_database, did)
+    assert agent['metadata'] == metadata

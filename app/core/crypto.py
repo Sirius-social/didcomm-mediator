@@ -6,7 +6,7 @@ from sirius_sdk.encryption import sign_message, verify_signed_message, pack_mess
     unpack_message, b58_to_bytes, bytes_to_b58
 
 
-class RelayCrypto(AbstractCrypto):
+class MediatorCrypto(AbstractCrypto):
 
     def __init__(self, verkey: str, secret: str):
         self.__verkey: bytes = b58_to_bytes(verkey)

@@ -6,7 +6,7 @@ from sirius_sdk.agent.wallet.abstract.did import AbstractDID
 from app.db.crud import ensure_agent_exists, load_agent
 
 
-class RelayDID(AbstractDID):
+class MediatorDID(AbstractDID):
 
     def __init__(self, db: Database):
         self._db: Database = db
