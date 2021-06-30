@@ -10,7 +10,7 @@ from app.core.websocket_listener import WebsocketListener
 
 router = APIRouter(
     prefix="",
-    tags=["relay"],
+    tags=["mediator"],
 )
 
 
