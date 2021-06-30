@@ -3,7 +3,7 @@ from typing import Any, Optional, List
 from databases import Database
 from sirius_sdk.agent.wallet.abstract.did import AbstractDID
 
-from app.db.models import agents
+from app.db.crud import ensure_agent_exists, load_agent
 
 
 class RelayDID(AbstractDID):
@@ -15,21 +15,26 @@ class RelayDID(AbstractDID):
         raise NotImplemented
 
     async def store_their_did(self, did: str, verkey: str = None) -> None:
-        sql = agents.select().where(agents.c.did == did)
-        rows = await self._db.fetch_all(query=sql)
-        if rows:
-            pass
-        else:
-            sql = agents.update()
+        await ensure_agent_exists(self._db, did, verkey)
 
     async def set_did_metadata(self, did: str, metadata: dict = None) -> None:
-        pass
+        async with self._db.transaction():
+            agent = await load_agent(self._db, did)
+            if agent:
+                verkey = agent['verkey']  # ensure verkey is same
+                await ensure_agent_exists(self._db, did, verkey, metadata)
+            else:
+                raise RuntimeError(f'Unknown agent with did: {did}')
 
     async def list_my_dids_with_meta(self) -> List[Any]:
         raise NotImplemented
 
     async def get_did_metadata(self, did) -> Optional[dict]:
-        pass
+        agent = await load_agent(self._db, did)
+        if agent:
+            return agent['metadata']
+        else:
+            return None
 
     async def key_for_local_did(self, did: str) -> str:
         raise NotImplemented
