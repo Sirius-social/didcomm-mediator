@@ -9,7 +9,7 @@ from .models import agents
 async def ensure_agent_exists(db: Database, did: str, verkey: str, metadata: dict = None):
     agent = await load_agent(db, did)
     if agent:
-        if agent['verkey'] != verkey or agent['metadata'] != metadata:
+        if agent['verkey'] != verkey or (agent['metadata'] != metadata and metadata is not None):
             sql = agents.update().where(agents.c.did == did)
             values = {
                 "verkey": verkey,

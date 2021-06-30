@@ -1,14 +1,14 @@
 import pytest
 from databases import Database
 
-from app.core.did import RelayDID
+from app.core.did import MediatorDID
 
 
 @pytest.mark.asyncio
 async def test_sane(test_database: Database, random_me: (str, str, str)):
     did, verkey, secret = random_me
 
-    obj_under_test = RelayDID(db=test_database)
+    obj_under_test = MediatorDID(db=test_database)
 
     await obj_under_test.store_their_did(did, verkey)
     metadata = {'key1': 'value1', 'key2': 111}
