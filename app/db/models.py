@@ -21,3 +21,14 @@ agents = sqlalchemy.Table(
     sqlalchemy.Column("verkey", sqlalchemy.String, index=True),
     sqlalchemy.Column("metadata", sqlalchemy.JSON, nullable=True)
 )
+
+
+pairwises = sqlalchemy.Table(
+    'pairwises',
+    metadata,
+    sqlalchemy.Column("their_did", sqlalchemy.String, primary_key=True),
+    sqlalchemy.Column("their_verkey", sqlalchemy.String, index=True),
+    sqlalchemy.Column("my_did", sqlalchemy.String, index=True),
+    sqlalchemy.Column("my_verkey", sqlalchemy.String, index=True),
+    sqlalchemy.Column("metadata", sqlalchemy.JSON)
+)

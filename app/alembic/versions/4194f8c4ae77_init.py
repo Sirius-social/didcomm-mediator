@@ -31,8 +31,17 @@ def upgrade():
         sa.Column('verkey', sa.String, index=True),
         sa.Column('metadata', sa.JSON, nullable=True)
     )
+    op.create_table(
+        'pairwises',
+        sa.Column('their_did', sa.String, primary_key=True, index=True),
+        sa.Column('their_verkey', sa.String, index=True),
+        sa.Column('my_did', sa.String, index=True),
+        sa.Column('my_verkey', sa.String, index=True),
+        sa.Column('metadata', sa.JSON, nullable=True)
+    )
 
 
 def downgrade():
     op.drop_table('users')
     op.drop_table('agents')
+    op.drop_table('pairwises')
