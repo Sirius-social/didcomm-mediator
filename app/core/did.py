@@ -1,15 +1,26 @@
 from typing import Any, Optional, List
 
+from databases import Database
 from sirius_sdk.agent.wallet.abstract.did import AbstractDID
+
+from app.db.models import agents
 
 
 class RelayDID(AbstractDID):
+
+    def __init__(self, db: Database):
+        self._db: Database = db
 
     async def create_and_store_my_did(self, did: str = None, seed: str = None, cid: bool = None) -> (str, str):
         raise NotImplemented
 
     async def store_their_did(self, did: str, verkey: str = None) -> None:
-        pass
+        sql = agents.select().where(agents.c.did == did)
+        rows = await self._db.fetch_all(query=sql)
+        if rows:
+            pass
+        else:
+            sql = agents.update()
 
     async def set_did_metadata(self, did: str, metadata: dict = None) -> None:
         pass
@@ -36,10 +47,10 @@ class RelayDID(AbstractDID):
         raise NotImplemented
 
     async def set_key_metadata(self, verkey: str, metadata: dict) -> None:
-        pass
+        raise NotImplemented
 
     async def get_key_metadata(self, verkey: str) -> dict:
-        pass
+        raise NotImplemented
 
     async def set_endpoint_for_did(self, did: str, address: str, transport_key: str) -> None:
         raise NotImplemented
