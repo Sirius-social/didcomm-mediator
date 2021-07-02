@@ -41,7 +41,7 @@ pytime==0.2.1
 requests==2.25.1
 rfc3986==1.5.0
 semver==2.13.0
-sirius-sdk==1.2.7
+sirius-sdk==1.2.8
 six==1.16.0
 sniffio==1.2.0
 sortedcontainers==2.3.0
