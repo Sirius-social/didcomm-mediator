@@ -40,9 +40,16 @@ def upgrade():
         sa.Column('my_verkey', sa.String, index=True),
         sa.Column('metadata', sa.JSON, nullable=True)
     )
+    op.create_table(
+        'endpoints',
+        sa.Column('uid', sa.String, primary_key=True),
+        sa.Column('agent_id', sa.String, index=True, nullable=True),
+        sa.Column('redis_pub_sub', sa.String)
+    )
 
 
 def downgrade():
     op.drop_table('users')
     op.drop_table('agents')
     op.drop_table('pairwises')
+    op.drop_table('endpoints')
