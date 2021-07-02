@@ -33,7 +33,7 @@ TEST_SQLALCHEMY_DATABASE_URL = \
 SEED = os.getenv('SEED')
 assert SEED is not None, 'You must set SEED env variable'
 pub, priv = sirius_sdk.encryption.create_keypair(seed=os.getenv('SEED').encode())
-RELAY_KEYPAIR = sirius_sdk.encryption.bytes_to_b58(pub), sirius_sdk.encryption.ed25519.bytes_to_b58(priv)
+KEYPAIR = sirius_sdk.encryption.bytes_to_b58(pub), sirius_sdk.encryption.ed25519.bytes_to_b58(priv)
 did = sirius_sdk.encryption.did_from_verkey(verkey=pub)
-RELAY_DID = sirius_sdk.encryption.bytes_to_b58(did)
-RELAY_LABEL = os.getenv('LABEL', 'Mediator')
+DID = sirius_sdk.encryption.bytes_to_b58(did)
+MEDIATOR_LABEL = os.getenv('LABEL', 'Mediator')

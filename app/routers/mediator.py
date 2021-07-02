@@ -5,7 +5,7 @@ import sirius_sdk
 from databases import Database
 from fastapi import APIRouter, WebSocket, Request, Depends
 
-from app.settings import RELAY_KEYPAIR, RELAY_DID, RELAY_LABEL
+from app.settings import KEYPAIR, DID, MEDIATOR_LABEL
 from app.core.coprotocols import ClientWebSocketCoProtocol
 from app.core.websocket_listener import WebsocketListener
 from app.db.crud import ensure_agent_exists
@@ -23,7 +23,7 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
     await websocket.accept()
 
     # Wrap parsing and unpacking enc_messages in listener
-    listener = WebsocketListener(ws=websocket, my_keys=RELAY_KEYPAIR)
+    listener = WebsocketListener(ws=websocket, my_keys=KEYPAIR)
     async for event in listener:
 
         if event is None:  # Stop listening: websocket die
@@ -45,13 +45,13 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
             their_vk = inv.recipient_keys[0]
             # Configure AriesRFC 0160 state machine
             state_machine = sirius_sdk.aries_rfc.Invitee(
-                me=sirius_sdk.Pairwise.Me(did=RELAY_DID, verkey=RELAY_KEYPAIR[0]),
+                me=sirius_sdk.Pairwise.Me(did=DID, verkey=KEYPAIR[0]),
                 my_endpoint=sirius_sdk.Endpoint(address='ws://', routing_keys=[]),
                 coprotocol=ClientWebSocketCoProtocol(
-                    ws=websocket, my_keys=RELAY_KEYPAIR, their_verkey=their_vk
+                    ws=websocket, my_keys=KEYPAIR, their_verkey=their_vk
                 )
             )
-            success, p2p = await state_machine.create_connection(invitation=inv, my_label=RELAY_LABEL)
+            success, p2p = await state_machine.create_connection(invitation=inv, my_label=MEDIATOR_LABEL)
             if success:
                 # If all OK, store p2p and metadata info to database
                 await sirius_sdk.PairwiseList.ensure_exists(p2p)

@@ -1,8 +1,9 @@
 import json
 import uuid
 import asyncio
-from typing import Tuple
+from typing import Tuple, Optional
 
+import sirius_sdk
 from fastapi import WebSocket, WebSocketDisconnect
 from sirius_sdk.agent.listener import Event
 from sirius_sdk.messaging import restore_message_instance, Message
@@ -35,6 +36,7 @@ class WebsocketListener:
             '@type': 'did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/sirius_rpc/1.0/event',
             '@id': uuid.uuid4().hex,
         }
+        p2p: Optional[sirius_sdk.Pairwise] = None
         if 'protected' in payload:
             s, sender_vk, recip_vk = unpack_message(
                 enc_message=payload,
@@ -49,13 +51,14 @@ class WebsocketListener:
                 event['message'] = Message(**payload)
             event['recipient_verkey'] = recip_vk
             event['sender_verkey'] = sender_vk
+            p2p = await sirius_sdk.PairwiseList.load_for_verkey(sender_vk)
         else:
             success, msg = restore_message_instance(payload)
             if success:
                 event['message'] = msg
             else:
                 event['message'] = Message(**payload)
-        return Event(**event)
+        return Event(pairwise=p2p, **event)
 
     def __aiter__(self):
         return self

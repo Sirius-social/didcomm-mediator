@@ -12,7 +12,7 @@ from sirius_sdk.messaging import restore_message_instance
 
 from app.main import app
 from app.dependencies import get_db
-from app.settings import RELAY_KEYPAIR
+from app.settings import KEYPAIR
 from app.core.crypto import MediatorCrypto
 from app.db.crud import load_agent
 
@@ -38,7 +38,7 @@ def test_establish_connection(test_database: Database, random_me: (str, str, str
         # Receive answer
         enc_msg = websocket.receive_bytes()
         payload, sender_vk, recip_vk = unpack_message(enc_message=enc_msg, my_verkey=agent_verkey, my_sigkey=agent_secret)
-        assert sender_vk == RELAY_KEYPAIR[0]
+        assert sender_vk == KEYPAIR[0]
         assert recip_vk == agent_verkey
 
         # Check reply is ConnRequest
@@ -77,7 +77,7 @@ def test_establish_connection(test_database: Database, random_me: (str, str, str
 
         # check Pairwise was successfully established
         assert ok and isinstance(ack, sirius_sdk.aries_rfc.Ack)
-        assert sender_vk == RELAY_KEYPAIR[0]
+        assert sender_vk == KEYPAIR[0]
         assert recip_vk == agent_verkey
 
         # Check agent record is stored in database
@@ -90,9 +90,14 @@ def test_establish_connection(test_database: Database, random_me: (str, str, str
 
 
 def test_trust_ping(random_me: (str, str, str)):
+    # Override original database with test one
+    app.dependency_overrides[get_db] = override_get_db
+    override_sirius_sdk()
+
+    # Emulate TrustPing communication
     client = TestClient(app)
     did, verkey, secret = random_me
-    p2p = P2PConnection(my_keys=(verkey, secret), their_verkey=RELAY_KEYPAIR[0])
+    p2p = P2PConnection(my_keys=(verkey, secret), their_verkey=KEYPAIR[0])
     with client.websocket_connect("/") as websocket:
         ping = Ping(response_requested=True)
         packed = p2p.pack(ping)
