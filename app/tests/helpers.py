@@ -40,7 +40,7 @@ async def allocate_test_database():
 
 
 async def override_get_db():
-    """Override original database with test one
+    """Override original database with test one in App routers dependency injections
     """
     test_database = databases.Database(TEST_SQLALCHEMY_DATABASE_URL)
     await test_database.connect()
