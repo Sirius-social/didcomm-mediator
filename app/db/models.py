@@ -19,7 +19,8 @@ agents = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.String, primary_key=True),
     sqlalchemy.Column("did", sqlalchemy.String, unique=True, index=True),
     sqlalchemy.Column("verkey", sqlalchemy.String, index=True),
-    sqlalchemy.Column("metadata", sqlalchemy.JSON, nullable=True)
+    sqlalchemy.Column("metadata", sqlalchemy.JSON, nullable=True),
+    sqlalchemy.Column("fcm_device_id", sqlalchemy.String, nullable=True, index=True)
 )
 
 
