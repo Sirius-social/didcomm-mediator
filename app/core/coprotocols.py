@@ -3,7 +3,7 @@ from typing import Tuple, Optional
 
 from sirius_sdk import AbstractP2PCoProtocol
 from sirius_sdk.encryption.ed25519 import pack_message, unpack_message
-from sirius_sdk.messaging import Message
+from sirius_sdk.messaging import Message, restore_message_instance
 from starlette.websockets import WebSocket as FastAPIWebSocket
 
 
@@ -31,8 +31,12 @@ class ClientWebSocketCoProtocol(AbstractP2PCoProtocol):
             my_verkey=self.__my_keys[0],
             my_sigkey=self.__my_keys[1]
         )
-        message = json.loads(message)
-        return Message(**message), sender_vk, recip_vk
+        payload = json.loads(message)
+        success, msg = restore_message_instance(payload)
+        if success:
+            return msg, sender_vk, recip_vk
+        else:
+            return Message(**payload), sender_vk, recip_vk
 
     async def switch(self, message: Message) -> (bool, Message):
         await self.send(message)

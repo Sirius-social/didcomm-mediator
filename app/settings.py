@@ -22,7 +22,7 @@ assert DATABASE_USER is not None, 'You must set DATABASE_USER env variable'
 DATABASE_PASSWORD = os.getenv('DATABASE_PASSWORD')
 assert DATABASE_PASSWORD is not None, 'You must set DATABASE_PASSWORD env variable'
 DATABASE_PORT = int(os.getenv('DATABASE_PORT', 5432))
-TEST_DATABASE_NAME = 'test'
+TEST_DATABASE_NAME = 'test_database'
 
 SQLALCHEMY_DATABASE_URL = \
     f"postgresql://{DATABASE_USER}:{DATABASE_PASSWORD}@{DATABASE_HOST}:{DATABASE_PORT}/{DATABASE_NAME}"
@@ -36,3 +36,4 @@ pub, priv = sirius_sdk.encryption.create_keypair(seed=os.getenv('SEED').encode()
 RELAY_KEYPAIR = sirius_sdk.encryption.bytes_to_b58(pub), sirius_sdk.encryption.ed25519.bytes_to_b58(priv)
 did = sirius_sdk.encryption.did_from_verkey(verkey=pub)
 RELAY_DID = sirius_sdk.encryption.bytes_to_b58(did)
+RELAY_LABEL = os.getenv('LABEL', 'Mediator')

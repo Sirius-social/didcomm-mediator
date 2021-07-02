@@ -19,7 +19,7 @@ async def test_sane(test_database: Database, random_me: (str, str, str), random_
         metadata=dict(test='test-value')
     )
 
-    obj_under_test = MediatorPairwiseList(test_database, did=MediatorDID(test_database))
+    obj_under_test = MediatorPairwiseList(test_database)
 
     lst1 = []
     async for i in obj_under_test.enumerate():

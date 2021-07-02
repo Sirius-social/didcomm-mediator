@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from typing import List, Optional
 
 from sirius_sdk import Pairwise
@@ -10,40 +11,43 @@ from .did import MediatorDID
 
 class MediatorPairwiseList(AbstractPairwiseList):
 
-    def __init__(self, db: Database, did: MediatorDID):
+    def __init__(self, db: Database):
         self._db: Database = db
-        self._did = did
+        self._did = MediatorDID(db)
 
     async def create(self, pairwise: Pairwise):
-        await self._did.store_their_did(did=pairwise.their.did, verkey=pairwise.their.verkey)
-        metadata = pairwise.metadata or {}
-        metadata.update(self._build_metadata(pairwise))
-        sql = pairwises.insert()
-        values = {
-            "their_did": pairwise.their.did,
-            "their_verkey": pairwise.their.verkey,
-            "my_did": pairwise.me.did,
-            "my_verkey": pairwise.me.verkey,
-            "metadata": metadata
-        }
-        await self._db.execute(query=sql, values=values)
+        async with self.get_db_connection_lazy() as db:
+            await self._did.store_their_did(did=pairwise.their.did, verkey=pairwise.their.verkey)
+            metadata = pairwise.metadata or {}
+            metadata.update(self._build_metadata(pairwise))
+            sql = pairwises.insert()
+            values = {
+                "their_did": pairwise.their.did,
+                "their_verkey": pairwise.their.verkey,
+                "my_did": pairwise.me.did,
+                "my_verkey": pairwise.me.verkey,
+                "metadata": metadata
+            }
+            await db.execute(query=sql, values=values)
 
     async def update(self, pairwise: Pairwise):
-        metadata = pairwise.metadata or {}
-        metadata.update(self._build_metadata(pairwise))
-        sql = pairwises.update().where(pairwises.c.their_did == pairwise.their.did)
-        values = {
-            "their_verkey": pairwise.their.verkey,
-            "my_did": pairwise.me.did,
-            "my_verkey": pairwise.me.verkey,
-            "metadata": metadata
-        }
-        await self._db.execute(query=sql, values=values)
+        async with self.get_db_connection_lazy() as db:
+            metadata = pairwise.metadata or {}
+            metadata.update(self._build_metadata(pairwise))
+            sql = pairwises.update().where(pairwises.c.their_did == pairwise.their.did)
+            values = {
+                "their_verkey": pairwise.their.verkey,
+                "my_did": pairwise.me.did,
+                "my_verkey": pairwise.me.verkey,
+                "metadata": metadata
+            }
+            await db.execute(query=sql, values=values)
 
     async def is_exists(self, their_did: str) -> bool:
-        sql = pairwises.select().where(pairwises.c.their_did == their_did)
-        row = await self._db.fetch_one(query=sql)
-        return row is not None
+        async with self.get_db_connection_lazy() as db:
+            sql = pairwises.select().where(pairwises.c.their_did == their_did)
+            row = await db.fetch_one(query=sql)
+            return row is not None
 
     async def ensure_exists(self, pairwise: Pairwise):
         if await self.is_exists(their_did=pairwise.their.did):
@@ -52,36 +56,39 @@ class MediatorPairwiseList(AbstractPairwiseList):
             await self.create(pairwise)
 
     async def load_for_did(self, their_did: str) -> Optional[Pairwise]:
-        sql = pairwises.select().where(pairwises.c.their_did == their_did)
-        row = await self._db.fetch_one(query=sql)
-        if row:
-            metadata = row['metadata']
-            pairwise = self._restore_pairwise(metadata)
-            return pairwise
-        else:
-            return None
+        async with self.get_db_connection_lazy() as db:
+            sql = pairwises.select().where(pairwises.c.their_did == their_did)
+            row = await db.fetch_one(query=sql)
+            if row:
+                metadata = row['metadata']
+                pairwise = self._restore_pairwise(metadata)
+                return pairwise
+            else:
+                return None
 
     async def load_for_verkey(self, their_verkey: str) -> Optional[Pairwise]:
-        sql = pairwises.select().where(pairwises.c.their_verkey == their_verkey)
-        row = await self._db.fetch_one(query=sql)
-        if row:
-            metadata = row['metadata']
-            pairwise = self._restore_pairwise(metadata)
-            return pairwise
-        else:
-            return None
+        async with self.get_db_connection_lazy() as db:
+            sql = pairwises.select().where(pairwises.c.their_verkey == their_verkey)
+            row = await db.fetch_one(query=sql)
+            if row:
+                metadata = row['metadata']
+                pairwise = self._restore_pairwise(metadata)
+                return pairwise
+            else:
+                return None
 
     async def _start_loading(self):
         self.__is_loading = True
 
     async def _partial_load(self) -> (bool, List[Pairwise]):
-        if self.__is_loading:
-            sql = pairwises.select()
-            rows = await self._db.fetch_all(query=sql)
-            self.__is_loading = False
-            return True, [self._restore_pairwise(row['metadata']) for row in rows]
-        else:
-            return False, []
+        async with self.get_db_connection_lazy() as db:
+            if self.__is_loading:
+                sql = pairwises.select()
+                rows = await db.fetch_all(query=sql)
+                self.__is_loading = False
+                return True, [self._restore_pairwise(row['metadata']) for row in rows]
+            else:
+                return False, []
 
     async def _stop_loading(self):
         self.__is_loading = False
@@ -126,3 +133,9 @@ class MediatorPairwiseList(AbstractPairwiseList):
             }
         }
         return metadata
+
+    @asynccontextmanager
+    async def get_db_connection_lazy(self):
+        if not self._db.is_connected:
+            await self._db.connect()
+        yield self._db

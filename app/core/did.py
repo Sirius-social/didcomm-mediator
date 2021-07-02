@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from typing import Any, Optional, List
 
 from databases import Database
@@ -15,26 +16,29 @@ class MediatorDID(AbstractDID):
         raise NotImplemented
 
     async def store_their_did(self, did: str, verkey: str = None) -> None:
-        await ensure_agent_exists(self._db, did, verkey)
+        async with self.get_db_connection_lazy() as db:
+            await ensure_agent_exists(db, did, verkey)
 
     async def set_did_metadata(self, did: str, metadata: dict = None) -> None:
-        async with self._db.transaction():
-            agent = await load_agent(self._db, did)
-            if agent:
-                verkey = agent['verkey']  # ensure verkey is same
-                await ensure_agent_exists(self._db, did, verkey, metadata)
-            else:
-                raise RuntimeError(f'Unknown agent with did: {did}')
+        async with self.get_db_connection_lazy() as db:
+            async with db.transaction():
+                agent = await load_agent(self._db, did)
+                if agent:
+                    verkey = agent['verkey']  # ensure verkey is same
+                    await ensure_agent_exists(self._db, did, verkey, metadata)
+                else:
+                    raise RuntimeError(f'Unknown agent with did: {did}')
 
     async def list_my_dids_with_meta(self) -> List[Any]:
         raise NotImplemented
 
     async def get_did_metadata(self, did) -> Optional[dict]:
-        agent = await load_agent(self._db, did)
-        if agent:
-            return agent['metadata']
-        else:
-            return None
+        async with self.get_db_connection_lazy() as db:
+            agent = await load_agent(db, did)
+            if agent:
+                return agent['metadata']
+            else:
+                return None
 
     async def key_for_local_did(self, did: str) -> str:
         raise NotImplemented
@@ -71,3 +75,9 @@ class MediatorDID(AbstractDID):
 
     async def qualify_did(self, did: str, method: str) -> str:
         raise NotImplemented
+
+    @asynccontextmanager
+    async def get_db_connection_lazy(self):
+        if not self._db.is_connected:
+            await self._db.connect()
+        yield self._db

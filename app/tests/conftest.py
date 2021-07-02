@@ -1,11 +1,7 @@
 import pytest
 import sirius_sdk
-import sqlalchemy
-import databases
 
-from app.db.database import database, metadata
-from app.db.models import users, agents, pairwises
-from app.settings import TEST_DATABASE_NAME, TEST_SQLALCHEMY_DATABASE_URL
+from .helpers import allocate_test_database
 
 
 @pytest.fixture()
@@ -36,15 +32,7 @@ def random_their() -> (str, str, str):
 
 @pytest.fixture()
 async def test_database():
-    await database.connect()
-    try:
-        await database.execute(f'drop database if exists {TEST_DATABASE_NAME};')
-        await database.execute(f'create database {TEST_DATABASE_NAME};')
-    finally:
-        await database.disconnect()
-    test_engine = sqlalchemy.create_engine(TEST_SQLALCHEMY_DATABASE_URL)
-    metadata.create_all(test_engine, tables=[users, agents, pairwises])
-    test_database = databases.Database(TEST_SQLALCHEMY_DATABASE_URL)
+    test_database = await allocate_test_database()
     await test_database.connect()
     try:
         yield test_database
