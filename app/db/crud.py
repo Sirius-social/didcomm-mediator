@@ -6,16 +6,19 @@ from databases import Database
 from .models import agents
 
 
-async def ensure_agent_exists(db: Database, did: str, verkey: str, metadata: dict = None):
+async def ensure_agent_exists(db: Database, did: str, verkey: str, metadata: dict = None, fcm_device_id: str = None):
     agent = await load_agent(db, did)
     if agent:
-        if agent['verkey'] != verkey or (agent['metadata'] != metadata and metadata is not None):
+        fields_to_update = {}
+        if agent['verkey'] != verkey:
+            fields_to_update['verkey'] = verkey
+        if metadata is not None and agent['metadata'] != metadata:
+            fields_to_update['metadata'] = metadata
+        if fcm_device_id is not None and agent['fcm_device_id'] != fcm_device_id:
+            fields_to_update['fcm_device_id'] = fcm_device_id
+        if fields_to_update:
             sql = agents.update().where(agents.c.did == did)
-            values = {
-                "verkey": verkey,
-                "metadata": metadata
-            }
-            await db.execute(query=sql, values=values)
+            await db.execute(query=sql, values=fields_to_update)
     else:
         sql = agents.insert()
         values = {
@@ -34,7 +37,8 @@ async def load_agent(db: Database, did: str) -> Optional[dict]:
             'id': row['id'],
             'did': row['did'],
             'verkey': row['verkey'],
-            'metadata': row['metadata']
+            'metadata': row['metadata'],
+            'fcm_device_id': row['fcm_device_id']
         }
     else:
         return None
