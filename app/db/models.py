@@ -39,6 +39,7 @@ endpoints = sqlalchemy.Table(
     'endpoints',
     metadata,
     sqlalchemy.Column("uid", sqlalchemy.String, primary_key=True),
+    sqlalchemy.Column("verkey", sqlalchemy.String, index=True),
     sqlalchemy.Column("agent_id", sqlalchemy.String, index=True, nullable=True),
     sqlalchemy.Column("redis_pub_sub", sqlalchemy.String),
 )

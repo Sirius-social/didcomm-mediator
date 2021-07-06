@@ -43,6 +43,7 @@ def upgrade():
     op.create_table(
         'endpoints',
         sa.Column('uid', sa.String, primary_key=True),
+        sa.Column('verkey', sa.String, index=True),
         sa.Column('agent_id', sa.String, index=True, nullable=True),
         sa.Column('redis_pub_sub', sa.String)
     )
