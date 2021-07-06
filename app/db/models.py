@@ -42,6 +42,7 @@ endpoints = sqlalchemy.Table(
     sqlalchemy.Column("verkey", sqlalchemy.String, index=True),
     sqlalchemy.Column("agent_id", sqlalchemy.String, index=True, nullable=True),
     sqlalchemy.Column("redis_pub_sub", sqlalchemy.String),
+    sqlalchemy.Column("fcm_device_id", sqlalchemy.String, nullable=True, index=True)
 )
 
 

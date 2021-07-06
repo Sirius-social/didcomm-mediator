@@ -45,7 +45,8 @@ def upgrade():
         sa.Column('uid', sa.String, primary_key=True),
         sa.Column('verkey', sa.String, index=True),
         sa.Column('agent_id', sa.String, index=True, nullable=True),
-        sa.Column('redis_pub_sub', sa.String)
+        sa.Column('redis_pub_sub', sa.String),
+        sa.Column('fcm_device_id', sa.String, nullable=True, index=True),
     )
     op.create_table(
         'routing_keys',

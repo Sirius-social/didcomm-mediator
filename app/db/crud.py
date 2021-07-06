@@ -31,7 +31,8 @@ async def ensure_agent_exists(db: Database, did: str, verkey: str, metadata: dic
 
 
 async def ensure_endpoint_exists(
-        db: Database, uid: str, redis_pub_sub: str = None, agent_id: str = None, verkey: str = None
+        db: Database, uid: str, redis_pub_sub: str = None,
+        agent_id: str = None, verkey: str = None, fcm_device_id: str = None
 ):
     endpoint = await load_endpoint(db, uid)
     if endpoint:
@@ -44,6 +45,8 @@ async def ensure_endpoint_exists(
             fields_to_update['redis_pub_sub'] = redis_pub_sub
         if verkey is not None and endpoint['verkey'] != verkey:
             fields_to_update['verkey'] = verkey
+        if fcm_device_id is not None and endpoint['fcm_device_id'] != fcm_device_id:
+            fields_to_update['fcm_device_id'] = fcm_device_id
         if fields_to_update:
             sql = endpoints.update().where(endpoints.c.uid == uid)
             await db.execute(query=sql, values=fields_to_update)
@@ -53,7 +56,8 @@ async def ensure_endpoint_exists(
             "uid": uid,
             "redis_pub_sub": redis_pub_sub,
             "agent_id": agent_id,
-            "verkey": verkey
+            "verkey": verkey,
+            "fcm_device_id": fcm_device_id
         }
         await db.execute(query=sql, values=values)
 
@@ -85,6 +89,15 @@ async def load_agent_via_verkey(db: Database, verkey: str) -> Optional[dict]:
         return None
 
 
+async def load_endpoint_via_verkey(db: Database, verkey: str) -> Optional[dict]:
+    sql = endpoints.select().where(endpoints.c.verkey == verkey)
+    row = await db.fetch_one(query=sql)
+    if row:
+        return _restore_endpoint_from_row(row)
+    else:
+        return None
+
+
 async def add_routing_key(db: Database, endpoint_uid: str, key: str) -> dict:
     sql = routing_keys.insert()
     values = {
@@ -101,7 +114,7 @@ async def add_routing_key(db: Database, endpoint_uid: str, key: str) -> dict:
 
 async def remove_routing_key(db: Database, endpoint_uid: str, key: str):
     sql = routing_keys.delete().where(and_(routing_keys.c.key == key, routing_keys.c.endpoint_uid == endpoint_uid))
-    row = await db.execute(query=sql)
+    await db.execute(query=sql)
 
 
 async def list_routing_key(db: Database, endpoint_uid: str) -> list:
@@ -128,7 +141,8 @@ def _restore_endpoint_from_row(row) -> dict:
         'uid': row['uid'],
         'verkey': row['verkey'],
         'agent_id': row['agent_id'],
-        'redis_pub_sub': row['redis_pub_sub']
+        'redis_pub_sub': row['redis_pub_sub'],
+        'fcm_device_id': row['fcm_device_id']
     }
 
 

@@ -115,6 +115,7 @@ def test_establish_connection(test_database: Database, random_me: (str, str, str
         assert endpoint['redis_pub_sub'] is not None
         assert endpoint['agent_id'] == agent['id']
         assert endpoint['verkey'] == agent_verkey
+        assert endpoint['fcm_device_id'] == random_fcm_device_id
         assert endpoint['uid']
 
 

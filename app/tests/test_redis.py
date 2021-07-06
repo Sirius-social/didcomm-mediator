@@ -88,7 +88,7 @@ async def test_push(test_database: Database, ):
             print(str(e))
 
     fut = asyncio.ensure_future(reader(forward_channel_addr))
-    await asyncio.sleep(1)
+    await asyncio.sleep(3)
 
     push = RedisPush(test_database)
     success = await push.push(

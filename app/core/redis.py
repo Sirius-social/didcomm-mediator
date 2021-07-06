@@ -13,7 +13,7 @@ from databases import Database
 from expiringdict import ExpiringDict
 
 from app.settings import REDIS as REDIS_SERVERS, MEMCACHED as MEMCACHED_SERVER
-from app.db.crud import load_endpoint, ensure_endpoint_exists
+from app.db.crud import load_endpoint
 
 
 class ReadWriteTimeoutError(Exception):
@@ -26,6 +26,10 @@ class RedisConnectionError(Exception):
 
 class NoOneReachableRedisServer(Exception):
     pass
+
+
+PUSH_MSG_TYPE = 'https://didcomm.org/indilynx/1.0/push'
+ACK_MSG_TYPE = 'https://didcomm.org/indilynx/1.0/ack'
 
 
 async def choice_server_address(unwanted: str = None) -> str:
@@ -170,6 +174,7 @@ class RedisPush:
 
     EXPIRE_SEC = 60
     MAX_CHANNELS = 1000
+    REVERSE_FORWARD_CH_EQUAL = True
 
     def __init__(self, db: Database):
         self.__db = db
@@ -195,6 +200,7 @@ class RedisPush:
             if forward_channel:
                 request = {
                     '@id': uuid.uuid4().hex,
+                    '@type': PUSH_MSG_TYPE,
                     'reverse_channel': reverse_channel.address,
                     'expire_at': expire_at.utcnow().timestamp(),
                     'message': message
@@ -207,7 +213,7 @@ class RedisPush:
                             delta = expire_at - datetime.datetime.utcnow()
                             ok, response = await reverse_channel.read(delta.total_seconds())
                             if ok:
-                                if response['@id'] == request['@id']:
+                                if response.get('@type') == ACK_MSG_TYPE and response['@id'] == request['@id']:
                                     return response['status'] is True
                                 else:
                                     logging.warning(f"Expected @id={request['@id']}, Received @id={response['@id']}")
@@ -228,10 +234,13 @@ class RedisPush:
             cached = self.__channels_cache.get(address)
             if cached is None:
                 forward_ch = AsyncRedisChannel(address)
-                reverse_name = hashlib.sha256(address.encode('utf-8')).hexdigest()
-                random_redis_addr = await self.__choice_server_address()
-                reverse_addr = f'{random_redis_addr}/{reverse_name}'
-                reverse_ch = AsyncRedisChannel(reverse_addr)
+                if self.REVERSE_FORWARD_CH_EQUAL:
+                    reverse_ch = forward_ch
+                else:
+                    reverse_name = hashlib.sha256(address.encode('utf-8')).hexdigest()
+                    random_redis_addr = await self.__choice_server_address()
+                    reverse_addr = f'{random_redis_addr}/{reverse_name}'
+                    reverse_ch = AsyncRedisChannel(reverse_addr)
                 self.__channels_cache[address] = (forward_ch, reverse_ch)
                 return forward_ch, reverse_ch
             else:
@@ -241,7 +250,8 @@ class RedisPush:
             return None, None
 
     async def __get_session_channel_address(self, endpoint_id: str, ignore_cache: bool = False) -> Optional[str]:
-        address = await self.__endpoints_cache.get(endpoint_id.encode())
+        addr, _ = await self.__endpoints_cache.get(endpoint_id.encode())
+        address = addr.decode() if addr else None
         if address and ignore_cache:
             await self.__endpoints_cache.delete(endpoint_id.encode())
         if not address or ignore_cache:
@@ -295,6 +305,7 @@ class RedisPull:
             try:
                 success = await channel.write(data={
                     '@id': self.__id,
+                    '@type': ACK_MSG_TYPE,
                     'status': True
                 })
                 return success
@@ -312,21 +323,23 @@ class RedisPull:
             self.__reverse_channels_cache = reverse_channels_cache
 
         async def get_one(self):
-            try:
-                ok, payload = await self.__channel.read(timeout=None)
-                if ok:
-                    request = RedisPull.Request(
-                        id_=payload['@id'],
-                        message=payload['message'],
-                        expire_at=payload['expire_at'],
-                        reverse_channel_addr=payload['reverse_channel'],
-                        reverse_channels_cache=self.__reverse_channels_cache
-                    )
-                    return True, request
-                else:
+            while True:
+                try:
+                    ok, payload = await self.__channel.read(timeout=None)
+                    if ok:
+                        if payload.get('@type') == PUSH_MSG_TYPE:
+                            request = RedisPull.Request(
+                                id_=payload['@id'],
+                                message=payload['message'],
+                                expire_at=payload['expire_at'],
+                                reverse_channel_addr=payload['reverse_channel'],
+                                reverse_channels_cache=self.__reverse_channels_cache
+                            )
+                            return True, request
+                    else:
+                        return False, None
+                except RedisConnectionError:
                     return False, None
-            except RedisConnectionError:
-                return False, None
 
         def __aiter__(self):
             return self

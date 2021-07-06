@@ -13,7 +13,7 @@ from app.settings import KEYPAIR, DID, MEDIATOR_LABEL, FCM_SERVICE_TYPE, MEDIATO
 from app.core.coprotocols import ClientWebSocketCoProtocol
 from app.core.redis import choice_server_address as choice_redis_server_address
 from app.core.websocket_listener import WebsocketListener
-from app.db.crud import ensure_agent_exists, load_agent_via_verkey, ensure_endpoint_exists, load_agent
+from app.db.crud import ensure_agent_exists, load_endpoint_via_verkey, ensure_endpoint_exists, load_agent
 from app.dependencies import get_db
 
 
@@ -108,7 +108,9 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
                 await ensure_endpoint_exists(
                     db=db,
                     uid=endpoint_uid,
-                    agent_id=agent['id']
+                    agent_id=agent['id'],
+                    verkey=p2p.their.verkey,
+                    fcm_device_id=fcm_device_id
                 )
         elif isinstance(event.message, CoordinateMediationMessage):
             # Restore recipient agent context
@@ -116,7 +118,7 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
             if p2p is None:
                 # TODO: raise error and problem_report
                 pass
-            agent = await load_agent_via_verkey(db, p2p.their.verkey)
+            router_endpoint = await load_endpoint_via_verkey(db, p2p.their.verkey)
             # Agent manage mediation services and endpoints
             if isinstance(event.message, MediateRequest):
                 ''' Request from the recipient to the mediator, asking for the permission (and routing information) to 
@@ -124,12 +126,19 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
                     
                 Details: https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination#mediation-request'''
                 resp = MediateGrant(
-                    endpoint=urljoin(WEBROOT, agent['id']),
+                    endpoint=urljoin(WEBROOT, router_endpoint['uid']),
                     routing_keys=[]
                 )
                 await listener.response(for_event=event, message=resp)
+            elif isinstance(event.message, KeylistUpdate):
+                req: KeylistUpdate = event.message
+                for upd in req['updates']:
+                    if upd['action'] == 'add':
+                        pass
+                    elif upd['action'] == 'remove':
+                        pass
 
 
-@router.post('/{{endpoint_id}}')
-async def endpoint(request: Request, endpoint_id: str):
+@router.post('/{{endpoint_uid}}')
+async def endpoint(request: Request, endpoint_uid: str):
     pass
