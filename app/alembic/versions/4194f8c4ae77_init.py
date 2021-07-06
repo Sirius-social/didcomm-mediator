@@ -47,6 +47,12 @@ def upgrade():
         sa.Column('agent_id', sa.String, index=True, nullable=True),
         sa.Column('redis_pub_sub', sa.String)
     )
+    op.create_table(
+        'routing_keys',
+        sa.Column('id', sa.INTEGER, primary_key=True, autoincrement=True),
+        sa.Column('key', sa.String, index=True),
+        sa.Column('endpoint_uid', sa.String, index=True),
+    )
 
 
 def downgrade():
@@ -54,3 +60,4 @@ def downgrade():
     op.drop_table('agents')
     op.drop_table('pairwises')
     op.drop_table('endpoints')
+    op.drop_table('routing_keys')

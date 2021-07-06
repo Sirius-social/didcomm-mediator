@@ -1,7 +1,6 @@
 import json
 import logging
 import hashlib
-from random import choice
 from urllib.parse import urljoin
 
 import sirius_sdk
@@ -12,6 +11,7 @@ from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.mess
 
 from app.settings import KEYPAIR, DID, MEDIATOR_LABEL, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE, WEBROOT, REDIS
 from app.core.coprotocols import ClientWebSocketCoProtocol
+from app.core.redis import choice_server_address as choice_redis_server_address
 from app.core.websocket_listener import WebsocketListener
 from app.db.crud import ensure_agent_exists, load_agent_via_verkey, ensure_endpoint_exists, load_agent
 from app.dependencies import get_db
@@ -61,6 +61,7 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
                     ws=websocket, my_keys=KEYPAIR, their_verkey=their_vk
                 )
             )
+            # Declare MediatorService endpoint via DIDDoc
             did_doc = ConnProtocolMessage.build_did_doc(did=DID, verkey=KEYPAIR[0], endpoint=WS_ENDPOINT)
             did_doc_extra = {'service': did_doc['service']}
             mediator_service_endpoint = WEBROOT
@@ -77,12 +78,15 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
                 "recipientKeys": [],
                 "serviceEndpoint": mediator_service_endpoint,
             })
-            redis_server = choice(REDIS)
+            # configure redis pubsub infrastructure for endpoint
+            redis_server = await choice_redis_server_address()
             await ensure_endpoint_exists(
                 db=db,
                 uid=endpoint_uid,
-                redis_pub_sub=f'redis://{redis_server}/{endpoint_uid}'
+                redis_pub_sub=f'redis://{redis_server}/{endpoint_uid}',
+                verkey=their_vk
             )
+            # Run AriesRFC-0160 state-machine
             success, p2p = await state_machine.create_connection(
                 invitation=inv, my_label=MEDIATOR_LABEL, did_doc=did_doc_extra
             )

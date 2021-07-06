@@ -3,7 +3,7 @@ import uuid
 import pytest
 from databases import Database
 
-from app.db.crud import ensure_agent_exists, load_agent, load_agent_via_verkey, ensure_endpoint_exists, load_endpoint
+from app.db.crud import *
 
 
 @pytest.mark.asyncio
@@ -46,13 +46,15 @@ async def test_agent_ops(test_database: Database, random_me: (str, str, str), ra
 @pytest.mark.asyncio
 async def test_endpoints_ops(test_database: Database, random_redis_pub_sub: str):
     uid = uuid.uuid4().hex
-    await ensure_endpoint_exists(test_database, uid, random_redis_pub_sub)
+    verkey = 'VERKEY'
+    await ensure_endpoint_exists(test_database, uid, random_redis_pub_sub, verkey=verkey)
     # Check-1: ensure endpoint is stored in db
     endpoint = await load_endpoint(test_database, uid)
     assert endpoint is not None
     assert endpoint['uid'] == uid
     assert endpoint['agent_id'] is None
     assert endpoint['redis_pub_sub'] == random_redis_pub_sub
+    assert endpoint['verkey'] == verkey
     # Check-2: set agent_id
     agent_id = uuid.uuid4().hex
     await ensure_endpoint_exists(test_database, uid, agent_id=agent_id)
@@ -61,4 +63,40 @@ async def test_endpoints_ops(test_database: Database, random_redis_pub_sub: str)
     assert endpoint['uid'] == uid
     assert endpoint['agent_id'] == agent_id
     assert endpoint['redis_pub_sub'] == random_redis_pub_sub
+    assert endpoint['verkey'] == verkey
+    # Check-3: set verkey
+    new_verkey = 'VERKEY2'
+    await ensure_endpoint_exists(test_database, uid, verkey=new_verkey)
+    endpoint = await load_endpoint(test_database, uid)
+    assert endpoint is not None
+    assert endpoint['uid'] == uid
+    assert endpoint['agent_id'] == agent_id
+    assert endpoint['redis_pub_sub'] == random_redis_pub_sub
+    assert endpoint['verkey'] == new_verkey
 
+
+@pytest.mark.asyncio
+async def test_routing_keys_ops(test_database: Database, random_endpoint_uid: str):
+    # Check-1: add routing key
+    key1 = f'{uuid.uuid4().hex}'
+    added = await add_routing_key(test_database, random_endpoint_uid, key1)
+    assert added['endpoint_uid'] == random_endpoint_uid
+    assert added['key'] == key1
+    assert added['id']
+    # Check-2: add routing key
+    key2 = f'{uuid.uuid4().hex}'
+    added = await add_routing_key(test_database, random_endpoint_uid, key2)
+    assert added['endpoint_uid'] == random_endpoint_uid
+    assert added['key'] == key2
+    assert added['id']
+    # Check-3: list keys
+    collection = await list_routing_key(test_database, random_endpoint_uid)
+    assert len(collection) == 2
+    assert collection[0]['id'] == 1
+    assert collection[0]['key'] == key1
+    assert collection[1]['id'] == 2
+    assert collection[1]['key'] == key2
+    # Check-4: remove key
+    await remove_routing_key(test_database, random_endpoint_uid, key1)
+    collection = await list_routing_key(test_database, random_endpoint_uid)
+    assert len(collection) == 1

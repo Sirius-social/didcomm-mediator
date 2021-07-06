@@ -43,6 +43,11 @@ def random_redis_pub_sub() -> str:
 
 
 @pytest.fixture()
+def random_endpoint_uid() -> str:
+    return uuid.uuid4().hex
+
+
+@pytest.fixture()
 async def test_database():
     test_database = await allocate_test_database()
     await test_database.connect()

@@ -5,7 +5,7 @@ import databases
 from databases import Database
 
 from app.db.database import database, metadata
-from app.db.models import users, agents, pairwises, endpoints
+from app.db.models import users, agents, pairwises, endpoints, routing_keys
 from app.settings import TEST_DATABASE_NAME, TEST_SQLALCHEMY_DATABASE_URL
 from app.core.did import MediatorDID
 from app.core.crypto import MediatorCrypto
@@ -38,7 +38,7 @@ async def allocate_test_database():
         await database.disconnect()
     # Allocate engine & create all tables/indexes/etc.
     test_engine = sqlalchemy.create_engine(TEST_SQLALCHEMY_DATABASE_URL)
-    metadata.create_all(test_engine, tables=[users, agents, pairwises, endpoints])
+    metadata.create_all(test_engine, tables=[users, agents, pairwises, endpoints, routing_keys])
     test_database = databases.Database(TEST_SQLALCHEMY_DATABASE_URL)
     return test_database
 

@@ -114,6 +114,8 @@ def test_establish_connection(test_database: Database, random_me: (str, str, str
         assert endpoint is not None
         assert endpoint['redis_pub_sub'] is not None
         assert endpoint['agent_id'] == agent['id']
+        assert endpoint['verkey'] == agent_verkey
+        assert endpoint['uid']
 
 
 def test_trust_ping(random_me: (str, str, str)):
