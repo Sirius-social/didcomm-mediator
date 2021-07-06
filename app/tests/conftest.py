@@ -1,3 +1,5 @@
+import uuid
+
 import pytest
 import sirius_sdk
 
@@ -28,6 +30,16 @@ def random_their() -> (str, str, str):
     did = sirius_sdk.encryption.did_from_verkey(pub_key)
     return sirius_sdk.encryption.bytes_to_b58(did), sirius_sdk.encryption.bytes_to_b58(pub_key), \
            sirius_sdk.encryption.bytes_to_b58(priv_key)
+
+
+@pytest.fixture()
+def random_fcm_device_id() -> str:
+    return uuid.uuid4().hex
+
+
+@pytest.fixture()
+def random_redis_pub_sub() -> str:
+    return f'redis://redis1/{uuid.uuid4().hex}'
 
 
 @pytest.fixture()

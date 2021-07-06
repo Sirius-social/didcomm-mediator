@@ -7,10 +7,15 @@ from fastapi.templating import Jinja2Templates
 templates = Jinja2Templates(directory="templates")
 
 
+MEMCACHED = os.environ.get('MEMCACHED')
+assert MEMCACHED is not None, 'You must set MEMCACHED env variable that specify memcached server address'
+
 REDIS = os.environ.get('REDIS')
-assert REDIS is not None, 'You must set REDIS env variable'
+assert REDIS is not None, 'You must set REDIS env variable, for example: "address1,address2"'
 REDIS = REDIS.split(',')
 
+WEBROOT = os.environ.get('WEBROOT')
+assert REDIS is not None, 'You must set WEBROOT env variable, for example: "https://myserver.com"'
 
 # Postgres
 DATABASE_HOST = os.getenv('DATABASE_HOST')
@@ -37,3 +42,7 @@ KEYPAIR = sirius_sdk.encryption.bytes_to_b58(pub), sirius_sdk.encryption.ed25519
 did = sirius_sdk.encryption.did_from_verkey(verkey=pub)
 DID = sirius_sdk.encryption.bytes_to_b58(did)
 MEDIATOR_LABEL = os.getenv('LABEL', 'Mediator')
+
+
+FCM_SERVICE_TYPE = 'FCMService'
+MEDIATOR_SERVICE_TYPE = 'MediatorService'

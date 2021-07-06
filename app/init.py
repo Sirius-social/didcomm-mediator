@@ -7,8 +7,11 @@ from app.core.pairwise import MediatorPairwiseList
 from app.settings import KEYPAIR, SQLALCHEMY_DATABASE_URL
 
 
+db = Database(SQLALCHEMY_DATABASE_URL)  # Independent db connection
+
+
 sirius_sdk.init(
     crypto=MediatorCrypto(*KEYPAIR),
-    did=MediatorDID(db=Database(SQLALCHEMY_DATABASE_URL)),  # Independent db connection
-    pairwise_storage=MediatorPairwiseList(db=Database(SQLALCHEMY_DATABASE_URL))  # Independent db connection
+    did=MediatorDID(db=db),
+    pairwise_storage=MediatorPairwiseList(db=db)
 )

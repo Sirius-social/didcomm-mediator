@@ -1,25 +1,32 @@
 import json
 import asyncio
+import hashlib
 from time import sleep
 
 import sirius_sdk
 from databases import Database
 from fastapi.testclient import TestClient
-from sirius_sdk.agent.aries_rfc.feature_0160_connection_protocol.messages import Invitation, ConnRequest, ConnResponse
+from sirius_sdk.agent.aries_rfc.feature_0160_connection_protocol.messages import Invitation, \
+    ConnResponse, ConnProtocolMessage
 from sirius_sdk.encryption import P2PConnection, unpack_message, pack_message
 from sirius_sdk.agent.aries_rfc.feature_0048_trust_ping.messages import Ping
 from sirius_sdk.messaging import restore_message_instance
 
 from app.main import app
 from app.dependencies import get_db
-from app.settings import KEYPAIR
+from app.settings import KEYPAIR, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE
 from app.core.crypto import MediatorCrypto
-from app.db.crud import load_agent
+from app.db.crud import load_agent, load_endpoint
 
 from .helpers import override_sirius_sdk, override_get_db
 
 
-def test_establish_connection(test_database: Database, random_me: (str, str, str)):
+WS_ENDPOINT = 'ws://'
+
+
+def test_establish_connection(test_database: Database, random_me: (str, str, str), random_fcm_device_id: str):
+    """Check step-by step AriesRFC 0160 while agent establish P2P with Mediator
+    """
     # Override original database with test one
     app.dependency_overrides[get_db] = override_get_db
     override_sirius_sdk()
@@ -32,7 +39,7 @@ def test_establish_connection(test_database: Database, random_me: (str, str, str
         """Process 0160 aries protocol"""
 
         # Agent acts as inviter, initialize pairwise
-        invitation = Invitation(label='Agent', recipient_keys=[agent_verkey], endpoint='ws://')
+        invitation = Invitation(label='Agent', recipient_keys=[agent_verkey], endpoint=WS_ENDPOINT)
         websocket.send_bytes(json.dumps(invitation).encode())
 
         # Receive answer
@@ -46,12 +53,25 @@ def test_establish_connection(test_database: Database, random_me: (str, str, str
         assert ok and isinstance(request, sirius_sdk.aries_rfc.ConnRequest)
         request.validate()
         their_did, their_vk, their_endpoint_address, their_routing_keys = request.extract_their_info()
+        services = request.did_doc.get('service', [])
+        assert any([s['type'] == MEDIATOR_SERVICE_TYPE for s in services])
 
         # Build connection response
+        did_doc = ConnProtocolMessage.build_did_doc(agent_did, agent_verkey, WS_ENDPOINT)
+        did_doc_extra = {'service': did_doc['service']}
+        did_doc_extra['service'].append({
+            "id": 'did:peer:' + agent_did + ";indy",
+            "type": FCM_SERVICE_TYPE,
+            "recipientKeys": [],
+            "serviceEndpoint": random_fcm_device_id,
+        })
+        assert 2 == len(did_doc_extra['service'])
+
         response = ConnResponse(
             did=agent_did,
             verkey=agent_verkey,
-            endpoint='ws://',
+            endpoint=WS_ENDPOINT,
+            did_doc_extra=did_doc_extra
         )
         if request.please_ack:
             response.thread_id = request.ack_message_id
@@ -87,9 +107,18 @@ def test_establish_connection(test_database: Database, random_me: (str, str, str
         assert agent['verkey'] == agent_verkey
         assert agent['id'] is not None
         assert agent['metadata'] is not None
+        assert agent['fcm_device_id'] == random_fcm_device_id
+        # Check endpoint exists
+        endpoint_uid = hashlib.sha256(agent_verkey.encode('utf-8')).hexdigest()
+        endpoint = asyncio.get_event_loop().run_until_complete(load_endpoint(test_database, endpoint_uid))
+        assert endpoint is not None
+        assert endpoint['redis_pub_sub'] is not None
+        assert endpoint['agent_id'] == agent['id']
 
 
 def test_trust_ping(random_me: (str, str, str)):
+    """Check TrustPing communication for earlier established P2P
+    """
     # Override original database with test one
     app.dependency_overrides[get_db] = override_get_db
     override_sirius_sdk()
