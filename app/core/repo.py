@@ -21,9 +21,9 @@ class Repo:
     NAMESPACE_ROUTING_KEYS = 'routing_keys'
     MEMCACHED_TIMEOUT = 60
 
-    def __init__(self, db: Database):
+    def __init__(self, db: Database, memcached: aiomemcached.Client = None):
         self.__db = db
-        self.__memcached = aiomemcached.Client(host=MEMCACHED_SERVER, pool_minsize=1)
+        self.__memcached = memcached or aiomemcached.Client(host=MEMCACHED_SERVER, pool_minsize=1)
 
     async def ensure_agent_exists(self, did: str, verkey: str, metadata: dict = None, fcm_device_id: str = None):
         await self._delete_cache(did, namespace=self.NAMESPACE_AGENTS)

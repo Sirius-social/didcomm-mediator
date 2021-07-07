@@ -5,17 +5,18 @@ from urllib.parse import urljoin
 
 import sirius_sdk
 from databases import Database
-from fastapi import APIRouter, WebSocket, Request, Depends
+from fastapi import APIRouter, WebSocket, Request, Depends, HTTPException
 from sirius_sdk.agent.aries_rfc.feature_0160_connection_protocol.messages import ConnProtocolMessage
 from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.messages import *
 
 from app.settings import KEYPAIR, DID, MEDIATOR_LABEL, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE, WEBROOT, REDIS
 from app.core.repo import Repo
+from core.singletons import GlobalMemcachedClient
 from app.core.rfc import extract_key as rfc_extract_key
 from app.core.coprotocols import ClientWebSocketCoProtocol
-from app.core.redis import choice_server_address as choice_redis_server_address
+from app.core.redis import choice_server_address as choice_redis_server_address, RedisPush
 from app.core.websocket_listener import WebsocketListener
-from app.db.crud import ensure_agent_exists, load_endpoint_via_verkey, ensure_endpoint_exists, load_agent
+from app.db.crud import load_endpoint_via_verkey
 from app.dependencies import get_db
 
 
@@ -119,7 +120,7 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
             if p2p is None:
                 # TODO: raise error and problem_report
                 pass
-            router_endpoint = await load_endpoint_via_verkey(db, p2p.their.verkey)
+            router_endpoint = await repo.load_endpoint_via_verkey(p2p.their.verkey)
             # Agent manage mediation services and endpoints
             if isinstance(event.message, MediateRequest):
                 ''' Request from the recipient to the mediator, asking for the permission (and routing information) to 
@@ -165,5 +166,11 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
 
 
 @router.post('/{{endpoint_uid}}')
-async def endpoint(request: Request, endpoint_uid: str):
-    pass
+async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(get_db)):
+    repo = Repo(db=db, memcached=GlobalMemcachedClient.get())
+    pushes = RedisPush(db)
+    data = await repo.load_endpoint(endpoint_uid)
+    if data:
+        await pushes.push(endpoint_uid, {}, ttl=5)
+    else:
+        raise HTTPException(status_code=404, detail='Not Found')
