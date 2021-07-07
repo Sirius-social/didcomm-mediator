@@ -15,7 +15,7 @@ RUN	pip install -r /app/requirements.txt && chmod +x /app/wait-for-it.sh
 
 # Environment
 WORKDIR /app
-ENV PYTHONPATH=/app:$PYTHONPATH
+ENV PYTHONPATH=/:$PYTHONPATH
 EXPOSE 8000
 
 ENV PORT=8000
@@ -50,4 +50,6 @@ HEALTHCHECK --interval=60s --timeout=3s --start-period=30s \
   CMD curl -f http://localhost:$PORT/maintenance/health_check || exit 1
 
 # FIRE!!!
-CMD /app/wait-for-it.sh ${DATABASE_HOST}:${DATABASE_PORT-5432} --timeout=60 && supervisord -c /etc/supervisord.conf
+CMD /app/wait-for-it.sh ${DATABASE_HOST}:${DATABASE_PORT-5432} --timeout=60 && \
+    alembic upgrade head && \
+    supervisord -c /etc/supervisord.conf
