@@ -10,6 +10,8 @@ from sirius_sdk.agent.aries_rfc.feature_0160_connection_protocol.messages import
 from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.messages import *
 
 from app.settings import KEYPAIR, DID, MEDIATOR_LABEL, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE, WEBROOT, REDIS
+from app.core.repo import Repo
+from app.core.rfc import extract_key as rfc_extract_key
 from app.core.coprotocols import ClientWebSocketCoProtocol
 from app.core.redis import choice_server_address as choice_redis_server_address
 from app.core.websocket_listener import WebsocketListener
@@ -29,6 +31,7 @@ WS_ENDPOINT = 'ws://'
 @router.websocket("/")
 async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
     await websocket.accept()
+    repo = Repo(db)
 
     # Wrap parsing and unpacking enc_messages in listener
     listener = WebsocketListener(ws=websocket, my_keys=KEYPAIR)
@@ -80,8 +83,7 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
             })
             # configure redis pubsub infrastructure for endpoint
             redis_server = await choice_redis_server_address()
-            await ensure_endpoint_exists(
-                db=db,
+            await repo.ensure_endpoint_exists(
                 uid=endpoint_uid,
                 redis_pub_sub=f'redis://{redis_server}/{endpoint_uid}',
                 verkey=their_vk
@@ -101,12 +103,11 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
                         if service['type'] == FCM_SERVICE_TYPE:
                             fcm_device_id = service['serviceEndpoint']
                             break
-                await ensure_agent_exists(
-                    db, did=p2p.their.did, verkey=p2p.their.verkey, metadata=p2p.metadata, fcm_device_id=fcm_device_id
+                await repo.ensure_agent_exists(
+                    did=p2p.their.did, verkey=p2p.their.verkey, metadata=p2p.metadata, fcm_device_id=fcm_device_id
                 )
-                agent = await load_agent(db=db, did=p2p.their.did)
-                await ensure_endpoint_exists(
-                    db=db,
+                agent = await repo.load_agent(did=p2p.their.did)
+                await repo.ensure_endpoint_exists(
                     uid=endpoint_uid,
                     agent_id=agent['id'],
                     verkey=p2p.their.verkey,
@@ -132,11 +133,35 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
                 await listener.response(for_event=event, message=resp)
             elif isinstance(event.message, KeylistUpdate):
                 req: KeylistUpdate = event.message
+                updated = []
                 for upd in req['updates']:
                     if upd['action'] == 'add':
-                        pass
+                        key = rfc_extract_key(upd['recipient_key'])
+                        await repo.add_routing_key(router_endpoint['uid'], key)
+                        updated.append(KeylistAddAction(key, result='success'))
                     elif upd['action'] == 'remove':
-                        pass
+                        key = rfc_extract_key(upd['recipient_key'])
+                        await repo.remove_routing_key(router_endpoint['uid'], key)
+                        updated.append(KeylistRemoveAction(key, result='success'))
+                    else:
+                        raise RuntimeError(f"Unexpected action: {upd['action']}")
+                resp = KeylistUpdateResponce(updated=updated)
+                await listener.response(for_event=event, message=resp)
+            elif isinstance(event.message, KeylistQuery):
+                req: KeylistQuery = event.message
+                offset = req.get('paginate', {}).get('offset', None) or 0
+                limit = req.get('paginate', {}).get('limit', None) or 1000000
+                keys = await repo.list_routing_key(router_endpoint['uid'])
+                keys = [k['key'] for k in keys]
+                paged_keys = keys[offset:limit]
+                resp = Keylist(
+                    keys=paged_keys,
+                    count=len(paged_keys),
+                    offset=offset,
+                    remaining=len(keys)-len(paged_keys)-offset
+                )
+                resp['keys'] = [{'recipient_key': f'did:key:{k}'} for k in paged_keys]
+                await listener.response(for_event=event, message=resp)
 
 
 @router.post('/{{endpoint_uid}}')
