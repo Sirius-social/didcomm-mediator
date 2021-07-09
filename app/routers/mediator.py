@@ -174,3 +174,21 @@ async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(g
         await pushes.push(endpoint_uid, {}, ttl=5)
     else:
         raise HTTPException(status_code=404, detail='Not Found')
+
+
+@router.get('/invitation')
+async def invitation():
+    mediator_endpoint = WEBROOT
+    if mediator_endpoint.startswith('https://'):
+        mediator_endpoint = mediator_endpoint.replace('https://', 'wss://')
+    elif mediator_endpoint.startswith('http://'):
+        mediator_endpoint = mediator_endpoint.replace('http://', 'ws://')
+    else:
+        raise RuntimeError('Invalid WEBROOT url')
+    mediator_service_endpoint = urljoin(mediator_endpoint, 'invitation')
+    return sirius_sdk.aries_rfc.Invitation(
+        label=MEDIATOR_LABEL,
+        recipient_keys=[KEYPAIR[0]],
+        endpoint=mediator_service_endpoint,
+        routing_keys=[]
+    )
