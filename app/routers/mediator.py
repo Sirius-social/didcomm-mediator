@@ -16,7 +16,7 @@ from app.core.rfc import extract_key as rfc_extract_key
 from app.core.coprotocols import ClientWebSocketCoProtocol
 from app.core.redis import choice_server_address as choice_redis_server_address, RedisPush
 from app.core.websocket_listener import WebsocketListener
-from app.db.crud import load_endpoint_via_verkey
+from app.utils import build_invitation, build_ws_endpoint_addr
 from app.dependencies import get_db
 
 
@@ -52,21 +52,21 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
             if ping.response_requested:
                 pong = sirius_sdk.aries_rfc.Pong(ping_id=ping.id)
                 await listener.response(for_event=event, message=pong)
-        elif isinstance(event.message, sirius_sdk.aries_rfc.Invitation):
+        elif isinstance(event.message, sirius_sdk.aries_rfc.ConnRequest):
             # Agent was start p2p establish
-            inv: sirius_sdk.aries_rfc.Invitation = event.message
-            their_vk = inv.recipient_keys[0]
-            endpoint_uid = hashlib.sha256(their_vk.encode('utf-8')).hexdigest()
+            request: sirius_sdk.aries_rfc.ConnRequest = event.message
+            endpoint_uid = hashlib.sha256(event.sender_verkey.encode('utf-8')).hexdigest()
             # Configure AriesRFC 0160 state machine
-            state_machine = sirius_sdk.aries_rfc.Invitee(
+            state_machine = sirius_sdk.aries_rfc.Inviter(
                 me=sirius_sdk.Pairwise.Me(did=DID, verkey=KEYPAIR[0]),
-                my_endpoint=sirius_sdk.Endpoint(address='ws://', routing_keys=[]),
+                connection_key=event.recipient_verkey,
+                my_endpoint=sirius_sdk.Endpoint(address=build_ws_endpoint_addr(), routing_keys=[]),
                 coprotocol=ClientWebSocketCoProtocol(
-                    ws=websocket, my_keys=KEYPAIR, their_verkey=their_vk
+                    ws=websocket, my_keys=KEYPAIR, their_verkey=event.sender_verkey
                 )
             )
             # Declare MediatorService endpoint via DIDDoc
-            did_doc = ConnProtocolMessage.build_did_doc(did=DID, verkey=KEYPAIR[0], endpoint=WS_ENDPOINT)
+            did_doc = ConnProtocolMessage.build_did_doc(did=DID, verkey=KEYPAIR[0], endpoint=build_ws_endpoint_addr())
             did_doc_extra = {'service': did_doc['service']}
             mediator_service_endpoint = WEBROOT
             if mediator_service_endpoint.startswith('https://'):
@@ -82,6 +82,8 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
                 "recipientKeys": [],
                 "serviceEndpoint": mediator_service_endpoint,
             })
+            print('$')
+            """
             # configure redis pubsub infrastructure for endpoint
             redis_server = await choice_redis_server_address()
             await repo.ensure_endpoint_exists(
@@ -114,6 +116,7 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
                     verkey=p2p.their.verkey,
                     fcm_device_id=fcm_device_id
                 )
+            """
         elif isinstance(event.message, CoordinateMediationMessage):
             # Restore recipient agent context
             p2p = event.pairwise
@@ -178,17 +181,4 @@ async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(g
 
 @router.get('/invitation')
 async def invitation():
-    mediator_endpoint = WEBROOT
-    if mediator_endpoint.startswith('https://'):
-        mediator_endpoint = mediator_endpoint.replace('https://', 'wss://')
-    elif mediator_endpoint.startswith('http://'):
-        mediator_endpoint = mediator_endpoint.replace('http://', 'ws://')
-    else:
-        raise RuntimeError('Invalid WEBROOT url')
-    mediator_service_endpoint = urljoin(mediator_endpoint, 'invitation')
-    return sirius_sdk.aries_rfc.Invitation(
-        label=MEDIATOR_LABEL,
-        recipient_keys=[KEYPAIR[0]],
-        endpoint=mediator_service_endpoint,
-        routing_keys=[]
-    )
+    return build_invitation()

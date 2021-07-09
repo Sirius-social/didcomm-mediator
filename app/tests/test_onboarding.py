@@ -7,7 +7,7 @@ import sirius_sdk
 from databases import Database
 from fastapi.testclient import TestClient
 from sirius_sdk.agent.aries_rfc.feature_0160_connection_protocol.messages import Invitation, \
-    ConnResponse, ConnProtocolMessage
+    ConnResponse, ConnProtocolMessage, ConnRequest
 from sirius_sdk.encryption import P2PConnection, unpack_message, pack_message
 from sirius_sdk.agent.aries_rfc.feature_0048_trust_ping.messages import Ping
 from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.messages import MediateRequest, \
@@ -18,6 +18,7 @@ from app.main import app
 from app.dependencies import get_db
 from app.settings import KEYPAIR, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE, DID
 from app.core.crypto import MediatorCrypto
+from app.utils import build_invitation
 from app.db.crud import load_agent, load_endpoint
 
 from .helpers import override_sirius_sdk, override_get_db
@@ -41,6 +42,61 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         """Process 0160 aries protocol"""
 
         # Agent acts as inviter, initialize pairwise
+        ok, mediator_invitation = restore_message_instance(build_invitation())
+        assert ok
+        assert isinstance(mediator_invitation, Invitation)
+        mediator_invitation.validate()
+
+        connection_key = mediator_invitation.recipient_keys[0]
+        mediator_endpoint = sirius_sdk.TheirEndpoint(
+            endpoint=mediator_invitation.endpoint,
+            verkey=connection_key
+        )
+
+        # Build connection response
+        did_doc = ConnRequest.build_did_doc(agent_did, agent_verkey, WS_ENDPOINT)
+        did_doc_extra = {'service': did_doc['service']}
+        did_doc_extra['service'].append({
+            "id": 'did:peer:' + agent_did + ";indy",
+            "type": FCM_SERVICE_TYPE,
+            "recipientKeys": [],
+            "priority": 1,
+            "serviceEndpoint": random_fcm_device_id,
+        })
+        assert 2 == len(did_doc_extra['service'])
+
+        # Build Connection request
+        request = ConnRequest(
+            label='Test Agent',
+            did=agent_did,
+            verkey=agent_verkey,
+            endpoint=WS_ENDPOINT,
+            did_doc_extra=did_doc
+        )
+
+        # Send signed response to Mediator
+        packed = pack_message(
+            message=json.dumps(request),
+            to_verkeys=[connection_key],
+            from_verkey=agent_verkey,
+            from_sigkey=agent_secret
+        )
+        websocket.send_bytes(packed)
+
+        # Receive answer
+        enc_msg = websocket.receive_bytes()
+        payload, sender_vk, recip_vk = unpack_message(
+            enc_message=enc_msg, my_verkey=agent_verkey, my_sigkey=agent_secret
+        )
+        ok, response = restore_message_instance(json.loads(payload))
+
+        # check Pairwise was successfully established
+        assert ok and isinstance(response, ConnResponse)
+        assert sender_vk == KEYPAIR[0]
+        assert recip_vk == agent_verkey
+
+
+        return
         invitation = Invitation(label='Agent', recipient_keys=[agent_verkey], endpoint=WS_ENDPOINT)
         websocket.send_bytes(json.dumps(invitation).encode())
 
