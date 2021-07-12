@@ -10,6 +10,7 @@ from sirius_sdk.agent.aries_rfc.feature_0160_connection_protocol.messages import
     ConnResponse, ConnProtocolMessage, ConnRequest
 from sirius_sdk.encryption import P2PConnection, unpack_message, pack_message
 from sirius_sdk.agent.aries_rfc.feature_0048_trust_ping.messages import Ping
+from sirius_sdk.agent.aries_rfc.feature_0015_acks.messages import Ack, Status
 from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.messages import MediateRequest, \
     MediateGrant, KeylistUpdate, KeylistUpdateResponce, KeylistAddAction, KeylistRemoveAction, KeylistQuery, Keylist
 from sirius_sdk.messaging import restore_message_instance
@@ -90,74 +91,23 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         )
         ok, response = restore_message_instance(json.loads(payload))
 
-        # check Pairwise was successfully established
+        # Check reply is valid ConnResponse
         assert ok and isinstance(response, ConnResponse)
         assert sender_vk == KEYPAIR[0]
         assert recip_vk == agent_verkey
-
-
-        return
-        invitation = Invitation(label='Agent', recipient_keys=[agent_verkey], endpoint=WS_ENDPOINT)
-        websocket.send_bytes(json.dumps(invitation).encode())
-
-        # Receive answer
-        enc_msg = websocket.receive_bytes()
-        payload, sender_vk, recip_vk = unpack_message(enc_message=enc_msg, my_verkey=agent_verkey, my_sigkey=agent_secret)
-        assert sender_vk == KEYPAIR[0]
-        assert recip_vk == agent_verkey
-
-        # Check reply is ConnRequest
-        ok, request = restore_message_instance(json.loads(payload))
-        assert ok and isinstance(request, sirius_sdk.aries_rfc.ConnRequest)
+        success = asyncio.get_event_loop().run_until_complete(response.verify_connection(sirius_sdk.Crypto))
+        assert success is True
         request.validate()
-        their_did, their_vk, their_endpoint_address, their_routing_keys = request.extract_their_info()
-        services = request.did_doc.get('service', [])
-        assert any([s['type'] == MEDIATOR_SERVICE_TYPE for s in services])
 
-        # Build connection response
-        did_doc = ConnProtocolMessage.build_did_doc(agent_did, agent_verkey, WS_ENDPOINT)
-        did_doc_extra = {'service': did_doc['service']}
-        did_doc_extra['service'].append({
-            "id": 'did:peer:' + agent_did + ";indy",
-            "type": FCM_SERVICE_TYPE,
-            "recipientKeys": [],
-            "priority": 1,
-            "serviceEndpoint": random_fcm_device_id,
-        })
-        assert 2 == len(did_doc_extra['service'])
-
-        response = ConnResponse(
-            did=agent_did,
-            verkey=agent_verkey,
-            endpoint=WS_ENDPOINT,
-            did_doc_extra=did_doc_extra
-        )
-        if request.please_ack:
-            response.thread_id = request.ack_message_id
-        asyncio.get_event_loop().run_until_complete(response.sign_connection(agent_crypto, agent_verkey))
-        # According 0160 aries_rfc prefer to check connection with Ack messages
-        response.please_ack = True
-
-        # Send signed response to Mediator
+        # Notify connection is OK
+        ack = Ack(thread_id=response.ack_message_id, status=Status.OK)
         packed = pack_message(
-            message=json.dumps(response),
-            to_verkeys=[their_vk],
+            message=json.dumps(ack),
+            to_verkeys=[connection_key],
             from_verkey=agent_verkey,
             from_sigkey=agent_secret
         )
         websocket.send_bytes(packed)
-
-        # Receive answer
-        enc_msg = websocket.receive_bytes()
-        payload, sender_vk, recip_vk = unpack_message(
-            enc_message=enc_msg, my_verkey=agent_verkey, my_sigkey=agent_secret
-        )
-        ok, ack = restore_message_instance(json.loads(payload))
-
-        # check Pairwise was successfully established
-        assert ok and isinstance(ack, sirius_sdk.aries_rfc.Ack)
-        assert sender_vk == KEYPAIR[0]
-        assert recip_vk == agent_verkey
 
         # Check agent record is stored in database
         sleep(3)  # give websocket time to fire db records
@@ -178,6 +128,7 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         assert endpoint['uid']
 
         # !!!!!!! Emulate Route Coordination !!!!!!!
+        their_vk = connection_key
         req = MediateRequest()
         packed = pack_message(
             message=json.dumps(req),

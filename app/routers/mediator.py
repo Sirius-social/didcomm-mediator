@@ -11,7 +11,7 @@ from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.mess
 
 from app.settings import KEYPAIR, DID, MEDIATOR_LABEL, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE, WEBROOT, REDIS
 from app.core.repo import Repo
-from core.singletons import GlobalMemcachedClient
+from app.core.singletons import GlobalMemcachedClient
 from app.core.rfc import extract_key as rfc_extract_key
 from app.core.coprotocols import ClientWebSocketCoProtocol
 from app.core.redis import choice_server_address as choice_redis_server_address, RedisPush
@@ -82,18 +82,17 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
                 "recipientKeys": [],
                 "serviceEndpoint": mediator_service_endpoint,
             })
-            print('$')
-            """
             # configure redis pubsub infrastructure for endpoint
             redis_server = await choice_redis_server_address()
             await repo.ensure_endpoint_exists(
                 uid=endpoint_uid,
                 redis_pub_sub=f'redis://{redis_server}/{endpoint_uid}',
-                verkey=their_vk
+                verkey=event.sender_verkey
             )
             # Run AriesRFC-0160 state-machine
+            print('$')
             success, p2p = await state_machine.create_connection(
-                invitation=inv, my_label=MEDIATOR_LABEL, did_doc=did_doc_extra
+                request=request, did_doc=did_doc_extra
             )
             if success:
                 # If all OK, store p2p and metadata info to database
@@ -116,7 +115,6 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
                     verkey=p2p.their.verkey,
                     fcm_device_id=fcm_device_id
                 )
-            """
         elif isinstance(event.message, CoordinateMediationMessage):
             # Restore recipient agent context
             p2p = event.pairwise
