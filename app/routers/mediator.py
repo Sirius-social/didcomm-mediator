@@ -18,6 +18,8 @@ router = APIRouter(
     tags=["mediator"],
 )
 
+EXPECTED_CONTENT_TYPES = ['application/ssi-agent-wire', 'application/json']
+
 
 @router.websocket(f"/{WS_PATH_PREFIX}")
 async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
@@ -34,6 +36,10 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
 
 @router.post(f'/{ENDPOINTS_PATH_PREFIX}/{{endpoint_uid}}')
 async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(get_db)):
+
+    if request.headers.get('content-type') not in EXPECTED_CONTENT_TYPES:
+        raise HTTPException(status_code=415, detail='Expected content types: %s' % str(EXPECTED_CONTENT_TYPES))
+
     repo = Repo(db=db, memcached=GlobalMemcachedClient.get())
     pushes = RedisPush(db, memcached=GlobalMemcachedClient.get(), channels_cache=GlobalRedisChannelsCache.get())
     endpoint_fields = await repo.load_endpoint(endpoint_uid)

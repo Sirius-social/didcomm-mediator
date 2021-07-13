@@ -29,16 +29,17 @@ from .helpers import override_sirius_sdk, override_get_db
 
 WS_ENDPOINT = 'ws://'
 
+client = TestClient(app)
+app.dependency_overrides[get_db] = override_get_db
+
 
 def test_p2p_protocols(test_database: Database, random_me: (str, str, str), random_fcm_device_id: str):
     """Check step-by step AriesRFC 0160 while agent establish P2P with Mediator
     """
     # Override original database with test one
-    app.dependency_overrides[get_db] = override_get_db
     override_sirius_sdk()
 
     # Emulate websocket
-    client = TestClient(app)
     agent_did, agent_verkey, agent_secret = random_me
     agent_crypto = MediatorCrypto(agent_verkey, agent_secret)
     with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
@@ -237,11 +238,9 @@ def test_trust_ping(random_me: (str, str, str)):
     """Check TrustPing communication for earlier established P2P
     """
     # Override original database with test one
-    app.dependency_overrides[get_db] = override_get_db
     override_sirius_sdk()
 
     # Emulate TrustPing communication
-    client = TestClient(app)
     did, verkey, secret = random_me
     p2p = P2PConnection(my_keys=(verkey, secret), their_verkey=KEYPAIR[0])
     with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
