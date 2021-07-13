@@ -1,8 +1,11 @@
+import json
+from typing import List
+
 from databases import Database
 from fastapi import APIRouter, Request, Depends, HTTPException, WebSocket
 
 from app.core.repo import Repo
-from app.core.singletons import GlobalMemcachedClient
+from app.core.singletons import GlobalMemcachedClient, GlobalRedisChannelsCache
 from app.core.redis import RedisPush
 from app.utils import build_invitation
 from app.dependencies import get_db
@@ -16,14 +19,10 @@ router = APIRouter(
 )
 
 
-WS_ENDPOINT = 'ws://'
-
-
 @router.websocket("/")
 async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
     await websocket.accept()
     repo = Repo(db, memcached=GlobalMemcachedClient.get())
-
     # Parse query params
     endpoint_uid = websocket.query_params.get('endpoint')
 
@@ -36,10 +35,22 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
 @router.post(f'/{ENDPOINTS_PATH_PREFIX}/{{endpoint_uid}}')
 async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(get_db)):
     repo = Repo(db=db, memcached=GlobalMemcachedClient.get())
-    pushes = RedisPush(db)
-    data = await repo.load_endpoint(endpoint_uid)
-    if data:
-        await pushes.push(endpoint_uid, {}, ttl=5)
+    pushes = RedisPush(db, memcached=GlobalMemcachedClient.get(), channels_cache=GlobalRedisChannelsCache.get())
+    endpoint_fields = await repo.load_endpoint(endpoint_uid)
+    payload = b''
+    async for chunk in request.stream():
+        payload += chunk
+    if endpoint_fields:
+        message = json.loads(payload.decode())
+        success = await pushes.push(endpoint_uid, message, ttl=5)
+        if success:
+            return
+        else:
+            fcm_device_id = endpoint_fields.get('fcm_device_id')
+            if fcm_device_id:
+                pass
+            else:
+                raise HTTPException(status_code=410, detail='Recipient is registered but is not active')
     else:
         raise HTTPException(status_code=404, detail='Not Found')
 

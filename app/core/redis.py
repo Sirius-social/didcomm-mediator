@@ -176,10 +176,10 @@ class RedisPush:
     MAX_CHANNELS = 1000
     REVERSE_FORWARD_CH_EQUAL = True
 
-    def __init__(self, db: Database):
+    def __init__(self, db: Database, memcached: aiomemcached.Client = None, channels_cache: ExpiringDict = None):
         self.__db = db
-        self.__endpoints_cache = aiomemcached.Client(host=MEMCACHED_SERVER, pool_maxsize=self.MAX_CHANNELS)
-        self.__channels_cache = ExpiringDict(max_len=self.MAX_CHANNELS, max_age_seconds=self.EXPIRE_SEC)
+        self.__endpoints_cache = memcached or aiomemcached.Client(host=MEMCACHED_SERVER, pool_maxsize=self.MAX_CHANNELS)
+        self.__channels_cache = channels_cache or ExpiringDict(max_len=self.MAX_CHANNELS, max_age_seconds=self.EXPIRE_SEC)
 
     async def push(self, endpoint_id: str, message: dict, ttl: int) -> bool:
         expire_at = datetime.datetime.utcnow() + datetime.timedelta(seconds=ttl)

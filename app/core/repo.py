@@ -1,4 +1,5 @@
 import json
+import logging
 from typing import Union, Optional
 
 import aiomemcached
@@ -119,14 +120,21 @@ class Repo:
             'type': 'obj' if type(value) is dict else 'str',
             'value': json.dumps(value) if type(value) is dict else value
         })
-        await self.__memcached.set(_key.encode(), _value.encode(), exptime=exp_time or self.MEMCACHED_TIMEOUT)
+        try:
+            await self.__memcached.set(_key.encode(), _value.encode(), exptime=exp_time or self.MEMCACHED_TIMEOUT)
+        except Exception as e:
+            logging.exception('MemCached exception')
 
     async def _get_cache(self, key: str, namespace: str = None) -> Optional[Union[dict, str, list]]:
         if namespace:
             _key = f'{namespace}:{key}'
         else:
             _key = key
-        value_b, _ = await self.__memcached.get(_key.encode())
+        try:
+            value_b, _ = await self.__memcached.get(_key.encode())
+        except Exception as e:
+            logging.exception('MemCached exception')
+            return None
         value = value_b.decode() if value_b else None
         if value:
             descr = json.loads(value)
@@ -143,4 +151,7 @@ class Repo:
             _key = f'{namespace}:{key}'
         else:
             _key = key
-        await self.__memcached.delete(_key.encode())
+        try:
+            await self.__memcached.delete(_key.encode())
+        except Exception as e:
+            logging.exception('MemCached exception')

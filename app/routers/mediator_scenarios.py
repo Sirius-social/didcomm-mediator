@@ -1,10 +1,11 @@
+import asyncio
 import hashlib
 import json
 import logging
 from urllib.parse import urljoin
 
 import sirius_sdk
-from fastapi import WebSocket, Request, HTTPException
+from fastapi import WebSocket, Request, HTTPException, WebSocketDisconnect
 from sirius_sdk.agent.aries_rfc.feature_0160_connection_protocol.messages import ConnProtocolMessage
 from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.messages import *
 
@@ -159,12 +160,31 @@ async def onboard(websocket: WebSocket, repo: Repo):
 
 
 async def endpoint_processor(websocket: WebSocket, endpoint_uid: str, repo: Repo):
+
+    async def redis_listener(redis_pub_sub: str):
+        # Read from redis channel in infinite loop
+        pulls = RedisPull()
+        listener = pulls.listen(address=redis_pub_sub)
+        async for not_closed, request in listener:
+            if not_closed:
+                req: RedisPull.Request = request
+                await websocket.send_json(request.message)
+                await req.ack()
+            else:
+                break
+
     data = await repo.load_endpoint(endpoint_uid)
     if data and data.get('redis_pub_sub'):
-        pulls = RedisPull()
-        listener = await pulls.listen(address=data['redis_pub_sub'])
-        async for payload in listener:
-            pass
+        fut = asyncio.ensure_future(redis_listener(data['redis_pub_sub']))
+        try:
+            try:
+                while True:
+                    await websocket.receive_bytes()
+            except WebSocketDisconnect:
+                pass
+        finally:
+            # websocket disconnected
+            fut.cancel()
     else:
         # TODO: problem report
         await websocket.close()
