@@ -146,4 +146,3 @@ async def test_delivery_via_fcm(test_database: Database, random_me: (str, str, s
     assert len(received_fcm_msgs) == 1
     fcm_msg = received_fcm_msgs[0]
     assert fcm_msg == json.loads(content.decode())
-

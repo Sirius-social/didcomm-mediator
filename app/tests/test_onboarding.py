@@ -251,3 +251,24 @@ def test_trust_ping(random_me: (str, str, str)):
         msg = p2p.unpack(enc_message=packed)
         assert 'ping_response' in msg['@type']
         assert msg['~thread']['thid'] == ping.id
+
+
+def test_problem_reports(random_me: (str, str, str), random_their: (str, str, str)):
+    """Validate Problem Reports"""
+
+    # Override original database with test one
+    override_sirius_sdk()
+
+    # Emulate TrustPing communication
+    did, verkey, secret = random_me
+    their_did, their_verkey, their_secret = random_their
+
+    p2p = P2PConnection(my_keys=(verkey, secret), their_verkey=KEYPAIR[0])
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
+        req = MediateRequest()
+        packed = p2p.pack(req)
+        websocket.send_bytes(packed)
+        packed = websocket.receive_bytes()
+        msg = p2p.unpack(enc_message=packed)
+        assert 'problem_report' in msg['@type']
+        assert 'explain' in msg
