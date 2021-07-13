@@ -1,3 +1,4 @@
+import logging
 import os
 
 import sirius_sdk
@@ -45,6 +46,13 @@ KEYPAIR = sirius_sdk.encryption.bytes_to_b58(pub), sirius_sdk.encryption.ed25519
 did = sirius_sdk.encryption.did_from_verkey(verkey=pub)
 DID = sirius_sdk.encryption.bytes_to_b58(did)
 MEDIATOR_LABEL = os.getenv('LABEL', 'Mediator')
+
+FIREBASE_API_KEY = os.getenv('FCM_API_KEY')
+if FIREBASE_API_KEY is None:
+    logging.getLogger().warning('FCM_API_KEY env var not set')
+FIREBASE_SENDER_ID = os.getenv('FCM_SENDER_ID')
+if FIREBASE_API_KEY and FIREBASE_SENDER_ID is None:
+    assert 0, 'You must set FCM_SENDER_ID env variable'
 
 
 FCM_SERVICE_TYPE = 'FCMService'

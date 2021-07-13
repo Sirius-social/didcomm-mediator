@@ -8,6 +8,7 @@ from app.core.repo import Repo
 from app.core.singletons import GlobalMemcachedClient, GlobalRedisChannelsCache
 from app.core.redis import RedisPush
 from app.utils import build_invitation
+from app.core.firebase import FirebaseMessages
 from app.dependencies import get_db
 from app.settings import ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX
 from .mediator_scenarios import onboard as scenario_onboard, endpoint_processor as scenario_endpoint
@@ -54,7 +55,11 @@ async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(g
         else:
             fcm_device_id = endpoint_fields.get('fcm_device_id')
             if fcm_device_id:
-                pass
+                success = await FirebaseMessages.send(device_id=fcm_device_id, msg=message)
+                if success:
+                    return
+                else:
+                    raise HTTPException(status_code=410, detail='Recipient is registered but is not active')
             else:
                 raise HTTPException(status_code=410, detail='Recipient is registered but is not active')
     else:

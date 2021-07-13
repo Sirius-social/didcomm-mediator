@@ -1,5 +1,6 @@
 import asyncio
 import aiomemcached
+
 from expiringdict import ExpiringDict
 
 from app.settings import MEMCACHED as MEMCACHED_SERVER
