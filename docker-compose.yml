@@ -29,6 +29,7 @@ services:
       context: .
     image: "socialsirius/didcomm:${VERSION-dev}"
     environment:
+      - TEAMCITY_VERSION
       - MEMCACHED=memcached
       - REDIS=redis1,redis2
       - DATABASE_HOST=db

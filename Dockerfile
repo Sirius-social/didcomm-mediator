@@ -11,7 +11,7 @@ ENV VERSION ${VERSION}
 
 # Copy project files and install dependencies
 ADD app /app
-RUN	pip install -r /app/requirements.txt && chmod +x /app/wait-for-it.sh
+RUN	pip install -r /app/requirements.txt && chmod +x /app/wait-for-it.sh && chmod +x /app/run_tests.sh
 
 # Environment
 WORKDIR /app
