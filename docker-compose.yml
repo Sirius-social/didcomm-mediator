@@ -14,16 +14,6 @@ services:
   redis2:
     image: redis
 
-  nginx:
-    image: nginx
-    command: [nginx-debug, '-g', 'daemon off;']  # Run nginx in debug mode
-    volumes:
-      - ./nginx/mime.types:/etc/nginx/mime.types:ro
-      - ./nginx/proxy.conf:/etc/nginx/proxy.conf:ro
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    ports:
-      - "80:80"
-
   application:
     build: 
       context: .
@@ -47,4 +37,3 @@ services:
       - memcached
       - redis1
       - redis2
-      - nginx
