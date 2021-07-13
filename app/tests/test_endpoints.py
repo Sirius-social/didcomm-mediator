@@ -10,6 +10,7 @@ from app.main import app
 from app.dependencies import get_db
 from app.utils import build_endpoint_url
 from app.db.crud import ensure_endpoint_exists
+from app.settings import WS_PATH_PREFIX
 
 from .helpers import override_sirius_sdk, override_get_db
 
@@ -32,7 +33,7 @@ def test_delivery_via_websocket(test_database: Database, random_me: (str, str, s
         db=test_database, uid=random_endpoint_uid, redis_pub_sub=redis_pub_sub,
         agent_id=agent_did, verkey=agent_verkey
     ))
-    with client.websocket_connect(f"/?endpoint={random_endpoint_uid}") as websocket:
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}?endpoint={random_endpoint_uid}") as websocket:
         sleep(3)  # give websocket timeout to accept connection
         response = client.post(
             build_endpoint_url(random_endpoint_uid),
@@ -47,8 +48,9 @@ def test_delivery_via_websocket(test_database: Database, random_me: (str, str, s
         # Close websocket
         websocket.close()
         sleep(3)  # give websocket timeout to accept connection
+        url = build_endpoint_url(random_endpoint_uid)
         response = client.post(
-            build_endpoint_url(random_endpoint_uid),
+            url,
             headers={"Content-Type": content_type},
             data=content,
         )

@@ -8,6 +8,7 @@ templates = Jinja2Templates(directory="templates")
 
 
 ENDPOINTS_PATH_PREFIX = 'e'
+WS_PATH_PREFIX = 'ws'
 
 MEMCACHED = os.environ.get('MEMCACHED')
 assert MEMCACHED is not None, 'You must set MEMCACHED env variable that specify memcached server address'

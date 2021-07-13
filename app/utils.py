@@ -2,7 +2,7 @@ from urllib.parse import urljoin
 
 import sirius_sdk
 
-from app.settings import WEBROOT, MEDIATOR_LABEL, KEYPAIR, ENDPOINTS_PATH_PREFIX
+from app.settings import WEBROOT, MEDIATOR_LABEL, KEYPAIR, ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX
 
 
 def build_ws_endpoint_addr() -> str:
@@ -13,6 +13,7 @@ def build_ws_endpoint_addr() -> str:
         mediator_endpoint = mediator_endpoint.replace('http://', 'ws://')
     else:
         raise RuntimeError('Invalid WEBROOT url')
+    mediator_endpoint = urljoin(mediator_endpoint, WS_PATH_PREFIX)
     return mediator_endpoint
 
 

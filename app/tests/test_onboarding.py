@@ -2,6 +2,7 @@ import json
 import asyncio
 import hashlib
 from time import sleep
+from urllib.parse import urlparse
 
 import sirius_sdk
 from databases import Database
@@ -17,7 +18,8 @@ from sirius_sdk.messaging import restore_message_instance
 
 from app.main import app
 from app.dependencies import get_db
-from app.settings import KEYPAIR, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE, DID, ENDPOINTS_PATH_PREFIX
+from app.settings import KEYPAIR, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE, DID, \
+    ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX, WEBROOT
 from app.core.crypto import MediatorCrypto
 from app.utils import build_invitation
 from app.db.crud import load_agent, load_endpoint
@@ -39,7 +41,7 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
     client = TestClient(app)
     agent_did, agent_verkey, agent_secret = random_me
     agent_crypto = MediatorCrypto(agent_verkey, agent_secret)
-    with client.websocket_connect("/") as websocket:
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
         """Process 0160 aries protocol"""
 
         # Agent acts as inviter, initialize pairwise
@@ -108,6 +110,8 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
             assert DID in str(srv)
             if srv['type'] == MEDIATOR_SERVICE_TYPE:
                 assert '?endpoint=' in srv['serviceEndpoint']
+                url_parts = urlparse(srv['serviceEndpoint'])
+                assert url_parts.path.startswith(f'/{WS_PATH_PREFIX}')
 
         # Notify connection is OK
         ack = Ack(thread_id=response.ack_message_id, status=Status.OK)
@@ -240,7 +244,7 @@ def test_trust_ping(random_me: (str, str, str)):
     client = TestClient(app)
     did, verkey, secret = random_me
     p2p = P2PConnection(my_keys=(verkey, secret), their_verkey=KEYPAIR[0])
-    with client.websocket_connect("/") as websocket:
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
         ping = Ping(response_requested=True)
         packed = p2p.pack(ping)
         websocket.send_bytes(packed)

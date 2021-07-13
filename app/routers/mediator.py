@@ -9,7 +9,7 @@ from app.core.singletons import GlobalMemcachedClient, GlobalRedisChannelsCache
 from app.core.redis import RedisPush
 from app.utils import build_invitation
 from app.dependencies import get_db
-from app.settings import ENDPOINTS_PATH_PREFIX
+from app.settings import ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX
 from .mediator_scenarios import onboard as scenario_onboard, endpoint_processor as scenario_endpoint
 
 
@@ -19,7 +19,7 @@ router = APIRouter(
 )
 
 
-@router.websocket("/")
+@router.websocket(f"/{WS_PATH_PREFIX}")
 async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
     await websocket.accept()
     repo = Repo(db, memcached=GlobalMemcachedClient.get())

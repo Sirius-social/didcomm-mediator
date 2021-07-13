@@ -62,13 +62,7 @@ async def onboard(websocket: WebSocket, repo: Repo):
             # Declare MediatorService endpoint via DIDDoc
             did_doc = ConnProtocolMessage.build_did_doc(did=DID, verkey=KEYPAIR[0], endpoint=build_ws_endpoint_addr())
             did_doc_extra = {'service': did_doc['service']}
-            mediator_service_endpoint = WEBROOT
-            if mediator_service_endpoint.startswith('https://'):
-                mediator_service_endpoint = mediator_service_endpoint.replace('https://', 'wss://')
-            elif mediator_service_endpoint.startswith('http://'):
-                mediator_service_endpoint = mediator_service_endpoint.replace('http://', 'ws://')
-            else:
-                raise RuntimeError('Invalid WEBROOT url')
+            mediator_service_endpoint = build_ws_endpoint_addr()
             mediator_service_endpoint = urljoin(mediator_service_endpoint, f'?endpoint={endpoint_uid}')
             did_doc_extra['service'].append({
                 "id": 'did:peer:' + DID + ";indy",
