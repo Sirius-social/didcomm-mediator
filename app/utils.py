@@ -2,7 +2,7 @@ from urllib.parse import urljoin
 
 import sirius_sdk
 
-from app.settings import WEBROOT, MEDIATOR_LABEL, KEYPAIR
+from app.settings import WEBROOT, MEDIATOR_LABEL, KEYPAIR, ENDPOINTS_PATH_PREFIX
 
 
 def build_ws_endpoint_addr() -> str:
@@ -25,3 +25,7 @@ def build_invitation(id_: str = None) -> dict:
         endpoint=build_ws_endpoint_addr(),
         routing_keys=[]
     )
+
+
+def build_endpoint_url(endpoint_uid: str) -> str:
+    return f'/{ENDPOINTS_PATH_PREFIX}/{endpoint_uid}'

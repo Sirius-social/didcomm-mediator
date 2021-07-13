@@ -17,7 +17,7 @@ from sirius_sdk.messaging import restore_message_instance
 
 from app.main import app
 from app.dependencies import get_db
-from app.settings import KEYPAIR, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE, DID
+from app.settings import KEYPAIR, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE, DID, ENDPOINTS_PATH_PREFIX
 from app.core.crypto import MediatorCrypto
 from app.utils import build_invitation
 from app.db.crud import load_agent, load_endpoint
@@ -97,7 +97,17 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         assert recip_vk == agent_verkey
         success = asyncio.get_event_loop().run_until_complete(response.verify_connection(sirius_sdk.Crypto))
         assert success is True
-        request.validate()
+        response.validate()
+
+        # Check mediator endpoints and services
+        mediator_did_doc = response.did_doc
+        mediator_services = mediator_did_doc['service']
+        assert 2 == len(mediator_services)
+        assert any([s['type'] == MEDIATOR_SERVICE_TYPE for s in mediator_services])
+        for srv in mediator_services:
+            assert DID in str(srv)
+            if srv['type'] == MEDIATOR_SERVICE_TYPE:
+                assert '?endpoint=' in srv['serviceEndpoint']
 
         # Notify connection is OK
         ack = Ack(thread_id=response.ack_message_id, status=Status.OK)
@@ -145,6 +155,8 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         ok, grant = restore_message_instance(json.loads(payload))
         assert ok is True and isinstance(grant, MediateGrant)
         assert 'endpoint' in grant.keys()
+        assert f'/{ENDPOINTS_PATH_PREFIX}/' in grant['endpoint']
+        assert ENDPOINTS_PATH_PREFIX
         assert 'routing_keys' in grant.keys()
         # update keys
         key1 = 'z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH'
