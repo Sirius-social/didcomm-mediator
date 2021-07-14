@@ -162,6 +162,7 @@ async def onboard(websocket: WebSocket, repo: Repo):
         except Exception as e:
             report = BasicMessageProblemReport(explain=str(e))
             await listener.response(for_event=event, message=report)
+            logging.exception('Onboarding...')
 
 
 async def endpoint_processor(websocket: WebSocket, endpoint_uid: str, repo: Repo):
