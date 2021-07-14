@@ -7,7 +7,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, WebSocket
 from app.core.repo import Repo
 from app.core.singletons import GlobalMemcachedClient, GlobalRedisChannelsCache
 from app.core.redis import RedisPush
-from app.utils import build_invitation
+from app.utils import build_invitation, extract_content_type
 from app.core.firebase import FirebaseMessages
 from app.dependencies import get_db
 from app.settings import ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX
@@ -38,7 +38,8 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
 @router.post(f'/{ENDPOINTS_PATH_PREFIX}/{{endpoint_uid}}')
 async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(get_db)):
 
-    if request.headers.get('content-type') not in EXPECTED_CONTENT_TYPES:
+    content_type = extract_content_type(request)
+    if content_type not in EXPECTED_CONTENT_TYPES:
         raise HTTPException(status_code=415, detail='Expected content types: %s' % str(EXPECTED_CONTENT_TYPES))
 
     repo = Repo(db=db, memcached=GlobalMemcachedClient.get())

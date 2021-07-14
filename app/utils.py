@@ -1,8 +1,17 @@
 from urllib.parse import urljoin
+from typing import Optional
 
 import sirius_sdk
+from fastapi import Request
 
 from app.settings import WEBROOT, MEDIATOR_LABEL, KEYPAIR, ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX
+
+
+def extract_content_type(request: Request) -> Optional[str]:
+    for header, value in request.headers.items():
+        if header.lower() == 'content-type':
+            return value
+    return None
 
 
 def build_ws_endpoint_addr() -> str:
