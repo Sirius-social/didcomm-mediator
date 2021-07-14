@@ -160,7 +160,7 @@ async def onboard(websocket: WebSocket, repo: Repo):
                     resp['keys'] = [{'recipient_key': f'did:key:{k}'} for k in paged_keys]
                     await listener.response(for_event=event, message=resp)
         except Exception as e:
-            report = BasicMessageProblemReport(explain=str(e))
+            report = BasicMessageProblemReport(problem_code='1', explain=str(e))
             await listener.response(for_event=event, message=report)
             logging.exception('Onboarding...')
 
