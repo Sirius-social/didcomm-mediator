@@ -37,4 +37,7 @@ async def shutdown():
 
 
 if __name__ == '__main__':
-    uvicorn.run('app.main:app', host="0.0.0.0", port=int(os.getenv('PORT')), debug=True, reload=True, workers=1)
+    uvicorn.run(
+        'app.main:app', host="0.0.0.0", port=int(os.getenv('PORT')),
+        debug=True, reload=True, workers=int(os.getenv('WORKERS'))
+    )
