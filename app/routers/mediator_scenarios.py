@@ -80,7 +80,7 @@ async def onboard(websocket: WebSocket, repo: Repo):
                 redis_server = await choice_redis_server_address()
                 await repo.ensure_endpoint_exists(
                     uid=endpoint_uid,
-                    redis_pub_sub=f'redis://{redis_server}/{endpoint_uid}',
+                    redis_pub_sub=f'{redis_server}/{endpoint_uid}',
                     verkey=event.sender_verkey
                 )
                 # Run AriesRFC-0160 state-machine

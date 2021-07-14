@@ -137,6 +137,7 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         endpoint = asyncio.get_event_loop().run_until_complete(load_endpoint(test_database, endpoint_uid))
         assert endpoint is not None
         assert endpoint['redis_pub_sub'] is not None
+        assert endpoint['redis_pub_sub'].count('redis://') == 1, 'Regression test'
         assert endpoint['agent_id'] == agent['id']
         assert endpoint['verkey'] == agent_verkey
         assert endpoint['fcm_device_id'] == random_fcm_device_id
