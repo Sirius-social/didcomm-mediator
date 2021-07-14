@@ -18,6 +18,7 @@ services:
     build: 
       context: .
     image: "socialsirius/didcomm:${VERSION-dev}"
+    command: bash -c "python main.py"
     environment:
       - TEAMCITY_VERSION
       - MEMCACHED=memcached
