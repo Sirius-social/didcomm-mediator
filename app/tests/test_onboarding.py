@@ -22,7 +22,7 @@ from app.settings import KEYPAIR, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE, DID, 
     ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX, WEBROOT
 from app.core.crypto import MediatorCrypto
 from app.utils import build_invitation
-from app.db.crud import load_agent, load_endpoint
+from app.db.crud import load_agent, load_endpoint_via_verkey
 
 from .helpers import override_sirius_sdk, override_get_db
 
@@ -133,8 +133,7 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         assert agent['metadata'] is not None
         assert agent['fcm_device_id'] == random_fcm_device_id
         # Check endpoint exists
-        endpoint_uid = hashlib.sha256(agent_verkey.encode('utf-8')).hexdigest()
-        endpoint = asyncio.get_event_loop().run_until_complete(load_endpoint(test_database, endpoint_uid))
+        endpoint = asyncio.get_event_loop().run_until_complete(load_endpoint_via_verkey(test_database, agent_verkey))
         assert endpoint is not None
         assert endpoint['redis_pub_sub'] is not None
         assert endpoint['redis_pub_sub'].count('redis://') == 1, 'Regression test'
