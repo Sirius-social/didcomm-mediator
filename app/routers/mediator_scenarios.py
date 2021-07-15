@@ -55,7 +55,9 @@ async def onboard(websocket: WebSocket, repo: Repo):
             elif isinstance(event.message, sirius_sdk.aries_rfc.ConnRequest):
                 # Agent was start p2p establish
                 request: sirius_sdk.aries_rfc.ConnRequest = event.message
-                endpoint_uid = hashlib.sha256(event.sender_verkey.encode('utf-8')).hexdigest()
+                request.validate()
+                their_did = request.did_doc['id']
+                endpoint_uid = hashlib.sha256(their_did.encode('utf-8')).hexdigest()
                 # Configure AriesRFC 0160 state machine
                 state_machine = sirius_sdk.aries_rfc.Inviter(
                     me=sirius_sdk.Pairwise.Me(did=DID, verkey=KEYPAIR[0]),

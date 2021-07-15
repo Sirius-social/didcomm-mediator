@@ -273,3 +273,83 @@ def test_problem_reports(random_me: (str, str, str), random_their: (str, str, st
         msg = p2p.unpack(enc_message=packed)
         assert 'problem_report' in msg['@type']
         assert 'explain' in msg
+
+
+def test_same_endpoint_for_different_verkeys(random_me: (str, str, str)):
+    """Check Every time Client change self Verkey, Mediator will not change endpoint
+    """
+    # Override original database with test one
+    override_sirius_sdk()
+
+    # Emulate communication
+    mediator_invitation = build_invitation()
+    did, verkey1, secret1 = random_me
+    verkey2_b, secret2_b = sirius_sdk.encryption.ed25519.create_keypair()
+    verkey2, secret2 = sirius_sdk.encryption.bytes_to_b58(verkey2_b), sirius_sdk.encryption.bytes_to_b58(secret2_b)
+    their_verkey = mediator_invitation['recipientKeys'][0]
+
+    allocated_mediator_endpoints = []  # websocket address for pulling events from endpoint
+    allocated_http_endpoints = []  # granted endpoint
+    _, mediator_invitation = restore_message_instance(build_invitation())
+    their_verkey = mediator_invitation['recipientKeys'][0]
+
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
+        """Process 0160 aries protocol 2 times for every verkey"""
+
+        for verkey, secret in [(verkey1, secret1), (verkey2, secret2)]:
+            # Build Connection request
+            request = ConnRequest(
+                label='Test Agent',
+                did=did,
+                verkey=verkey,
+                endpoint=WS_ENDPOINT,
+            )
+            # Send signed response to Mediator
+            websocket.send_bytes(
+                pack_message(
+                    message=json.dumps(request), to_verkeys=[their_verkey], from_verkey=verkey, from_sigkey=secret
+                )
+            )
+            # Receive answer
+            enc_msg = websocket.receive_bytes()
+            payload, sender_vk, recip_vk = unpack_message(
+                enc_message=enc_msg, my_verkey=verkey, my_sigkey=secret
+            )
+            _, response = restore_message_instance(json.loads(payload))
+
+            # Check mediator endpoints and services
+            success = asyncio.get_event_loop().run_until_complete(response.verify_connection(sirius_sdk.Crypto))
+            assert success is True
+            mediator_services = response.did_doc['service']
+            for service in mediator_services:
+                if service['type'] == MEDIATOR_SERVICE_TYPE:
+                    allocated_mediator_endpoints.append(service['serviceEndpoint'])
+            # Notify connection is OK
+            ack = Ack(thread_id=response.ack_message_id, status=Status.OK)
+            packed = pack_message(
+                message=json.dumps(ack),
+                to_verkeys=[their_verkey],
+                from_verkey=verkey,
+                from_sigkey=secret
+            )
+            websocket.send_bytes(packed)
+            # Store endpoint granted via route-coordination protocol
+            grant_request = MediateRequest()
+            websocket.send_bytes(pack_message(
+                message=json.dumps(grant_request),
+                to_verkeys=[their_verkey],
+                from_verkey=verkey,
+                from_sigkey=secret
+            ))
+            enc_msg = websocket.receive_bytes()
+            payload, sender_vk, recip_vk = unpack_message(
+                enc_message=enc_msg, my_verkey=verkey, my_sigkey=secret
+            )
+            _, grant_response = restore_message_instance(json.loads(payload))
+            allocated_http_endpoints.append(grant_response['endpoint'])
+
+        # Check all values are equal
+        assert len(allocated_mediator_endpoints) == 2
+        assert allocated_mediator_endpoints[0] == allocated_mediator_endpoints[1]
+        assert len(allocated_http_endpoints) == 2
+        assert allocated_http_endpoints[0] == allocated_http_endpoints[1]
