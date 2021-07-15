@@ -51,7 +51,7 @@ async def choice_server_address(unwanted: str = None) -> str:
 
 class AsyncRedisChannel:
 
-    TIMEOUT = 15
+    TIMEOUT = 3
 
     def __init__(self, address: str, loop: asyncio.AbstractEventLoop = None):
         """
@@ -188,10 +188,8 @@ class RedisPush:
                 success = await self.__push_internal(endpoint_id, message, expire_at)
                 return success
             except RedisConnectionError:
-                self.__clean()
-                return False
+                raise
             except ReadWriteTimeoutError:
-                self.__clean()
                 return False
 
     async def __push_internal(self, endpoint_id: str, message, expire_at: datetime) -> bool:
@@ -205,27 +203,24 @@ class RedisPush:
                     'expire_at': expire_at.utcnow().timestamp(),
                     'message': message
                 }
-                try:
+                async with self.__clean_on_disconnect(endpoint_id, forward_channel):
                     success = await forward_channel.write(request)
-                    if success:
-                        # Wait for answer
-                        while datetime.datetime.utcnow() <= expire_at:
-                            delta = expire_at - datetime.datetime.utcnow()
+                if success:
+                    # Wait for answer
+                    while datetime.datetime.utcnow() <= expire_at:
+                        delta = expire_at - datetime.datetime.utcnow()
+                        async with self.__clean_on_disconnect(endpoint_id, forward_channel):
                             ok, response = await reverse_channel.read(delta.total_seconds())
-                            if ok:
-                                if response.get('@type') == ACK_MSG_TYPE and response['@id'] == request['@id']:
-                                    return response['status'] is True
-                                else:
-                                    logging.warning(f"Expected @id={request['@id']}, Received @id={response['@id']}")
+                        if ok:
+                            if response.get('@type') == ACK_MSG_TYPE and response['@id'] == request['@id']:
+                                return response['status'] is True
                             else:
-                                return False
-                        return False
-                    else:
-                        return False
-                except RedisConnectionError:
-                    pass  # next for-in iteration
-                except Exception as e:
-                    raise
+                                logging.warning(f"Expected @id={request['@id']}, Received @id={response['@id']}")
+                        else:
+                            return False
+                    return False
+                else:
+                    return False
         return False
 
     async def __get_channel(self, endpoint_id: str, ignore_cache: bool = False) -> (Optional[AsyncRedisChannel], Optional[AsyncRedisChannel]):
@@ -264,8 +259,15 @@ class RedisPush:
             else:
                 return None
 
-    def __clean(self):
-        self.__channels_cache.clear()
+    @asynccontextmanager
+    async def __clean_on_disconnect(self, endpoint_id: str, channel: AsyncRedisChannel):
+        try:
+            yield
+        except RedisConnectionError:
+            await self.__endpoints_cache.delete(endpoint_id.encode())
+            if channel.address in self.__channels_cache:
+                del self.__channels_cache[channel.address]
+            raise
 
     @staticmethod
     async def __choice_server_address() -> str:

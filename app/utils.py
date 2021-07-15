@@ -39,3 +39,8 @@ def build_invitation(id_: str = None) -> dict:
 
 def build_endpoint_url(endpoint_uid: str) -> str:
     return f'/{ENDPOINTS_PATH_PREFIX}/{endpoint_uid}'
+
+
+def change_redis_server(pub_sub: str, new_redis_server: str) -> str:
+    channel_name = pub_sub.split('/')[-1]
+    return f'{new_redis_server}/{channel_name}'

@@ -6,8 +6,8 @@ from fastapi import APIRouter, Request, Depends, HTTPException, WebSocket
 
 from app.core.repo import Repo
 from app.core.singletons import GlobalMemcachedClient, GlobalRedisChannelsCache
-from app.core.redis import RedisPush
-from app.utils import build_invitation, extract_content_type
+from app.core.redis import RedisPush, RedisConnectionError, choice_server_address
+from app.utils import build_invitation, extract_content_type, change_redis_server
 from app.core.firebase import FirebaseMessages
 from app.dependencies import get_db
 from app.settings import ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX
@@ -50,7 +50,19 @@ async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(g
         payload += chunk
     if endpoint_fields:
         message = json.loads(payload.decode())
-        success = await pushes.push(endpoint_uid, message, ttl=5)
+        try:
+            success = await pushes.push(endpoint_uid, message, ttl=5)
+        except RedisConnectionError:
+            success = False
+            # Try select other redis server
+            try:
+                redis_server = await choice_server_address()
+                unreachable_redis_pub_sub = endpoint_fields['redis_pub_sub']
+                new_redis_pub_sub = change_redis_server(unreachable_redis_pub_sub, redis_server)
+                endpoint_fields['redis_pub_sub'] = new_redis_pub_sub
+                await repo.ensure_endpoint_exists(**endpoint_fields)
+            except:
+                pass  # mute any exception
         if success:
             return
         else:
