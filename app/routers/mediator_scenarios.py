@@ -161,6 +161,9 @@ async def onboard(websocket: WebSocket, repo: Repo):
                     )
                     resp['keys'] = [{'recipient_key': f'did:key:{k}'} for k in paged_keys]
                     await listener.response(for_event=event, message=resp)
+            else:
+                typ = event.message.get('@type')
+                raise RuntimeError(f'Unknown protocl message with @type: "{typ}"')
         except Exception as e:
             report = BasicMessageProblemReport(problem_code='1', explain=str(e))
             await listener.response(for_event=event, message=report)
@@ -172,12 +175,19 @@ async def endpoint_processor(websocket: WebSocket, endpoint_uid: str, repo: Repo
     async def redis_listener(redis_pub_sub: str):
         # Read from redis channel in infinite loop
         pulls = RedisPull()
+        logging.debug('\n++++++++++++++++++++++++++++++++++++++++++++++++')
+        logging.debug(f'+++ Redis listener for endpoint_uid: {endpoint_uid}')
+        logging.debug('++++++++++++++++++++++++++++++++++++++++++++++++++')
         listener = pulls.listen(address=redis_pub_sub)
         async for not_closed, request in listener:
+            logging.debug(f'++++++++++++ not_closed: {not_closed}')
             if not_closed:
                 req: RedisPull.Request = request
+                logging.debug('++++++++++++ send message via websocket ')
                 await websocket.send_json(request.message)
+                logging.debug('+++++++++++ message was sent via websocket ')
                 await req.ack()
+                logging.debug('++++++++++ message acked ')
             else:
                 break
 

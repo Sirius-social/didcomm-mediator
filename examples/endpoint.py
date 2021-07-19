@@ -28,22 +28,25 @@ async def listen_websocket(url: str):
 
 async def run(my_did: str, my_verkey: str, my_secret: str):
 
-    # url = 'ws://mediator.socialsirius.com:8000/ws?endpoint=e2afc79cc785801e4fff71ca0314bae8cf9959f37d05c7ca722721acc91530ab'
-    # await listen_websocket(url)
-
     mediator_invitation = sirius_sdk.aries_rfc.Invitation(**HARDCODED_INVITATION)
 
     # Подключаемся по вебсокету
+    print('#1. Connecting to mediator')
+    print('#1.1 Allocate websocket connection...')
     session = aiohttp.ClientSession()
     ws = await session.ws_connect(
         url=HARDCODED_INVITATION['serviceEndpoint']
     )
+    print('#1.2 Websocket connection successfully established')
     try:
         # Настраиваем транспорт, указываем открытый ключ партнера для туннелирования
+        print('#2. Ensure P2P encrypted connection established')
+        print('#2.1 Extract public key (verkey) from Mediator invitation')
         their_verkey = HARDCODED_INVITATION['recipientKeys'][0]
         coprotocol = WebSocketCoProtocol(ws=ws, my_keys=(my_verkey, my_secret), their_verkey=their_verkey)
 
         # Запускаем AriesRFC-0160 Invitee
+        print('#2.2 Start connection protocol to establish P2P')
         state_machine = sirius_sdk.aries_rfc.Invitee(
             me=sirius_sdk.Pairwise.Me(did=my_did, verkey=my_verkey),
             my_endpoint=sirius_sdk.Endpoint(address='ws://', routing_keys=[]),
@@ -75,8 +78,7 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
                                 data=SAMPLE_PACKED_MSG,
                                 headers={'content-type': 'application/ssi-agent-wire'}
                         ) as resp:
-                            print('Response status code:')
-                            print(resp.status)
+                            print(f'Response status code: {resp.status}')
                 finally:
                     device.cancel()
     finally:

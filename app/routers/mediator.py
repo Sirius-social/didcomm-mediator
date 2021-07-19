@@ -46,6 +46,9 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
 @router.post(f'/{ENDPOINTS_PATH_PREFIX}/{{endpoint_uid}}')
 async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(get_db)):
 
+    logging.debug('\n*******************************************************')
+    logging.debug(f'******* Endpoint for endpoint_uid: {endpoint_uid} ******')
+    logging.debug('*********************************************************')
     content_type = extract_content_type(request)
     if content_type not in EXPECTED_CONTENT_TYPES:
         raise HTTPException(status_code=415, detail='Expected content types: %s' % str(EXPECTED_CONTENT_TYPES))
@@ -53,15 +56,21 @@ async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(g
     repo = Repo(db=db, memcached=GlobalMemcachedClient.get())
     pushes = RedisPush(db, memcached=GlobalMemcachedClient.get(), channels_cache=GlobalRedisChannelsCache.get())
     endpoint_fields = await repo.load_endpoint(endpoint_uid)
+
+    logging.debug('endpoint_fields: ' + repr(endpoint_fields))
+
     payload = b''
     async for chunk in request.stream():
         payload += chunk
     if endpoint_fields:
         message = json.loads(payload.decode())
         try:
+            logging.debug('push message to websocket connection')
             success = await pushes.push(endpoint_uid, message, ttl=5)
-        except RedisConnectionError:
+            logging.debug(f'push operation returned success: {success}')
+        except RedisConnectionError as e:
             success = False
+            logging.exception('Error while push message via redis')
             # Try select other redis server
             try:
                 redis_server = await choice_server_address()
@@ -69,14 +78,17 @@ async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(g
                 new_redis_pub_sub = change_redis_server(unreachable_redis_pub_sub, redis_server)
                 endpoint_fields['redis_pub_sub'] = new_redis_pub_sub
                 await repo.ensure_endpoint_exists(**endpoint_fields)
-            except:
+            except Exception as e:
+                logging.exception('Error while reselect redis server')
                 pass  # mute any exception
         if success:
             return
         else:
             fcm_device_id = endpoint_fields.get('fcm_device_id')
             if fcm_device_id and FirebaseMessages.enabled():
+                logging.debug('push message via FCM')
                 success = await FirebaseMessages.send(device_id=fcm_device_id, msg=message)
+                logging.debug(f'push operation returned success: {success}')
                 if success:
                     return
                 else:
