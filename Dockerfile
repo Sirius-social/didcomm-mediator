@@ -42,6 +42,8 @@ strip_ansi = false\n\
 command=python main.py\n\
 directory=/app\n\
 autorestart = true\n\
+stdout_logfile_maxbytes = 0 \n\
+stderr_logfile_maxbytes = 0 \n\
 stdout_logfile=/dev/stdout\n\
 stderr_logfile=/dev/stdout\n"\
 >> /etc/supervisord.conf
