@@ -1,6 +1,7 @@
 import json
 from typing import Any, Optional
 
+import sirius_sdk
 from sirius_sdk.agent.wallet.abstract.crypto import AbstractCrypto
 from sirius_sdk.encryption import sign_message, verify_signed_message, pack_message, \
     unpack_message, b58_to_bytes, bytes_to_b58
@@ -69,3 +70,18 @@ class LocalCrypto(AbstractCrypto):
     def __check_verkey(self, verkey: str):
         if verkey != bytes_to_b58(self.__verkey):
             raise RuntimeError('Only single verkey supported')
+
+
+def create_did_and_keys(seed: str = None) -> (str, str, str):
+    """
+    :param seed: for const seed will be generated const did, verkey, secret
+    :return: did, verkey, secret
+    """
+
+    if seed:
+        seed = seed.encode()
+    v, s = sirius_sdk.encryption.create_keypair(seed)
+    verkey_ = sirius_sdk.encryption.bytes_to_b58(v)
+    secret_ = sirius_sdk.encryption.bytes_to_b58(s)
+    did_ = sirius_sdk.encryption.bytes_to_b58(sirius_sdk.encryption.did_from_verkey(v))
+    return did_, verkey_, secret_

@@ -4,34 +4,10 @@ import aiohttp
 import sirius_sdk
 from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.messages import MediateRequest
 
-from crypto import LocalCrypto
-from did import LocalDID
-from coprotocols import WebSocketCoProtocol
-
-
-HARDCODED_INVITATION = {
-    "@type": "did:sov:BzCbsNYhMrjHiqZDTUASHg;spec/connections/1.0/invitation",
-    "@id": "309c526d-0b27-47e6-a1ec-8b16bb3fd3c7",
-    "label": "Mediator",
-    "recipientKeys": ["DjgWN49cXQ6M6JayBkRCwFsywNhomn8gdAXHJ4bb98im"],
-    "serviceEndpoint": "ws://mediator.socialsirius.com:8000/ws",
-    "routingKeys": []
-}
-
-
-def create_did_and_keys(seed: str = None) -> (str, str, str):
-    """
-    :param seed: for const seed will be generated const did, verkey, secret
-    :return: did, verkey, secret
-    """
-
-    if seed:
-        seed = seed.encode()
-    v, s = sirius_sdk.encryption.create_keypair(seed)
-    verkey_ = sirius_sdk.encryption.bytes_to_b58(v)
-    secret_ = sirius_sdk.encryption.bytes_to_b58(s)
-    did_ = sirius_sdk.encryption.bytes_to_b58(sirius_sdk.encryption.did_from_verkey(v))
-    return did_, verkey_, secret_
+from helpers.common import HARDCODED_INVITATION
+from helpers.crypto import LocalCrypto, create_did_and_keys
+from helpers.did import LocalDID
+from helpers.coprotocols import WebSocketCoProtocol
 
 
 async def run(my_did: str, my_verkey: str, my_secret: str):
@@ -88,13 +64,13 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
         print('#1')
         success, report = await alien_coprotocol.switch(mediate_request)
         print('#2')
-    print('#')
+    print('Bye!')
 
 
 if __name__ == '__main__':
     # Создаем ключи
-    my_did, my_verkey, my_secret = create_did_and_keys(seed='0000000000000000000000000EXAMPLE')
+    my_did_, my_verkey_, my_secret_ = create_did_and_keys(seed='0000000000000000000000000EXAMPLE')
     # Инициализируем SDK, для простоты переопределим Crypto и DID, чтобы SDK не обращался к агентам
-    sirius_sdk.init(crypto=LocalCrypto(my_verkey, my_secret), did=LocalDID())
+    sirius_sdk.init(crypto=LocalCrypto(my_verkey_, my_secret_), did=LocalDID())
     # Запускаем тест
-    asyncio.get_event_loop().run_until_complete(run(my_did, my_verkey, my_secret))
+    asyncio.get_event_loop().run_until_complete(run(my_did_, my_verkey_, my_secret_))
