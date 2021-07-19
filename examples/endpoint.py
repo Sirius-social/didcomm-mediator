@@ -7,6 +7,7 @@ from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.mess
 from helpers.common import HARDCODED_INVITATION
 from helpers.crypto import LocalCrypto, create_did_and_keys
 from helpers.did import LocalDID
+from helpers.fixtures import SAMPLE_PACKED_MSG
 from helpers.coprotocols import WebSocketCoProtocol
 
 
@@ -27,8 +28,8 @@ async def listen_websocket(url: str):
 
 async def run(my_did: str, my_verkey: str, my_secret: str):
 
-    url = 'ws://mediator.socialsirius.com:8000/ws?endpoint=e2afc79cc785801e4fff71ca0314bae8cf9959f37d05c7ca722721acc91530ab'
-    await listen_websocket(url)
+    # url = 'ws://mediator.socialsirius.com:8000/ws?endpoint=e2afc79cc785801e4fff71ca0314bae8cf9959f37d05c7ca722721acc91530ab'
+    # await listen_websocket(url)
 
     mediator_invitation = sirius_sdk.aries_rfc.Invitation(**HARDCODED_INVITATION)
 
@@ -63,10 +64,19 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
                 print('My Http Endpoint: ' + mediate_grant['endpoint'])
                 print('Websocket to pull events: ' + mediator_service['serviceEndpoint'])
                 # Эмулируем в независимой нитке device
-                device = asyncio.ensure_future(listen_websocket(url=mediator_service['serviceEndpoint'] + '1'))
+                device = asyncio.ensure_future(listen_websocket(url=mediator_service['serviceEndpoint']))
                 try:
                     # give some time for server to accept connection
                     await asyncio.sleep(3)
+                    print('Send binary data to endpoint')
+                    async with aiohttp.ClientSession() as session:
+                        async with session.post(
+                                url=mediate_grant['endpoint'],
+                                data=SAMPLE_PACKED_MSG,
+                                headers={'content-type': 'application/ssi-agent-wire'}
+                        ) as resp:
+                            print('Response status code:')
+                            print(resp.status)
                 finally:
                     device.cancel()
     finally:
