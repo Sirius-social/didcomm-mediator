@@ -11,6 +11,10 @@ class FirebaseMessages:
 
     __instances = {}
     MAX_CONNECTIONS = 1000
+    
+    @classmethod
+    def enabled(cls) -> bool:
+        return FIREBASE_API_KEY is not None
 
     @classmethod
     async def send(cls, device_id: str, msg: dict, msg_id: str = None) -> bool:

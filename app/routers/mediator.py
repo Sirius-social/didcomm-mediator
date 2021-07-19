@@ -75,7 +75,7 @@ async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(g
             return
         else:
             fcm_device_id = endpoint_fields.get('fcm_device_id')
-            if fcm_device_id:
+            if fcm_device_id and FirebaseMessages.enabled():
                 success = await FirebaseMessages.send(device_id=fcm_device_id, msg=message)
                 if success:
                     return
