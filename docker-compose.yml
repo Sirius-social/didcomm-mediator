@@ -15,7 +15,7 @@ services:
     image: redis
 
   application:
-    build: 
+    build:
       context: .
     image: "socialsirius/didcomm:${VERSION-dev}"
     command: bash -c "python main.py"
@@ -29,6 +29,7 @@ services:
       - DATABASE_PASSWORD=postgres
       - WEBROOT=http://didcomm.server.com
       - SEED=000000000000000000000000000RELAY
+      - LOGLEVEL=DEBUG
     volumes:
       - ./app:/app
     ports:

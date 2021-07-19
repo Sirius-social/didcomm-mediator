@@ -1,8 +1,21 @@
-import logging
 import os
+import logging
 
 import sirius_sdk
 from fastapi.templating import Jinja2Templates
+
+
+log_levels = {
+    'CRITICAL': logging.CRITICAL,
+    'ERROR': logging.ERROR,
+    'WARNING': logging.WARNING,
+    'INFO': logging.INFO,
+    'DEBUG': logging.DEBUG
+}
+log_level = log_levels.get(os.getenv('LOGLEVEL', None))
+if log_level:
+    logging.getLogger().setLevel(log_level)
+    logging.getLogger("asyncio").setLevel(log_level)
 
 
 templates = Jinja2Templates(directory="templates")
@@ -57,4 +70,3 @@ if FIREBASE_API_KEY and FIREBASE_SENDER_ID is None:
 
 FCM_SERVICE_TYPE = 'FCMService'
 MEDIATOR_SERVICE_TYPE = 'MediatorService'
-

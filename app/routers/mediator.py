@@ -1,4 +1,6 @@
 import json
+import logging
+
 from typing import List
 
 from databases import Database
@@ -24,15 +26,18 @@ EXPECTED_CONTENT_TYPES = ['application/ssi-agent-wire', 'application/json']
 
 @router.websocket(f"/{WS_PATH_PREFIX}")
 async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
+    logging.debug('*** onboard handler call ***')
     await websocket.accept()
     repo = Repo(db, memcached=GlobalMemcachedClient.get())
     # Parse query params
     endpoint_uid = websocket.query_params.get('endpoint')
+    logging.debug(f'endpoint_uid: {endpoint_uid}')
 
     if endpoint_uid is None:
         await scenario_onboard(websocket, repo)
     else:
         await scenario_endpoint(websocket, endpoint_uid, repo)
+    logging.debug('**************************')
 
 
 @router.post(f'/{ENDPOINTS_PATH_PREFIX}/{{endpoint_uid}}')
