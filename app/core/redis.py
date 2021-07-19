@@ -195,6 +195,9 @@ class RedisPush:
     async def __push_internal(self, endpoint_id: str, message, expire_at: datetime) -> bool:
         for ignore_cache in [False, True]:
             forward_channel, reverse_channel = await self.__get_channel(endpoint_id, ignore_cache)
+            if forward_channel and reverse_channel:
+                logging.debug(f'!!! Forward channel: {forward_channel.address}')
+                logging.debug(f'!!! Reverse channel: {reverse_channel.address}')
             if forward_channel:
                 request = {
                     '@id': uuid.uuid4().hex,
