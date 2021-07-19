@@ -12,10 +12,7 @@ from helpers.coprotocols import WebSocketCoProtocol
 
 async def listen_websocket(url: str):
     session = aiohttp.ClientSession()
-    try:
-        ws = await session.ws_connect(url)
-    except Exception as e:
-        raise
+    ws = await session.ws_connect(url)
     try:
         print(f'Device: start listening websocket: {url}')
         while True:
@@ -25,6 +22,7 @@ async def listen_websocket(url: str):
             print('<<< -----------------------')
     finally:
         await session.close()
+        print(f'Device: stop listen websocket')
 
 
 async def run(my_did: str, my_verkey: str, my_secret: str):
@@ -65,9 +63,10 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
                 print('My Http Endpoint: ' + mediate_grant['endpoint'])
                 print('Websocket to pull events: ' + mediator_service['serviceEndpoint'])
                 # Эмулируем в независимой нитке device
-                device = asyncio.ensure_future(listen_websocket(url=mediator_service['serviceEndpoint']))
+                device = asyncio.ensure_future(listen_websocket(url=mediator_service['serviceEndpoint'] + '1'))
                 try:
-                    await asyncio.sleep(300)
+                    # give some time for server to accept connection
+                    await asyncio.sleep(3)
                 finally:
                     device.cancel()
     finally:

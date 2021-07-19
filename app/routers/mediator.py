@@ -26,7 +26,9 @@ EXPECTED_CONTENT_TYPES = ['application/ssi-agent-wire', 'application/json']
 
 @router.websocket(f"/{WS_PATH_PREFIX}")
 async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
+    logging.debug('\n*****************************')
     logging.debug('*** onboard handler call ***')
+    logging.debug('*****************************')
     await websocket.accept()
     repo = Repo(db, memcached=GlobalMemcachedClient.get())
     # Parse query params
@@ -37,7 +39,8 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
         await scenario_onboard(websocket, repo)
     else:
         await scenario_endpoint(websocket, endpoint_uid, repo)
-    logging.debug('**************************')
+    logging.debug('\n**************************')
+    logging.debug('*****************************')
 
 
 @router.post(f'/{ENDPOINTS_PATH_PREFIX}/{{endpoint_uid}}')

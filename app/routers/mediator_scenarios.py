@@ -194,5 +194,6 @@ async def endpoint_processor(websocket: WebSocket, endpoint_uid: str, repo: Repo
             # websocket disconnected
             fut.cancel()
     else:
-        # TODO: problem report
+        report = BasicMessageProblemReport(problem_code='1', explain=f'Unknown endpoint with id: {endpoint_uid}')
+        await websocket.send_bytes(json.dumps(report).encode())
         await websocket.close()
