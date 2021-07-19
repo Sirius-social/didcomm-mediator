@@ -175,9 +175,7 @@ async def endpoint_processor(websocket: WebSocket, endpoint_uid: str, repo: Repo
     async def redis_listener(redis_pub_sub: str):
         # Read from redis channel in infinite loop
         pulls = RedisPull()
-        logging.debug('\n++++++++++++++++++++++++++++++++++++++++++++++++')
-        logging.debug(f'+++ Redis listener for endpoint_uid: {endpoint_uid}')
-        logging.debug('++++++++++++++++++++++++++++++++++++++++++++++++++')
+
         listener = pulls.listen(address=redis_pub_sub)
         async for not_closed, request in listener:
             logging.debug(f'++++++++++++ not_closed: {not_closed}')
@@ -191,7 +189,12 @@ async def endpoint_processor(websocket: WebSocket, endpoint_uid: str, repo: Repo
             else:
                 break
 
+    logging.debug('')
+    logging.debug('++++++++++++++++++++++++++++++++++++++++++++++++++')
+    logging.debug(f'+++ Redis listener for endpoint_uid: {endpoint_uid}')
+    logging.debug('++++++++++++++++++++++++++++++++++++++++++++++++++')
     data = await repo.load_endpoint(endpoint_uid)
+    logging.debug('websocket endpoint data: ' + repr(data))
     if data and data.get('redis_pub_sub'):
         fut = asyncio.ensure_future(redis_listener(data['redis_pub_sub']))
         try:

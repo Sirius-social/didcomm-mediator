@@ -26,7 +26,8 @@ EXPECTED_CONTENT_TYPES = ['application/ssi-agent-wire', 'application/json']
 
 @router.websocket(f"/{WS_PATH_PREFIX}")
 async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
-    logging.debug('\n*****************************')
+    logging.debug('')
+    logging.debug('******************************')
     logging.debug('*** onboard handler call ***')
     logging.debug('*****************************')
     await websocket.accept()
@@ -46,8 +47,9 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
 @router.post(f'/{ENDPOINTS_PATH_PREFIX}/{{endpoint_uid}}')
 async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(get_db)):
 
-    logging.debug('\n*******************************************************')
-    logging.debug(f'******* Endpoint for endpoint_uid: {endpoint_uid} ******')
+    logging.debug('')
+    logging.debug('*********************************************************')
+    logging.debug(f'******* Endpoint handler for endpoint_uid: {endpoint_uid} ******')
     logging.debug('*********************************************************')
     content_type = extract_content_type(request)
     if content_type not in EXPECTED_CONTENT_TYPES:
