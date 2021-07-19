@@ -30,6 +30,8 @@ services:
       - WEBROOT=http://didcomm.server.com
       - SEED=000000000000000000000000000RELAY
       - LOGLEVEL=DEBUG
+      - FCM_API_KEY=fake-key
+      - FCM_SENDER_ID=fake-id
     volumes:
       - ./app:/app
     ports:
