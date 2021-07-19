@@ -110,3 +110,32 @@ async def test_routing_keys_ops(test_database: Database, random_endpoint_uid: st
     await remove_routing_key(test_database, random_endpoint_uid, key1)
     collection = await list_routing_key(test_database, random_endpoint_uid)
     assert len(collection) == 1
+
+
+@pytest.mark.asyncio
+async def test_agents_duplicates_for_verkey(test_database: Database, random_me: (str, str, str), random_their: (str, str, str)):
+    """Check there no two ore more agents with same verkey
+    """
+    did1, verkey, _ = random_me
+    await ensure_agent_exists(test_database, did1, verkey)
+    did2, _, _ = random_their
+    await ensure_agent_exists(test_database, did2, verkey)
+    # ensure verkey was replaced
+    sql = agents.select().where(agents.c.verkey == verkey)
+    rows = await test_database.fetch_all(query=sql)
+    assert len(rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_endpoints_duplicates_for_verkey(test_database: Database, random_me: (str, str, str)):
+    """Check there no two ore more endpoints with same verkey
+    """
+    _, verkey, _ = random_me
+    uid1 = uuid.uuid4().hex
+    uid2 = uuid.uuid4().hex
+    await ensure_endpoint_exists(test_database, uid=uid1, verkey=verkey)
+    await ensure_endpoint_exists(test_database, uid=uid2, verkey=verkey)
+    # ensure verkey was replaced
+    sql = endpoints.select().where(endpoints.c.verkey == verkey)
+    rows = await test_database.fetch_all(query=sql)
+    assert len(rows) == 1

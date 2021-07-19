@@ -8,58 +8,77 @@ from .models import agents, endpoints, routing_keys
 
 
 async def ensure_agent_exists(db: Database, did: str, verkey: str, metadata: dict = None, fcm_device_id: str = None):
-    agent = await load_agent(db, did)
-    if agent:
-        fields_to_update = {}
-        if agent['verkey'] != verkey:
-            fields_to_update['verkey'] = verkey
-        if metadata is not None and agent['metadata'] != metadata:
-            fields_to_update['metadata'] = metadata
-        if fcm_device_id is not None and agent['fcm_device_id'] != fcm_device_id:
-            fields_to_update['fcm_device_id'] = fcm_device_id
-        if fields_to_update:
-            sql = agents.update().where(agents.c.did == did)
-            await db.execute(query=sql, values=fields_to_update)
-    else:
-        sql = agents.insert()
-        values = {
-            "did": did,
-            "verkey": verkey,
-            "id": uuid.uuid4().hex
-        }
-        await db.execute(query=sql, values=values)
+    async with db.transaction():
+        # remove records with same verkey
+        cond = and_(agents.c.verkey == verkey, agents.c.did != did)
+        sql = agents.select().where(cond)
+        rows = await db.fetch_all(query=sql)
+        if rows:
+            sql = agents.delete().where(cond)
+            await db.execute(query=sql)
+        # custom operations
+        agent = await load_agent(db, did)
+        if agent:
+            fields_to_update = {}
+            if agent['verkey'] != verkey:
+                fields_to_update['verkey'] = verkey
+            if metadata is not None and agent['metadata'] != metadata:
+                fields_to_update['metadata'] = metadata
+            if fcm_device_id is not None and agent['fcm_device_id'] != fcm_device_id:
+                fields_to_update['fcm_device_id'] = fcm_device_id
+            if fields_to_update:
+                sql = agents.update().where(agents.c.did == did)
+                await db.execute(query=sql, values=fields_to_update)
+        else:
+            sql = agents.insert()
+            values = {
+                "did": did,
+                "verkey": verkey,
+                "id": uuid.uuid4().hex
+            }
+            await db.execute(query=sql, values=values)
 
 
 async def ensure_endpoint_exists(
         db: Database, uid: str, redis_pub_sub: str = None,
         agent_id: str = None, verkey: str = None, fcm_device_id: str = None
 ):
-    endpoint = await load_endpoint(db, uid)
-    if endpoint:
-        fields_to_update = {}
-        if redis_pub_sub is not None and endpoint['redis_pub_sub'] != redis_pub_sub:
-            fields_to_update['redis_pub_sub'] = redis_pub_sub
-        if agent_id is not None and endpoint['agent_id'] != agent_id:
-            fields_to_update['agent_id'] = agent_id
-        if redis_pub_sub is not None and endpoint['redis_pub_sub'] != redis_pub_sub:
-            fields_to_update['redis_pub_sub'] = redis_pub_sub
-        if verkey is not None and endpoint['verkey'] != verkey:
-            fields_to_update['verkey'] = verkey
-        if fcm_device_id is not None and endpoint['fcm_device_id'] != fcm_device_id:
-            fields_to_update['fcm_device_id'] = fcm_device_id
-        if fields_to_update:
-            sql = endpoints.update().where(endpoints.c.uid == uid)
-            await db.execute(query=sql, values=fields_to_update)
-    else:
-        sql = endpoints.insert()
-        values = {
-            "uid": uid,
-            "redis_pub_sub": redis_pub_sub,
-            "agent_id": agent_id,
-            "verkey": verkey,
-            "fcm_device_id": fcm_device_id
-        }
-        await db.execute(query=sql, values=values)
+    async with db.transaction():
+        if verkey:
+            # remove records with same verkey
+            cond = and_(endpoints.c.verkey == verkey, endpoints.c.uid != uid)
+            sql = endpoints.select().where(cond)
+            rows = await db.fetch_all(query=sql)
+            if rows:
+                sql = endpoints.delete().where(cond)
+                await db.execute(query=sql)
+        # custom operations
+        endpoint = await load_endpoint(db, uid)
+        if endpoint:
+            fields_to_update = {}
+            if redis_pub_sub is not None and endpoint['redis_pub_sub'] != redis_pub_sub:
+                fields_to_update['redis_pub_sub'] = redis_pub_sub
+            if agent_id is not None and endpoint['agent_id'] != agent_id:
+                fields_to_update['agent_id'] = agent_id
+            if redis_pub_sub is not None and endpoint['redis_pub_sub'] != redis_pub_sub:
+                fields_to_update['redis_pub_sub'] = redis_pub_sub
+            if verkey is not None and endpoint['verkey'] != verkey:
+                fields_to_update['verkey'] = verkey
+            if fcm_device_id is not None and endpoint['fcm_device_id'] != fcm_device_id:
+                fields_to_update['fcm_device_id'] = fcm_device_id
+            if fields_to_update:
+                sql = endpoints.update().where(endpoints.c.uid == uid)
+                await db.execute(query=sql, values=fields_to_update)
+        else:
+            sql = endpoints.insert()
+            values = {
+                "uid": uid,
+                "redis_pub_sub": redis_pub_sub,
+                "agent_id": agent_id,
+                "verkey": verkey,
+                "fcm_device_id": fcm_device_id
+            }
+            await db.execute(query=sql, values=values)
 
 
 async def load_agent(db: Database, did: str) -> Optional[dict]:
