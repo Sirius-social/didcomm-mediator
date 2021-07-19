@@ -1,4 +1,5 @@
 import asyncio
+import json
 
 import aiohttp
 import sirius_sdk
@@ -17,9 +18,9 @@ async def listen_websocket(url: str):
     try:
         print(f'Device: start listening websocket: {url}')
         while True:
-            payload = await ws.receive_bytes()
+            payload = await ws.receive_json()
             print('>>> Device received payload:')
-            print('\t' + repr(payload))
+            print(json.dumps(payload, indent=2, sort_keys=True))
             print('<<< -----------------------')
     finally:
         await session.close()
@@ -57,28 +58,32 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
             my_label='Test-Client',
         )
         if success:
+            print('#3. P2P with mediator service was successfully established')
             mediator_did_doc = p2p.their.did_doc
             mediator_service = [srv for srv in mediator_did_doc['service'] if srv['type'] == 'MediatorService'][0]
             # осталось узнать, какой endpoint для нас выделил медиатор
             mediate_request = MediateRequest()
+            print('#3.1 Allocate endpoint')
             success, mediate_grant = await coprotocol.switch(mediate_request)
             if success:
                 # Этот endpoint теперь везде можно использовать в Invitations
-                print('My Http Endpoint: ' + mediate_grant['endpoint'])
-                print('Websocket to pull events: ' + mediator_service['serviceEndpoint'])
+                print('#3.2 Mediator endpoints...')
+                print('\tMy Http Endpoint: ' + mediate_grant['endpoint'])
+                print('\tMy pulling address: ' + mediator_service['serviceEndpoint'])
                 # Эмулируем в независимой нитке device
+                print('#4. Send binary data to device via allocated endpoint')
                 device = asyncio.ensure_future(listen_websocket(url=mediator_service['serviceEndpoint']))
                 try:
                     # give some time for server to accept connection
                     await asyncio.sleep(3)
-                    print('Send binary data to endpoint')
+                    print('#4.1 Send binary data to endpoint')
                     async with aiohttp.ClientSession() as session:
                         async with session.post(
                                 url=mediate_grant['endpoint'],
                                 data=SAMPLE_PACKED_MSG,
                                 headers={'content-type': 'application/ssi-agent-wire'}
                         ) as resp:
-                            print(f'Response status code: {resp.status}')
+                            print(f'#4.2 Response status code: {resp.status}')
                 finally:
                     device.cancel()
     finally:
