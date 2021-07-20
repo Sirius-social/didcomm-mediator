@@ -21,7 +21,7 @@ router = APIRouter(
     tags=["mediator"],
 )
 
-EXPECTED_CONTENT_TYPES = ['application/ssi-agent-wire', 'application/json']
+EXPECTED_CONTENT_TYPES = ['application/ssi-agent-wire', 'application/json', 'application/didcomm-envelope-enc']
 
 
 @router.websocket(f"/{WS_PATH_PREFIX}")
