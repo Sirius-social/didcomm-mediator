@@ -44,7 +44,7 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
     logging.debug('*****************************')
 
 
-@router.post(f'/{ENDPOINTS_PATH_PREFIX}/{{endpoint_uid}}')
+@router.post(f'/{ENDPOINTS_PATH_PREFIX}/{{endpoint_uid}}', status_code=202)
 async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(get_db)):
 
     logging.debug('')

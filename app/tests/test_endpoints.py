@@ -42,7 +42,7 @@ def test_delivery_via_websocket(test_database: Database, random_me: (str, str, s
             headers={"Content-Type": content_type},
             data=content,
         )
-        assert response.status_code == 200
+        assert response.status_code == 202
 
         enc_msg = websocket.receive_json()
         assert enc_msg == json.loads(content.decode())
@@ -80,7 +80,7 @@ def test_delivery_json_via_websocket(test_database: Database, random_me: (str, s
             headers={"Content-Type": content_type},
             data=content,
         )
-        assert response.status_code == 200
+        assert response.status_code == 202
 
         enc_msg = websocket.receive_json()
         assert enc_msg == content_json
@@ -140,7 +140,7 @@ async def test_delivery_via_fcm(test_database: Database, random_me: (str, str, s
             headers={"Content-Type": content_type},
             data=content,
         )
-        assert response.status_code == 200
+        assert response.status_code == 202
 
     fut.cancel()
     assert len(received_fcm_msgs) == 1
