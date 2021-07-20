@@ -61,8 +61,13 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
        When authentication is required, all parties do it the same way.
      - Registration is self-service, intermediaries require little trust, and no terms and conditions apply.
   - **interoperability**:
-     - fghtd
-     - srg
+     - protocol [Aries-RFC 0160](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol) 
+     to establish P2P connection between **independent Mobile App** and Server-side **Mediator** to 
+     authenticate in mediator services (see below)
+     - protocol [Aries-RFC 0211](https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination)
+     to allocate Http endpoint, accessible from internet.
+  - **efficient**
+     - This server app is packed to docker image to rapidly deploy, maintain, scale with microservices approach 
     
 issues  of **mobile devices**
 
