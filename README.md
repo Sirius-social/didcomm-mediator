@@ -35,15 +35,24 @@ According to The [DIDComm](https://identity.foundation/didcomm-messaging/spec/) 
 
 
 This repo contains server-side part of [DIDComm](https://identity.foundation/didcomm-messaging/spec/#message-based-asynchronous-and-simplex) 
-infrastructure to solve **DIDComm** issues: 
+infrastructure to solve **DIDComm** challenges in Mobile Apps development: 
   
   - routing issues of **mobile devices**: 
-  - transport issues
+      - Incoming DID-Communication messages will arrive, even if the mobile agent is behind a firewall 
+        and network-address-translation (NAT).
+      - Incoming DID-Communication messages continue to arrive, even when the IP address of the mobile agent 
+        changes (switching between, 3G, 4G, Wifi, roaming, ...).
+  - transport issues of **mobile devices**:
+      - Thanks to supporting [Firebase cloud messaging](https://firebase.google.com/docs/cloud-messaging)
+        DID-Communication messages will arrive independently of Power-Saving mode for specific 
+        platform (Android/iOS Power-Doze mode)
+      - Each message is transmitted individually in an [Encryption Envelope](https://github.com/hyperledger/aries-rfcs/blob/master/features/0019-encryption-envelope/README.md)
+      - Messages are transported via HTTP POST according [DIDComm HTTPS reference](https://identity.foundation/didcomm-messaging/spec/#https) 
     
 issues  of **mobile devices**
 
 
-#1. Deploy and configuration
+## Deploy and configuration
 
-#2. Develop and contribute
+## Develop and contribute
 
