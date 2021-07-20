@@ -24,30 +24,45 @@ This is much closer to an email paradigm than a web paradigm
 
 According to The [DIDComm](https://identity.foundation/didcomm-messaging/spec/) design attempts to be:
 
- - Secure
+ - Secure 
  - Private
  - Decentralized 
  - Transport-agnostic
- - Routable 
+ - Routable (allows mixed and dynamic transports; passes through mix networks and other generic infrastructure that sees only payload BLOBs)
  - Interoperable 
  - Extensible
  - Efficient
 
 
 This repo contains server-side part of [DIDComm](https://identity.foundation/didcomm-messaging/spec/#message-based-asynchronous-and-simplex) 
-infrastructure to solve **DIDComm** challenges in Mobile Apps development: 
+infrastructure to solve **DIDComm** challenges in **Mobile Apps development**: 
   
-  - routing issues of **mobile devices**: 
+  - **routing** issues of **mobile devices**: 
       - Incoming DID-Communication messages will arrive, even if the mobile agent is behind a firewall 
         and network-address-translation (NAT).
       - Incoming DID-Communication messages continue to arrive, even when the IP address of the mobile agent 
         changes (switching between, 3G, 4G, Wifi, roaming, ...).
-  - transport issues of **mobile devices**:
+  - **transport** issues of **mobile devices**:
       - Thanks to supporting [Firebase cloud messaging](https://firebase.google.com/docs/cloud-messaging)
         DID-Communication messages will arrive independently of Power-Saving mode for specific 
         platform (Android/iOS Power-Doze mode)
       - Each message is transmitted individually in an [Encryption Envelope](https://github.com/hyperledger/aries-rfcs/blob/master/features/0019-encryption-envelope/README.md)
-      - Messages are transported via HTTP POST according [DIDComm HTTPS reference](https://identity.foundation/didcomm-messaging/spec/#https) 
+      - Messages are transported via HTTP POST according [DIDComm HTTPS reference](https://identity.foundation/didcomm-messaging/spec/#https)
+  - **secure** challenges:
+     - Simple encapsulation of DIDcom messages, getting trust from the DIDcom 
+       [Encryption Envelope](https://identity.foundation/didcomm-messaging/spec/#summary), so, 
+       on top of transport layer, using DIDComm, individuals on semi-connected mobile devices become full peers 
+     - In additional server side endpoints use HTTPS with TLS 1.2 (and Websockets ```wss://```) 
+       or greater with a forward secret
+  - **private** goals:
+     - DIDComm uses public key cryptography, not certificates from some parties and passwords from others. 
+       Its security guarantees are independent of the transport over which it flows. 
+       It is sessionless (though sessions can easily be built atop it). 
+       When authentication is required, all parties do it the same way.
+     - Registration is self-service, intermediaries require little trust, and no terms and conditions apply.
+  - **interoperability**:
+     - fghtd
+     - srg
     
 issues  of **mobile devices**
 
