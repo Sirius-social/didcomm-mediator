@@ -235,6 +235,24 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         assert len(list_res['keys']) == 1
         assert key1 not in str(list_res['keys'])
         assert key2 in str(list_res['keys'])
+        # Mediate request again
+        req = MediateRequest()
+        packed = pack_message(
+            message=json.dumps(req),
+            to_verkeys=[their_vk],
+            from_verkey=agent_verkey,
+            from_sigkey=agent_secret
+        )
+        websocket.send_bytes(packed)
+        # Receive answer
+        enc_msg = websocket.receive_bytes()
+        payload, sender_vk, recip_vk = unpack_message(
+            enc_message=enc_msg, my_verkey=agent_verkey, my_sigkey=agent_secret
+        )
+        ok, grant = restore_message_instance(json.loads(payload))
+        assert ok is True and isinstance(grant, MediateGrant)
+        assert len(grant['routing_keys']) == 1
+        assert key2 in str(grant['routing_keys'])
 
 
 def test_trust_ping(random_me: (str, str, str)):

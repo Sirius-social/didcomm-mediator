@@ -125,9 +125,10 @@ async def onboard(websocket: WebSocket, repo: Repo):
                         publish the endpoint as a mediator.
                         
                     Details: https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination#mediation-request'''
+                    keys = await repo.list_routing_key(router_endpoint['uid'])
                     resp = MediateGrant(
                         endpoint=urljoin(WEBROOT, build_endpoint_url(router_endpoint['uid'])),
-                        routing_keys=[]
+                        routing_keys=[f"did:key:{k['key']}" for k in keys]
                     )
                     await listener.response(for_event=event, message=resp)
                 elif isinstance(event.message, KeylistUpdate):
