@@ -87,14 +87,17 @@ async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(g
             return
         else:
             fcm_device_id = endpoint_fields.get('fcm_device_id')
-            if fcm_device_id and FirebaseMessages.enabled():
-                logging.debug('push message via FCM')
-                success = await FirebaseMessages.send(device_id=fcm_device_id, msg=message)
-                logging.debug(f'push operation returned success: {success}')
-                if success:
-                    return
+            if fcm_device_id:
+                if FirebaseMessages.enabled():
+                    logging.debug('push message via FCM')
+                    success = await FirebaseMessages.send(device_id=fcm_device_id, msg=message)
+                    logging.debug(f'push operation returned success: {success}')
+                    if success:
+                        return
+                    else:
+                        raise HTTPException(status_code=410, detail='Recipient is registered but is not active')
                 else:
-                    raise HTTPException(status_code=410, detail='Recipient is registered but is not active')
+                    raise HTTPException(status_code=421, detail='Firebase cloud messaging is not configured on server-side')
             else:
                 raise HTTPException(status_code=410, detail='Recipient is registered but is not active')
     else:
