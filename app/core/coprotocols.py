@@ -16,6 +16,11 @@ class ClientWebSocketCoProtocol(AbstractP2PCoProtocol):
         self.__their_verkey = their_verkey
 
     async def send(self, message: Message):
+        # Aries-RFC 0092 https://github.com/hyperledger/aries-rfcs/tree/master/features/0092-transport-return-route
+        transport = message.get('~transport', {})
+        transport['return_route'] = 'all'
+        message['~transport'] = transport
+        
         payload = pack_message(
             message=json.dumps(message),
             to_verkeys=[self.__their_verkey],
