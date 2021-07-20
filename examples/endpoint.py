@@ -19,7 +19,7 @@ async def listen_websocket(url: str):
         print(f'Device: start listening websocket: {url}')
         while True:
             payload = await ws.receive_json()
-            print('>>> Device received payload:')
+            print('>>> Device received:')
             print(json.dumps(payload, indent=2, sort_keys=True))
             print('<<< -----------------------')
     finally:
@@ -81,7 +81,7 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
                         async with session.post(
                                 url=mediate_grant['endpoint'],
                                 data=SAMPLE_PACKED_MSG,
-                                headers={'content-type': 'application/ssi-agent-wire'}
+                                headers={'Content-Type': 'application/ssi-agent-wire'}
                         ) as resp:
                             print(f'#4.2 Response status code: {resp.status}')
                 finally:

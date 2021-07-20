@@ -232,6 +232,9 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         )
         ok, list_res = restore_message_instance(json.loads(payload))
         assert ok is True and isinstance(list_res, Keylist)
+        assert len(list_res['keys']) == 1
+        assert key1 not in str(list_res['keys'])
+        assert key2 in str(list_res['keys'])
 
 
 def test_trust_ping(random_me: (str, str, str)):
