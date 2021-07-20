@@ -1,17 +1,6 @@
 # Server-side implementation of DID communication (DIDComm).
 
-According to https://identity.foundation/didcomm-messaging/spec/ The DIDComm design attempts to be:
-
- - Secure
- - Private
- - Decentralized 
- - Transport-agnostic
- - Routable 
- - Interoperable 
- - Extensible
- - Efficient 
-
-
+## Summary
 The dominant paradigm in mobile and web development today is duplex request-response. 
 You call an API with certain inputs, and you get back a response with certain outputs over the same channel (Http over TCP connection)
 
@@ -27,10 +16,26 @@ Because of this, the fundamental paradigm for **DIDComm** is
   - asynchronous 
   - simplex. 
 
-Agent X sends a message over channel A. Sometime later, it may receive a response from Agent Y over channel B. 
+**Agent X** sends a message over **channel A**. Sometime later, it may receive a response from 
+**Agent Y** over **channel B**. 
 This is much closer to an email paradigm than a web paradigm
 
-This repo contains server-side part of [DIDComm](https://identity.foundation/didcomm-messaging/spec/#message-based-asynchronous-and-simplex) infrastructure to solve: 
+## Motivation
+
+According to The [DIDComm](https://identity.foundation/didcomm-messaging/spec/) design attempts to be:
+
+ - Secure
+ - Private
+ - Decentralized 
+ - Transport-agnostic
+ - Routable 
+ - Interoperable 
+ - Extensible
+ - Efficient
+
+
+This repo contains server-side part of [DIDComm](https://identity.foundation/didcomm-messaging/spec/#message-based-asynchronous-and-simplex) 
+infrastructure to solve **DIDComm** issues: 
   
   - routing issues of **mobile devices**: 
   - transport issues
