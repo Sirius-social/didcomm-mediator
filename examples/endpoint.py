@@ -68,8 +68,10 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
             if success:
                 # Этот endpoint теперь везде можно использовать в Invitations
                 print('#3.2 Mediator endpoints...')
-                print('\tMy Http Endpoint: ' + mediate_grant['endpoint'])
-                print('\tMy pulling address: ' + mediator_service['serviceEndpoint'])
+                print('\n')
+                print('My Http Endpoint: ' + mediate_grant['endpoint'])
+                print('My pulling address: ' + mediator_service['serviceEndpoint'])
+                print('\n')
                 # Эмулируем в независимой нитке device
                 print('#4. Send binary data to device via allocated endpoint')
                 device = asyncio.ensure_future(listen_websocket(url=mediator_service['serviceEndpoint']))
