@@ -1,6 +1,6 @@
 import json
 import logging
-from typing import Union, Optional
+from typing import Union, Optional, Any
 
 import aiomemcached
 from databases import Database
@@ -20,6 +20,7 @@ class Repo:
     NAMESPACE_ENDPOINTS = 'endpoints'
     NAMESPACE_ENDPOINTS_VERKEYS = 'endpoints_verkeys'
     NAMESPACE_ROUTING_KEYS = 'routing_keys'
+    NAMESPACE_GLOBAL_SETTINGS = 'global_settings'
     MEMCACHED_TIMEOUT = 60
 
     def __init__(self, db: Database, memcached: aiomemcached.Client = None):
@@ -110,6 +111,19 @@ class Repo:
             collection = await app.db.crud.list_routing_key(self.__db, endpoint_uid)
             await self._set_cache(endpoint_uid, collection, namespace=self.NAMESPACE_ROUTING_KEYS)
             return collection
+
+    async def get_global_setting(self, name: str) -> Optional[Any]:
+        cached = await self._get_cache(name, namespace=self.NAMESPACE_GLOBAL_SETTINGS)
+        if cached:
+            return cached.get('value', None)
+        else:
+            value = await app.db.crud.get_global_setting(self.__db, name)
+            await self._set_cache(name, {'value': value}, namespace=self.NAMESPACE_GLOBAL_SETTINGS)
+            return value
+
+    async def set_global_setting(self, name: str, value: Any):
+        await self._delete_cache(name, namespace=self.NAMESPACE_GLOBAL_SETTINGS)
+        await app.db.crud.set_global_setting(self.__db, name, value)
 
     async def _set_cache(self, key: str, value: Union[dict, str, list], exp_time: int = None, namespace: str = None):
         if namespace:

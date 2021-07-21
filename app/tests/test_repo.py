@@ -120,3 +120,32 @@ async def test_routing_keys_ops(test_database: Database, random_endpoint_uid: st
     await repo_under_test.remove_routing_key(random_endpoint_uid, key1)
     collection = await repo_under_test.list_routing_key(random_endpoint_uid)
     assert len(collection) == 1
+
+
+@pytest.mark.asyncio
+async def test_global_settings(test_database: Database):
+
+    repo_under_test = Repo(db=test_database)
+    param1 = f'param1-' + uuid.uuid4().hex
+    param2 = f'param2-' + uuid.uuid4().hex
+
+    value = await repo_under_test.get_global_setting(param1)
+    assert value is None
+
+    await repo_under_test.set_global_setting(param1, 'value-ver-1')
+    for n in range(2):
+        value = await repo_under_test.get_global_setting(param1)
+        assert value == 'value-ver-1'
+    await repo_under_test.set_global_setting(param1, 'value-ver-2')
+    for n in range(2):
+        value = await repo_under_test.get_global_setting(param1)
+        assert value == 'value-ver-2'
+
+    await repo_under_test.set_global_setting(param2, 1.1)
+    for n in range(2):
+        value = await repo_under_test.get_global_setting(param2)
+        assert value == 1.1
+
+    value = await repo_under_test.get_global_setting(param1)
+    assert value == 'value-ver-2'
+

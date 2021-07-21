@@ -1,10 +1,26 @@
 import uuid
-from typing import Optional
+from typing import Optional, Any
 
 from databases import Database
 from sqlalchemy import and_
 
-from .models import agents, endpoints, routing_keys
+from app.utils import hash_string
+from .models import agents, endpoints, routing_keys, users, global_settings
+
+
+class BaseDBError(RuntimeError):
+    pass
+
+
+class DuplicateDBRecordError(BaseDBError):
+    pass
+
+
+class DBRecordDoesNotExists(BaseDBError):
+    pass
+
+
+GLOBAL_SETTING_PK = 1
 
 
 async def ensure_agent_exists(db: Database, did: str, verkey: str, metadata: dict = None, fcm_device_id: str = None):
@@ -145,6 +161,75 @@ async def list_routing_key(db: Database, endpoint_uid: str) -> list:
     return resp
 
 
+async def create_user(db: Database, username: str, password: str) -> dict:
+    sql = users.select().where(users.c.username == username)
+    row = await db.fetch_one(query=sql)
+    if row:
+        raise DuplicateDBRecordError(f'User with username: "{username}" already exists!')
+    else:
+        sql = users.insert()
+        values = {
+            'id': hash_string(username),
+            'username': username,
+            'hashed_password': hash_string(password),
+            'is_active': True
+        }
+        await db.execute(query=sql, values=values)
+        user = await load_user(db, username)
+        return user
+
+
+async def load_user(db: Database, username: str, mute_errors: bool = False) -> Optional[dict]:
+    sql = users.select().where(users.c.username == username)
+    row = await db.fetch_one(query=sql)
+    if row:
+        return _restore_user_from_row(row)
+    else:
+        if mute_errors:
+            return None
+        else:
+            raise DBRecordDoesNotExists(f'Usr with username: "{username}" does not exists!')
+
+
+def check_password(user: dict, password: str) -> bool:
+    return user['hashed_password'] == hash_string(password)
+
+
+async def get_global_setting(db: Database, name: str) -> Optional[Any]:
+    async with db.transaction():
+        await db.execute(f"LOCK TABLE global_settings IN SHARE MODE;")
+        sql = global_settings.select().where(global_settings.c.id == GLOBAL_SETTING_PK)
+        row = await db.fetch_one(query=sql)
+        if row:
+            content = row['content']
+            value = content.get(name, None)
+            return value
+        else:
+            return None
+
+
+async def set_global_setting(db: Database, name: str, value: Any):
+    async with db.transaction():
+        await db.execute(f"LOCK TABLE global_settings IN EXCLUSIVE MODE;")
+        sql = global_settings.select().where(global_settings.c.id == GLOBAL_SETTING_PK)
+        row = await db.fetch_one(query=sql)
+        content = {}
+        if row:
+            content = row['content']
+            content[name] = value
+            sql = global_settings.update().where(global_settings.c.id == GLOBAL_SETTING_PK)
+            values = {'content': content}
+            await db.execute(query=sql, values=values)
+        else:
+            content[name] = value
+            sql = global_settings.insert()
+            values = {
+                'id': GLOBAL_SETTING_PK,
+                'content': content,
+            }
+            await db.execute(query=sql, values=values)
+
+
 def _restore_agent_from_row(row) -> dict:
     return {
         'id': row['id'],
@@ -170,4 +255,13 @@ def _restore_routing_key_from_row(row) -> dict:
         'id': row['id'],
         'key': row['key'],
         'endpoint_uid': row['endpoint_uid'],
+    }
+
+
+def _restore_user_from_row(row) -> dict:
+    return {
+        'id': row['id'],
+        'username': row['username'],
+        'hashed_password': row['hashed_password'],
+        'is_active': row['is_active']
     }

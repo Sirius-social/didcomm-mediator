@@ -1,0 +1,33 @@
+<form class="form-horizontal" method="post" action="#">
+    <h5 v-if="form_create_user.error" class="text-danger">[[form_create_user.error]]</h5>
+    <div class="form-group" style="margin-bottom: 5px;">
+        <label class="fw-light" for="username" class="cols-sm-2 control-label">Username</label>
+        <div class="cols-sm-10">
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-users fa" aria-hidden="true"></i></span>
+                <input v-model="form_create_user.username" type="text" class="form-control" name="username" id="username" placeholder="Enter your Username" />
+            </div>
+        </div>
+    </div>
+    <div class="form-group" style="margin-bottom: 5px;">
+        <label class="fw-light" for="password" class="cols-sm-2 control-label">Password</label>
+        <div class="cols-sm-10">
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+                <input v-model="form_create_user.password1" type="password" class="form-control" name="password" id="password" placeholder="Enter your Password" />
+            </div>
+        </div>
+    </div>
+    <div class="form-group" style="margin-bottom: 5px;">
+        <label class="fw-light" for="confirm" class="cols-sm-2 control-label">Confirm Password</label>
+        <div class="cols-sm-10">
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+                <input v-model="form_create_user.password2" type="password" class="form-control" name="confirm" id="confirm" placeholder="Confirm your Password" />
+            </div>
+        </div>
+    </div>
+    <div class="form-group" style="margin-top: 10px;">
+        <button @click.prevent="create_user" type="button" class="btn btn-primary btn-lg btn-block login-button">Create account</button>
+    </div>
+</form>

@@ -7,6 +7,18 @@ from .helpers import allocate_test_database
 
 
 @pytest.fixture()
+def random_username() -> str:
+    rnd = uuid.uuid4().hex
+    return f'user_{rnd}'
+
+
+@pytest.fixture()
+def random_password() -> str:
+    rnd = uuid.uuid4().hex
+    return f'password_{rnd}'
+
+
+@pytest.fixture()
 def random_me() -> (str, str, str):
     """
     Generate Random identifications

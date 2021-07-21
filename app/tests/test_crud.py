@@ -7,6 +7,26 @@ from app.db.crud import *
 
 
 @pytest.mark.asyncio
+async def test_user_ops(test_database: Database, random_username: str, random_password: str):
+    # create user
+    created_user = await create_user(test_database, random_username, random_password)
+    assert created_user['username'] == random_username
+    assert created_user['hashed_password'] != random_password, 'Password mangling error - security issue'
+    assert created_user['is_active'] is True
+    # Check password
+    assert check_password(created_user, random_password) is True
+    assert check_password(created_user, 'invalid-password') is False
+    # Load user
+    loaded_user = await load_user(test_database, random_username)
+    assert loaded_user == created_user
+    # Check exceptions
+    with pytest.raises(DuplicateDBRecordError):
+        await create_user(test_database, random_username, random_password)
+    with pytest.raises(DBRecordDoesNotExists):
+        await load_user(test_database, 'unknown-username')
+
+
+@pytest.mark.asyncio
 async def test_agent_ops(test_database: Database, random_me: (str, str, str), random_fcm_device_id: str):
     did, verkey, secret = random_me
     await ensure_agent_exists(test_database, did, verkey)
@@ -139,3 +159,22 @@ async def test_endpoints_duplicates_for_verkey(test_database: Database, random_m
     sql = endpoints.select().where(endpoints.c.verkey == verkey)
     rows = await test_database.fetch_all(query=sql)
     assert len(rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_global_settings(test_database: Database):
+    """Check Global settings for database operations pass expectations
+    """
+    value = await get_global_setting(test_database, 'param1')
+    assert value is None
+
+    await set_global_setting(test_database, 'param1', 'value-ver-1')
+    value = await get_global_setting(test_database, 'param1')
+    assert value == 'value-ver-1'
+
+    await set_global_setting(test_database, 'param2', 1.1)
+    value = await get_global_setting(test_database, 'param2')
+    assert value == 1.1
+
+    value = await get_global_setting(test_database, 'param1')
+    assert value == 'value-ver-1'
