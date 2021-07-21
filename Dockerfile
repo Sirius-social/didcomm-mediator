@@ -39,7 +39,7 @@ childlogdir = /tmp\n\
 strip_ansi = false\n\
 \n\
 [program:web]\n\
-command=python main.py\n\
+command=python main.py --production=on\n\
 directory=/app\n\
 autorestart = true\n\
 stdout_logfile_maxbytes = 0 \n\

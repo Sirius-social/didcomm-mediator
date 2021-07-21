@@ -1,5 +1,6 @@
 import os
 import logging
+import argparse
 
 import uvicorn
 from fastapi import FastAPI
@@ -37,7 +38,22 @@ async def shutdown():
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--production', choices=['on', 'yes'], required=False)
+    args = parser.parse_args()
+    is_production = args.production is not None
+    kwargs = {}
+    if is_production:
+        logging.warning('\n')
+        logging.warning('\t*************************************')
+        logging.warning('\tApplication will be run in PRODUCTION mode')
+        logging.warning('\t*************************************')
+    else:
+        logging.warning('\n')
+        logging.warning('\t*************************************')
+        logging.warning('\tApplication will be run in DEBUG mode')
+        logging.warning('\t*************************************')
+        kwargs.update({'debug': True, 'reload': True})
     uvicorn.run(
-        'app.main:app', host="0.0.0.0", port=int(os.getenv('PORT')),
-        debug=True, reload=True, workers=int(os.getenv('WORKERS'))
+        'app.main:app', host="0.0.0.0", port=int(os.getenv('PORT')), workers=int(os.getenv('WORKERS')), **kwargs
     )
