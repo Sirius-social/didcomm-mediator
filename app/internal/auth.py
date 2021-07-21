@@ -14,14 +14,17 @@ SESSION_EXPIRE_SECS = 60*60  # 1 hour
 async def auth_user(request: Request) -> Optional[dict]:
     """Return user if authorized else None"""
     session_id = request.cookies.get(SESSION_COOKIE_KEY)
-    cache = GlobalMemcachedClient.get()
-    user_bytes, _ = await cache.get(session_id.encode())
-    if user_bytes:
-        user = json.loads(user_bytes.decode())
-        # Refresh cache expiration
-        await cache.set(session_id.encode(), user_bytes, exptime=SESSION_EXPIRE_SECS)
-        # return user data
-        return user
+    if session_id:
+        cache = GlobalMemcachedClient.get()
+        user_bytes, _ = await cache.get(session_id.encode())
+        if user_bytes:
+            user = json.loads(user_bytes.decode())
+            # Refresh cache expiration
+            await cache.set(session_id.encode(), user_bytes, exptime=SESSION_EXPIRE_SECS)
+            # return user data
+            return user
+        else:
+            return None
     else:
         return None
 
