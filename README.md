@@ -28,11 +28,13 @@ According to The [DIDComm](https://identity.foundation/didcomm-messaging/spec/) 
  - Private
  - Decentralized 
  - Transport-agnostic
- - Routable (allows mixed and dynamic transports; passes through mix networks and other generic infrastructure that sees only payload BLOBs)
+ - Routable *(allows mixed and dynamic transports; passes through mix networks and other generic infrastructure that sees only payload BLOBs)*
  - Interoperable 
  - Extensible
  - Efficient
 
+
+## Features
 
 This repo contains server-side part of [DIDComm](https://identity.foundation/didcomm-messaging/spec/#message-based-asynchronous-and-simplex) 
 infrastructure to solve **DIDComm** challenges in **Mobile Apps development**: 
@@ -68,9 +70,8 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
      to allocate Http endpoint, accessible from internet.
   - **efficient**
      - This server app is packed to docker image to rapidly deploy, maintain, scale with microservices approach 
+     - Fast to start: appliccation, presented in the repo, has user-friendly admin page and dashboards.
     
-issues  of **mobile devices**
-
 
 ## Deploy and configuration
 
