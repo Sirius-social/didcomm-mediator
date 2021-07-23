@@ -19,6 +19,7 @@ Much of these commands duplicate features of Admin Web page
     - out of container: ```docker-compose exec application manage reset```
 
 ## WebRoot
+
 Suppose mediator provide for AgentX endpoint with public URL ```https://mediator-service.com/e/xxx```.
 That mean AgentX accessible for outer world by this address and any participant AgentY can
 communicate with AgentX in [DIDComm manner](https://identity.foundation/didcomm-messaging/spec/#message-types)
@@ -26,4 +27,17 @@ communicate with AgentX in [DIDComm manner](https://identity.foundation/didcomm-
 In example above ```https://mediator-service.com``` is Webroot, it is DNS-specific name of server
 to make it visible all over internet, it is static part of endpoint addresses with dynamic nature.
 
+**Typing right webroot value is critical part to achieve serviceable endpoints**
+
+There are two ways to configure webroot:
+  1. Pass environment variable ```WEBROOT``` to docker container
+  2. Configure with Admin page
+
+Notice: environment variable has more priority, so if you have earlier configured webroot via admin page, value provided with env var will replace it
+
+
 ![Grant endpoint address](_static/rfc0211.svg?raw=true)
+
+See interoperability protocols details:
+  - [RFC 0160](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol): establish P2P connection
+  - [RFC 0211](https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination): allocate endpoint address by client and maintain routing keys
