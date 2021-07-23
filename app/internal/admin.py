@@ -41,6 +41,7 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         'issues': 'https://github.com/Sirius-social/didcomm/issues',
         'spec': 'https://identity.foundation/didcomm-messaging/spec/',
         'features': 'https://github.com/Sirius-social/didcomm#features',
+        'download': 'https://hub.docker.com/r/socialsirius/didcomm',
         'base_url': '/admin',
         'current_user': current_user,
         'current_step': current_step,

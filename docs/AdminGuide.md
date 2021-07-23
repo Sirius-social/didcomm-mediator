@@ -19,3 +19,7 @@ Much of these commands duplicate features of Admin Web page
     - out of container: ```docker-compose exec application manage reset```
 
 ## WebRoot
+Suppose mediator provide for AgentX endpoint with public URL ```https://mediator-service.com/e/xxx```.
+That mean AgentX accessible for outer world by this address and any participant AgentY can
+communicate with AgentX in [DIDComm manner](https://identity.foundation/didcomm-messaging/spec/#message-types)
+

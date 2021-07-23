@@ -1,0 +1,11 @@
+@startuml
+Mediator -> AgentX: invitation (AriesRFC 0160)
+group Services provided by mediator
+AgentX -> Mediator: establish P2P
+group Mediator route all traffic from endpoint to AgentX device
+AgentX -> Mediator : Request endpoint [AriesRFC 0211]
+Mediator -> AgentX : Grant endpoint URL
+AgentX -> Mediator : manage routing keys
+end
+end
+@enduml
