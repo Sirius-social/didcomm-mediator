@@ -23,3 +23,7 @@ Suppose mediator provide for AgentX endpoint with public URL ```https://mediator
 That mean AgentX accessible for outer world by this address and any participant AgentY can
 communicate with AgentX in [DIDComm manner](https://identity.foundation/didcomm-messaging/spec/#message-types)
 
+In example above ```https://mediator-service.com``` is Webroot, it is DNS-specific name of server
+to make it visible all over internet, it is static part of endpoint addresses with dynamic nature.
+
+![image info](../_static/rfc0211.svg)
