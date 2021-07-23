@@ -26,4 +26,4 @@ communicate with AgentX in [DIDComm manner](https://identity.foundation/didcomm-
 In example above ```https://mediator-service.com``` is Webroot, it is DNS-specific name of server
 to make it visible all over internet, it is static part of endpoint addresses with dynamic nature.
 
-![image info](../_static/rfc0211.svg?raw=true)
+![Grant endpoint address](_static/rfc0211.svg?raw=true)
