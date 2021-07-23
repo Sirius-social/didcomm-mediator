@@ -73,7 +73,7 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
      - Fast to start: appliccation, presented in the repo, has user-friendly admin page and dashboards.
     
 
-## Deploy and configuration
+## Quick Start
 
 ## Develop and contribute
 
