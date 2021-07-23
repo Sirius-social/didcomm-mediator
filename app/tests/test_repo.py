@@ -148,4 +148,3 @@ async def test_global_settings(test_database: Database):
 
     value = await repo_under_test.get_global_setting(param1)
     assert value == 'value-ver-2'
-

@@ -230,6 +230,18 @@ async def set_global_setting(db: Database, name: str, value: Any):
             await db.execute(query=sql, values=values)
 
 
+async def reset_accounts(db: Database):
+    sql = users.delete()
+    await db.execute(query=sql)
+
+
+async def reset_global_settings(db: Database):
+    async with db.transaction():
+        await db.execute(f"LOCK TABLE global_settings IN EXCLUSIVE MODE;")
+        sql = global_settings.delete()
+        await db.execute(query=sql)
+
+
 def _restore_agent_from_row(row) -> dict:
     return {
         'id': row['id'],

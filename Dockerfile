@@ -3,7 +3,7 @@ FROM python:3.8
 ARG VERSION='0.0'
 
 RUN apt-get update && \
-  apt-get install -y coreutils nginx certbot
+  apt-get install -y coreutils nginx certbot netcat
 ENV LANG C.UTF-8
 ENV PYTHONUNBUFFERED 1
 ENV VERSION ${VERSION}
@@ -12,6 +12,7 @@ ENV VERSION ${VERSION}
 # Copy project files and install dependencies
 ADD app /app
 RUN	pip install -r /app/requirements.txt && chmod +x /app/wait-for-it.sh && chmod +x /app/run_tests.sh
+RUN chmod +x /app/manage.py && ln -s /app/manage.py /usr/bin/manage
 
 # Environment
 WORKDIR /app
@@ -54,4 +55,5 @@ HEALTHCHECK --interval=60s --timeout=3s --start-period=30s \
 # FIRE!!!
 CMD /app/wait-for-it.sh ${DATABASE_HOST}:${DATABASE_PORT-5432} --timeout=60 && \
     alembic upgrade head && \
+    manage check && \
     supervisord -c /etc/supervisord.conf

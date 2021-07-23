@@ -24,6 +24,10 @@ async def test_user_ops(test_database: Database, random_username: str, random_pa
         await create_user(test_database, random_username, random_password)
     with pytest.raises(DBRecordDoesNotExists):
         await load_user(test_database, 'unknown-username')
+    # Check clear accounts
+    await reset_accounts(test_database)
+    with pytest.raises(DBRecordDoesNotExists):
+        await load_user(test_database, random_username)
 
 
 @pytest.mark.asyncio
@@ -178,3 +182,8 @@ async def test_global_settings(test_database: Database):
 
     value = await get_global_setting(test_database, 'param1')
     assert value == 'value-ver-1'
+
+    await reset_global_settings(test_database)
+    for param in ['param1', 'param2']:
+        value = await get_global_setting(test_database, param)
+        assert value is None

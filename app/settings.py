@@ -27,8 +27,8 @@ WS_PATH_PREFIX = 'ws'
 MEMCACHED = os.environ.get('MEMCACHED')
 assert MEMCACHED is not None, 'You must set MEMCACHED env variable that specify memcached server address'
 
-REDIS = os.environ.get('REDIS')
-assert REDIS is not None, 'You must set REDIS env variable, for example: "address1,address2"'
+REDIS = os.environ.get('MSG_DELIVERY_SERVICES') or os.environ.get('REDIS')
+assert REDIS is not None, 'You must set MSG_DELIVERY_SERVICES env variable, for example: "redis://address1,redis://address2"'
 REDIS = REDIS.split(',')
 
 WEBROOT = os.environ.get('WEBROOT')

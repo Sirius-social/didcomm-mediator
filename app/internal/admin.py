@@ -4,8 +4,10 @@ from databases import Database
 from fastapi import APIRouter, Request, Depends, HTTPException, Response
 
 import app.db.crud as crud
-from app.settings import templates
+from app.settings import templates, WEBROOT as SETTING_WEBROOT
 from app.dependencies import get_db
+from app.core.global_config import GlobalConfig
+from app.core.singletons import GlobalMemcachedClient
 
 from .auth import auth_user, login, logout
 
@@ -14,17 +16,25 @@ router = APIRouter()
 
 
 @router.get("/")
-async def admin_panel(request: Request):
+async def admin_panel(request: Request, db: Database = Depends(get_db)):
+    cfg = GlobalConfig(db, GlobalMemcachedClient.get())
     current_user = await auth_user(request)
     if current_user is None:
         current_step = 1
     else:
         current_step = 2
 
-    base_url = request.base_url
-    print('==================')
-    print(request.base_url)
-    print('==================')
+    # variables
+    env = {
+        'webroot': SETTING_WEBROOT
+    }
+    settings = {
+        'webroot': await cfg.get_webroot()
+    }
+    # webroot = webroot or str(request.base_url)
+    webroot = str(request.base_url)
+    if webroot.endswith('/'):
+        webroot = webroot[:-1]
 
     context = {
         'github': 'https://github.com/Sirius-social/didcomm',
@@ -33,7 +43,10 @@ async def admin_panel(request: Request):
         'features': 'https://github.com/Sirius-social/didcomm#features',
         'base_url': '/admin',
         'current_user': current_user,
-        'current_step': current_step
+        'current_step': current_step,
+        'webroot': webroot,
+        'env': env,
+        'settings': settings
     }
     response = templates.TemplateResponse(
         "admin.html",
