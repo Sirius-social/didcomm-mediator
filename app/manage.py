@@ -30,4 +30,3 @@ elif command == CMD_CHECK:
     app.core.management.check()
 elif command == CMD_RESET:
     app.core.management.reset()
-
