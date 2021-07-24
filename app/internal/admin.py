@@ -32,13 +32,13 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
     env = {
         'webroot': SETTING_WEBROOT
     }
+    full_base_url = str(request.base_url)
+    if full_base_url.endswith('/'):
+        full_base_url = full_base_url[:-1]
     settings = {
-        'webroot': await cfg.get_webroot()
+        'webroot': await cfg.get_webroot(),
+        'full_base_url': full_base_url
     }
-    # webroot = webroot or str(request.base_url)
-    webroot = str(request.base_url)
-    if webroot.endswith('/'):
-        webroot = webroot[:-1]
 
     context = {
         'github': 'https://github.com/Sirius-social/didcomm',
@@ -49,7 +49,6 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         'base_url': '/admin',
         'current_user': current_user,
         'current_step': current_step,
-        'webroot': webroot,
         'env': env,
         'settings': settings
     }

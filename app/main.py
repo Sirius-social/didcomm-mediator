@@ -42,18 +42,21 @@ if __name__ == '__main__':
     parser.add_argument('--production', choices=['on', 'yes'], required=False)
     args = parser.parse_args()
     is_production = args.production is not None
+    args = ()
     kwargs = {}
     if is_production:
         logging.warning('\n')
         logging.warning('\t*************************************')
         logging.warning('\tApplication will be run in PRODUCTION mode')
         logging.warning('\t*************************************')
+        args = ['app.main:app']
     else:
         logging.warning('\n')
         logging.warning('\t*************************************')
         logging.warning('\tApplication will be run in DEBUG mode')
         logging.warning('\t*************************************')
         kwargs.update({'debug': True, 'reload': True})
+        args = ['app.main:app']
     uvicorn.run(
-        'app.main:app', host="0.0.0.0", port=int(os.getenv('PORT')), workers=int(os.getenv('WORKERS')), **kwargs
+        *args, host="0.0.0.0", port=int(os.getenv('PORT')), workers=int(os.getenv('WORKERS')), **kwargs
     )

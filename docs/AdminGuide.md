@@ -44,4 +44,18 @@ See interoperability protocols details:
   - [RFC 0211](https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination): allocate endpoint address by client and maintain routing keys
 
 ## Environment variables
- ... TODO ...
+
+### Critical variables:
+  - **MEMCACHED**: address of memcached server (caching user sessions and cache database read ops)
+  - **MSG_DELIVERY_SERVICES**: comma-separated list of message delivery service addresses, for example ```redis://192.168.1.10,redis://192.168.1.11```
+  - **DATABASE_HOST**: address of Postgres server
+  - **DATABASE_NAME**: name of Postgres database
+  - **DATABASE_USER**: username of Postgres database
+  - **DATABASE_PASSWORD**: user password with write privileges to Postgres database
+  - **SEED**: secret seed to generate persistent **public key** and **private key** of Mediator App.
+    Notice, for the same **seed** you will get **const keys**, so keep this value in secret.
+
+### Optional variables:
+  - **WEBROOT**: DNS-specific address of server with Mediator App running.
+  - **FCM_API_KEY**, **FCM_SENDER_ID**: Firebase cloud messaging Server **API Keys** to 
+    make able route traffic to mobile devices even OS **Power-Save** mode suspend Agent application on device.

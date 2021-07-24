@@ -2,16 +2,33 @@
     <h5 class="text-danger"></h5>
     <div class="form-group" style="margin-bottom: 5px;">
         <label class="fw-light" for="webroot-url" class="cols-sm-2 control-label" style="margin-right: 10px;">Webroot</label>
-        <a href="#" title="Webroot: view the doc">
+        <a href="https://github.com/Sirius-social/didcomm/blob/main/docs/AdminGuide.md#webroot" title="Webroot: view the doc" target="_blank">
             <img src="{{ url_for('static', path='/icons/q.png') }}" style="max-width: 18px;">
         </a>
         <div class="cols-sm-10">
             <div class="input-group">
-                <input v-model="form_webroot.url" type="text" class="form-control" name="webroot-url" id="webroot-url" placeholder="Webroot" />
+                <input
+                        v-model="form_webroot.url"
+                        :readonly="form_webroot.url == form_webroot.env_url"
+                        type="text" class="form-control"
+                        name="webroot-url"
+                        id="webroot-url"
+                        placeholder="Webroot"
+                />
             </div>
         </div>
     </div>
-    <div class="form-group" style="margin-bottom: 5px;">
-        <label class="fw-light" class="cols-sm-2 control-label" style="margin-right: 10px;">Let`s Encrypt</label>
+    <div  v-if="form_webroot.url == form_webroot.env_url"
+            class="form-group" style="margin-bottom: 5px; margin-top: 20px;"
+    >
+        <p class="blockquote-footer">
+            Yuo can not edit this because environment var <cite>WEBROOT</cite> is set,
+            <a href="https://github.com/Sirius-social/didcomm/blob/main/docs/AdminGuide.md#environment-variables">view the docs</a>  for details.
+            If you wish set webroot here or set to default value <cite>[[form_webroot.full_base_url]]</cite>,
+            you should remove <cite>WEBROOT</cite> from docker container environment and restart docker container.
+        </p>
+    </div>
+    <div class="form-group" style="margin-top: 10px;">
+        <button @click.prevent="current_step += 1" type="button" class="btn btn-primary btn-lg btn-block login-button">Next</button>
     </div>
 </form>

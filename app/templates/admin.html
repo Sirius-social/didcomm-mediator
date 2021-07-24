@@ -66,9 +66,18 @@
                            Form to configure webroot and LetsEncrypt
                         -->
                         <div v-if="current_step == 2" class="card">
-                            <div class="card-header">Step-2: Configure webroot URL and SSL</div>
+                            <div class="card-header">Step-2: Configure webroot URL</div>
                             <div class="card-body">
                                 {% include "forms/webroot.html" %}
+                            </div>
+                        </div>
+                        <!--
+                           Form to configure SSL & ACME
+                        -->
+                        <div v-if="current_step == 3" class="card">
+                            <div class="card-header">Step-3: Configure SSL</div>
+                            <div class="card-body">
+
                             </div>
                         </div>
                     </div>
@@ -128,7 +137,9 @@
                 error: ''
             },
             form_webroot: {
-                url: '{{ webroot }}',
+                url: '{{ settings.webroot }}',
+                env_url: '{{ env.webroot }}',
+                full_base_url: '{{ settings.full_base_url }}'
             }
         },
         methods: {
