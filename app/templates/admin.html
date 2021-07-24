@@ -45,6 +45,15 @@
                 <div class="row justify-content-center">
                     <div class="col-md-8">
                         <!--
+                           Login form
+                        -->
+                        <div v-if="current_step == 0" class="card">
+                            <div class="card-header">Login</div>
+                            <div class="card-body">
+                                {% include "forms/login.html" %}
+                            </div>
+                        </div>
+                        <!--
                            Form for creation admin account (if not exists)
                         -->
                         <div v-if="current_step == 1" class="card">
@@ -107,6 +116,11 @@
         delimiters: ['[[', ']]'],
         data: {
             current_step: {{ current_step }},
+            form_login: {
+                username: '',
+                password: '',
+                error: ''
+            },
             form_create_user: {
                 username: 'admin',
                 password1: '',
@@ -118,6 +132,23 @@
             }
         },
         methods: {
+            login: function(){
+                let url = '{{ base_url }}' + '/login';
+                let self = this;
+                axios.post(
+                    url, this.form_login
+                ).then(function (response) {
+                    self.form_login.error = null;
+                    console.log('======== SUCCESS ========')
+                    console.log(response);
+                    location.reload();
+                }).catch(function (error) {
+                    let detail = error.data.detail
+                    self.form_login.error = detail;
+                    console.log('======== ERROR ========')
+                    console.log(error.data);
+                });
+            },
             create_user: function(){
                 let url = '{{ base_url }}' + '/create_user';
                 let self = this;

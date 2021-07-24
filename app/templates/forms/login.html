@@ -1,0 +1,24 @@
+<form class="form-horizontal" method="post" action="#">
+    <h5 v-if="form_login.error" class="text-danger">[[form_login.error]]</h5>
+    <div class="form-group" style="margin-bottom: 5px;">
+        <label class="fw-light" for="username" class="cols-sm-2 control-label">Username</label>
+        <div class="cols-sm-10">
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-users fa" aria-hidden="true"></i></span>
+                <input v-model="form_login.username" type="text" class="form-control" name="username" id="username" placeholder="Enter Username" />
+            </div>
+        </div>
+    </div>
+    <div class="form-group" style="margin-bottom: 5px;">
+        <label class="fw-light" for="password" class="cols-sm-2 control-label">Password</label>
+        <div class="cols-sm-10">
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+                <input v-model="form_login.password" type="password" class="form-control" name="password" id="password" placeholder="Enter Password" />
+            </div>
+        </div>
+    </div>
+    <div class="form-group" style="margin-top: 10px;">
+        <button @click.prevent="login" type="button" class="btn btn-primary btn-lg btn-block login-button">Login</button>
+    </div>
+</form>

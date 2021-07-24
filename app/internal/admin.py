@@ -9,7 +9,7 @@ from app.dependencies import get_db
 from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient
 
-from .auth import auth_user, login, logout
+from .auth import auth_user as _auth_user, login as _login, logout as _logout
 
 
 router = APIRouter()
@@ -18,11 +18,15 @@ router = APIRouter()
 @router.get("/")
 async def admin_panel(request: Request, db: Database = Depends(get_db)):
     cfg = GlobalConfig(db, GlobalMemcachedClient.get())
-    current_user = await auth_user(request)
+    current_user = await _auth_user(request)
     if current_user is None:
-        current_step = 1
+        superuser = await crud.load_superuser(db, mute_errors=True)
+        if superuser:
+            current_step = 0  # login form
+        else:
+            current_step = 1  # create superuser form
     else:
-        current_step = 2
+        current_step = 2  # configure Webroot & SSL
 
     # variables
     env = {
@@ -57,6 +61,21 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         }
     )
     return response
+
+
+@router.post("/login", status_code=201)
+async def login(request: Request, response: Response, db: Database = Depends(get_db)):
+    js = await request.json()
+    username, password = js.get('username'), js.get('password')
+    user = await crud.load_user(db, username, mute_errors=True)
+    if user:
+        success = crud.check_password(user, password)
+        if success:
+            await _login(response, user)
+        else:
+            raise HTTPException(status_code=400, detail=f'Password incorrect')
+    else:
+        raise HTTPException(status_code=400, detail=f'Not found user with username: "{username}"')
 
 
 @router.post("/create_user", status_code=201)

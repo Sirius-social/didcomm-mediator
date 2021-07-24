@@ -188,7 +188,19 @@ async def load_user(db: Database, username: str, mute_errors: bool = False) -> O
         if mute_errors:
             return None
         else:
-            raise DBRecordDoesNotExists(f'Usr with username: "{username}" does not exists!')
+            raise DBRecordDoesNotExists(f'User with username: "{username}" does not exists!')
+
+
+async def load_superuser(db: Database, mute_errors: bool = False) -> Optional[dict]:
+    sql = users.select().where(users.c.is_active == True)
+    row = await db.fetch_one(query=sql)
+    if row:
+        return _restore_user_from_row(row)
+    else:
+        if mute_errors:
+            return None
+        else:
+            raise DBRecordDoesNotExists(f'No superusers!')
 
 
 def check_password(user: dict, password: str) -> bool:

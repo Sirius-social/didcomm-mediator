@@ -29,11 +29,12 @@ to make it visible all over internet, it is static part of endpoint addresses wi
 
 **Typing right webroot value is critical part to achieve serviceable endpoints**
 
-There are two ways to configure webroot:
+
+**There are two ways to configure webroot:**
   1. Pass environment variable ```WEBROOT``` to docker container
   2. Configure with Admin page
 
-Notice: environment variable has more priority, so if you have earlier configured webroot via admin page, value provided with env var will replace it
+*Notice: environment variable has more priority, so if you have earlier configured webroot via admin page, value provided with env var will replace it*
 
 
 ![Grant endpoint address](_static/rfc0211.svg?raw=true)
