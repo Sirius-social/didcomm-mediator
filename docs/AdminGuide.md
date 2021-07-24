@@ -42,3 +42,6 @@ to make it visible all over internet, it is static part of endpoint addresses wi
 See interoperability protocols details:
   - [RFC 0160](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol): establish P2P connection
   - [RFC 0211](https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination): allocate endpoint address by client and maintain routing keys
+
+## Environment variables
+ ... TODO ...
