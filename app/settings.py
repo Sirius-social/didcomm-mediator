@@ -20,7 +20,7 @@ if log_level:
 
 templates = Jinja2Templates(directory="templates")
 
-
+URL_STATIC = '/static'
 ENDPOINTS_PATH_PREFIX = 'e'
 WS_PATH_PREFIX = 'ws'
 

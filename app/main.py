@@ -10,10 +10,11 @@ from app.init import *
 from app.routers import maintenance, mediator
 from app.internal import admin
 from app.db.database import database
+from app.settings import URL_STATIC
 
 
 app = FastAPI()
-app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount(URL_STATIC, StaticFiles(directory="static"), name="static")
 
 app.include_router(maintenance.router)
 app.include_router(mediator.router)

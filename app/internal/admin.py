@@ -5,7 +5,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
 
 import app.db.crud as crud
-from app.settings import templates, WEBROOT as SETTING_WEBROOT
+from app.settings import templates, WEBROOT as SETTING_WEBROOT, URL_STATIC
 from app.dependencies import get_db
 from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient
@@ -60,7 +60,12 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         'current_user': current_user,
         'current_step': current_step,
         'env': env,
-        'settings': settings
+        'settings': settings,
+        'static': {
+            'styles': URL_STATIC + '/admin/css/styles.css',
+            'vue': URL_STATIC + '/vue.min.js',
+            'axios': URL_STATIC + '/axios.min.js',
+        }
     }
     response = templates.TemplateResponse(
         "admin.html",
