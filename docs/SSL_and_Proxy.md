@@ -10,10 +10,32 @@ This application has user-friendly admin pages to help configuration of SSL out-
 Let's consider three cases
 
 ### Case-1: you already have SSL **cert** and **cert_key** files
+Imagine you have certificate file **cert.pem** and certificate secret file **privkey.pem**
+that placed in directory ```/var/my_certs```
+Then docker-compose configuration seems like this:
+
+    ```
+
+    ...
+    app:
+        ...
+        environment:
+          ...
+          - CERT_FILE=/certs/cert.pem
+          - CERT_KEY_FILE=/certs/privkey.pem
+          ...
+        volumes:
+          - /var/my_certs:/certs    # mount directory with cert files into docker container
+        ports:
+          - "80:80"     # nginx running in container will route all http:// requests to https://
+          - "443:443"   # nginx will server SSL connections and proxy to Mediator application
+    ...
+
+    ```
     
 ### Case-2: you don't have SSL **cert** and **cert_key** files, and you want to automate certs update via [Let's Encrypt](https://letsencrypt.org/)  
 ### Case-3: you are going to run **Mediator app** behind external proxy (Kubernetes or Multi-Tower approach with external load balancer)
-Example configuration for Nginx: 
+Example configuration for Nginx and web app published on 8000 port localhost: 
 
     ```
     server {
