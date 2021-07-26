@@ -1,6 +1,9 @@
 import os
 import asyncio
 
+import sirius_sdk
+
+import settings
 from app.settings import MEMCACHED
 from app.db.database import database
 from app.db.crud import reset_global_settings as _reset_global_settings, reset_accounts as _reset_accounts, \
@@ -55,4 +58,16 @@ def create_superuser():
 
 
 def check():
-    print('Check: OK!')
+    if settings.SEED is None:
+        raise RuntimeError('SEED environment variable is not set')
+    sirius_sdk.encryption.validate_seed(settings.SEED)
+    print('')
+    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+    print('Check OK')
+    print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+
+
+def generate_seed() -> str:
+    value_b = sirius_sdk.encryption.random_seed()
+    value = sirius_sdk.encryption.bytes_to_b58(value_b)
+    return value

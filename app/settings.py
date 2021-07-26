@@ -62,11 +62,14 @@ TEST_SQLALCHEMY_DATABASE_URL = \
 
 
 SEED = os.getenv('SEED')
-assert SEED is not None, 'You must set SEED env variable'
-pub, priv = sirius_sdk.encryption.create_keypair(seed=os.getenv('SEED').encode())
-KEYPAIR = sirius_sdk.encryption.bytes_to_b58(pub), sirius_sdk.encryption.ed25519.bytes_to_b58(priv)
-did = sirius_sdk.encryption.did_from_verkey(verkey=pub)
-DID = sirius_sdk.encryption.bytes_to_b58(did)
+if SEED is None:
+    pub, priv = sirius_sdk.encryption.create_keypair(seed=os.getenv('SEED').encode())
+    KEYPAIR = sirius_sdk.encryption.bytes_to_b58(pub), sirius_sdk.encryption.ed25519.bytes_to_b58(priv)
+    did = sirius_sdk.encryption.did_from_verkey(verkey=pub)
+    DID = sirius_sdk.encryption.bytes_to_b58(did)
+else:
+    KEYPAIR = None, None
+    DID = None
 MEDIATOR_LABEL = os.getenv('LABEL', 'Mediator')
 
 FIREBASE_API_KEY = os.getenv('FCM_API_KEY')

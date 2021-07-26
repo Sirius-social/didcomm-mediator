@@ -74,7 +74,7 @@
 <script>
     let ping_in_process = false;
     setInterval(function(){
-        if (!ping_in_process) {
+        if (!ping_in_process && app.$data.current_step === 2) {
             ping_in_process = true;
             let url = app.$data.form_webroot.url + '{{ base_url }}' + '/ping';
             axios.get(

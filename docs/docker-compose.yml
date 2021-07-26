@@ -14,28 +14,18 @@ services:
   redis2:
     image: redis
 
-  application:
-    build:
-      context: .
-    image: "socialsirius/didcomm:${VERSION-dev}"
-    command: bash -c "python main.py"
+  app:
+    image: socialsirius/didcomm
     environment:
-      - TEAMCITY_VERSION
       - MEMCACHED=memcached
       - REDIS=redis://redis1,redis://redis2
       - DATABASE_HOST=db
       - DATABASE_USER=postgres
       - DATABASE_NAME=postgres
       - DATABASE_PASSWORD=postgres
-      - WEBROOT=http://didcomm.server.com
-      - SEED=000000000000000000000000000RELAY
-      - LOGLEVEL=DEBUG
-      - FCM_API_KEY=fake-key
-      - FCM_SENDER_ID=fake-id
-    volumes:
-      - ./app:/app
+      - SEED="pass here earlier generated unique seed"
     ports:
-      - "8000:8000"
+      - "80:80"
     depends_on:
       - db
       - memcached

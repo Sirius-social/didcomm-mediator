@@ -8,7 +8,8 @@ import app.core.management
 CMD_RESET = 'reset'
 CMD_CREATE_SUPERUSER = 'create_superuser'
 CMD_CHECK = 'check'
-ALL_CMD = [CMD_CREATE_SUPERUSER, CMD_CHECK, CMD_RESET]
+CMD_GENERATE_SEED = 'generate_seed'
+ALL_CMD = [CMD_CREATE_SUPERUSER, CMD_CHECK, CMD_RESET, CMD_GENERATE_SEED]
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument(
@@ -30,3 +31,11 @@ elif command == CMD_CHECK:
     app.core.management.check()
 elif command == CMD_RESET:
     app.core.management.reset()
+elif command == CMD_GENERATE_SEED:
+    seed = app.core.management.generate_seed()
+    print('')
+    print('=================================================================================')
+    print('SEED value is: ')
+    print('\t\t' + seed)
+    print('place it to SEED environment variable')
+    print('=================================================================================')
