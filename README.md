@@ -75,7 +75,7 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
 
 ## Quick Start
 
-  1. Navigate to [docs](docs/) directory
+  1. Navigate to [docs](docs/) directory and pull all docker images: ```docker-compose pull```
   2. You should generate Mediator public and private keys: ```docker-compose run app manage generate_seed```,
      you will see something like this:
      ```
@@ -88,8 +88,13 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
      **seed** value make it possible to restore Mediator cryptography keys and [DIDs](https://www.w3.org/TR/did-core/)
      independently of hardware and software environment
   2. Replace in ```docker-compose.yml``` file ```SEED``` environment with generated **seed** on prev step
-  3. Run application ```docker-compose up -d``` and open in browser ```http://localhost``` to finish configurations
+  3. Run application ```docker-compose up -d``` and open in browser [Admin Page](http://localhost/admin) to finish configurations
      via Admin Web Page
+     
+## Deploy
+
+  - [Admin Guide](docs/AdminGuide.md)
+  - [SSL and Proxy](docs/SSL_and_Proxy.md)
 
 ## Develop and contribute
 

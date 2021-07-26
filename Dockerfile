@@ -18,6 +18,8 @@ RUN chmod +x /app/manage.py && ln -s /app/manage.py /usr/bin/manage
 WORKDIR /app
 ENV PYTHONPATH=/:$PYTHONPATH
 EXPOSE 8000
+EXPOSE 80
+EXPOSE 443
 
 ENV PORT=8000
 ENV WORKERS=4

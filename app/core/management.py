@@ -71,3 +71,46 @@ def generate_seed() -> str:
     value_b = sirius_sdk.encryption.random_seed()
     value = sirius_sdk.encryption.bytes_to_b58(value_b)
     return value
+
+
+NGINX_CFH_JINJA_TEMPLATE = """
+server {
+        listen 80;
+        listen [::]:80;
+        server_name http;
+
+        index index.html;
+
+        location ^~ /.well-known/acme-challenge/ {
+                # --- LETSENCRYPT ---
+                root {{ root_dir}};
+                try_files $uri $uri/ =404;
+        }
+}
+
+
+server {
+        server_name {{ webroot }};
+        listen 443 ssl;
+        ssl_certificate         {{ cert_file }};
+        ssl_certificate_key     {{ cert_key }};
+        ssl_protocols           TLSv1 TLSv1.1 TLSv1.2;
+        
+        location /ws {
+                proxy_pass http://localhost:8000;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "Upgrade";
+                
+                # By default, the connection will be closed if the proxied server does not 
+                # transmit any data within 60 seconds
+                # proxy_read_timeout 60;
+        }
+        location / {
+                proxy_set_header Host $http_host;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_pass http://localhost:8000;
+        }
+}
+"""

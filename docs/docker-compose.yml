@@ -26,6 +26,7 @@ services:
       - SEED="pass here earlier generated unique seed"
     ports:
       - "80:80"
+      - "443:443"
     depends_on:
       - db
       - memcached
