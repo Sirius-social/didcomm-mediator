@@ -62,6 +62,11 @@ TEST_SQLALCHEMY_DATABASE_URL = \
 
 
 SEED = os.getenv('SEED')
+try:
+    sirius_sdk.encryption.validate_seed(SEED)
+except sirius_sdk.SiriusCryptoError:
+    SEED = None
+
 if SEED is None:
     KEYPAIR = None, None
     DID = None
