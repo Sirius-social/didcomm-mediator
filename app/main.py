@@ -50,6 +50,7 @@ if __name__ == '__main__':
         logging.warning('\tApplication will be run in PRODUCTION mode')
         logging.warning('\t*************************************')
         args = ['app.main:app']
+        kwargs['proxy_headers'] = True
     else:
         logging.warning('\n')
         logging.warning('\t*************************************')
