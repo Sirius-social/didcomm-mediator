@@ -41,6 +41,14 @@ nocleanup = true\n\
 childlogdir = /tmp\n\
 strip_ansi = false\n\
 \n\
+[program:nginx]\n\
+command=nginx -g 'daemon off;'\n\
+directory=/app\n\
+autorestart = true\n\
+stdout_logfile_maxbytes = 0 \n\
+stderr_logfile_maxbytes = 0 \n\
+stdout_logfile=/dev/stdout\n\
+stderr_logfile=/dev/stdout\n\
 [program:web]\n\
 command=python main.py --production=on\n\
 directory=/app\n\

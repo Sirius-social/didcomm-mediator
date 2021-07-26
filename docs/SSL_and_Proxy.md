@@ -19,7 +19,7 @@ Example configuration for Nginx:
     server {
         server_name <your server name, for example: myserver.com>;
         listen 443 ssl;
-        ssl_certificate         /certs/fullchain.pem;
+        ssl_certificate         /certs/cert.pem;
         ssl_certificate_key     /certs/privkey.pem;
         ssl_protocols           TLSv1 TLSv1.1 TLSv1.2;
 

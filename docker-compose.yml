@@ -32,8 +32,11 @@ services:
       - LOGLEVEL=DEBUG
       - FCM_API_KEY=fake-key
       - FCM_SENDER_ID=fake-id
+      - CERT_FILE=/certs/cert.pem
+      - CERT_KEY_FILE=/certs/privkey.pem
     volumes:
       - ./app:/app
+      - ./certs:/certs
     ports:
       - "8000:8000"
     depends_on:

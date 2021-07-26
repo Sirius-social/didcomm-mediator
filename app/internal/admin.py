@@ -115,7 +115,7 @@ async def create_user(request: Request, response: Response, db: Database = Depen
         raise HTTPException(status_code=400, detail=f'User with username "{username}" already exists')
     else:
         user = await crud.create_user(db, username, password1)
-        await login(response, user)
+        await _login(response, user)
 
 
 @router.get("/ping")

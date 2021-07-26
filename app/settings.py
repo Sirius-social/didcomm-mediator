@@ -20,6 +20,7 @@ if log_level:
 
 templates = Jinja2Templates(directory="templates")
 
+PORT = int(os.getenv('PORT'))
 URL_STATIC = '/static'
 ENDPOINTS_PATH_PREFIX = 'e'
 WS_PATH_PREFIX = 'ws'
@@ -63,7 +64,8 @@ TEST_SQLALCHEMY_DATABASE_URL = \
 
 SEED = os.getenv('SEED')
 try:
-    sirius_sdk.encryption.validate_seed(SEED)
+    if SEED is not None:
+        sirius_sdk.encryption.validate_seed(SEED)
 except sirius_sdk.SiriusCryptoError:
     SEED = None
 
@@ -88,3 +90,7 @@ if FIREBASE_API_KEY and FIREBASE_SENDER_ID is None:
 
 FCM_SERVICE_TYPE = 'FCMService'
 MEDIATOR_SERVICE_TYPE = 'MediatorService'
+
+
+CERT_FILE = os.getenv('CERT_FILE')
+CERT_KEY_FILE = os.getenv('CERT_KEY_FILE')
