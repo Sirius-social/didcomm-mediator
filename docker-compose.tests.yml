@@ -20,7 +20,7 @@ services:
     environment:
       - TEAMCITY_VERSION
       - MEMCACHED=memcached
-      - REDIS=redis1,redis2
+      - REDIS=redis://redis1,redis://redis2
       - DATABASE_HOST=db
       - DATABASE_USER=postgres
       - DATABASE_NAME=postgres

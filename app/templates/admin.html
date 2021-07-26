@@ -23,6 +23,9 @@
             <ul class="navbar-nav ms-auto me-4 my-3 my-lg-0">
                 <li class="nav-item"><a class="nav-link me-lg-3" href="{{features}}" target="_blank">Features</a></li>
                 <li class="nav-item"><a class="nav-link me-lg-3" href="{{download}}" target="_blank">Download</a></li>
+                {% if current_user %}
+                    <li class="nav-item"><a class="nav-link me-lg-3" href="{{ base_url }}/logout">Logout [{{ current_user.username }}]</a></li>
+                {% endif %}
             </ul>
             <!--
             <button class="btn btn-primary rounded-pill px-3 mb-2 mb-lg-0" data-bs-target="#feedbackModal"
@@ -139,7 +142,9 @@
             form_webroot: {
                 url: '{{ settings.webroot }}',
                 env_url: '{{ env.webroot }}',
-                full_base_url: '{{ settings.full_base_url }}'
+                full_base_url: '{{ settings.full_base_url }}',
+                ping: 'starting',
+                error: ''
             }
         },
         methods: {
@@ -176,6 +181,39 @@
                     console.log('======== ERROR ========')
                     console.log(error.data);
                 });
+            },
+            set_webroot: function(){
+                let url = '{{ base_url }}' + '/set_webroot';
+                let self = this;
+                axios.post(
+                    url, {value: self.form_webroot.url}
+                ).then(function (response) {
+                    self.form_webroot.error = null;
+                    console.log('======== SUCCESS ========')
+                    console.log(response);
+                    self.current_step += 1;
+                }).catch(function (error) {
+                    let detail = error.data.detail
+                    self.form_webroot.error = detail;
+                    console.log('======== ERROR ========')
+                    console.log(error.data);
+                });
+            }
+        },
+        computed: {
+            ping_status_caption: function(){
+                if (this.form_webroot.ping == 'success') {
+                    return 'webroot is reachable'
+                }
+                else if (this.form_webroot.ping == 'error') {
+                    return 'webroot is unreachable'
+                }
+                else if (this.form_webroot.ping == 'starting'){
+                    return 'checking if webroot is reachable...'
+                }
+                else {
+                    return ''
+                }
             }
         }
     });

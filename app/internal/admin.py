@@ -2,6 +2,7 @@ import json
 
 from databases import Database
 from fastapi import APIRouter, Request, Depends, HTTPException, Response
+from fastapi.responses import RedirectResponse
 
 import app.db.crud as crud
 from app.settings import templates, WEBROOT as SETTING_WEBROOT
@@ -13,6 +14,15 @@ from .auth import auth_user as _auth_user, login as _login, logout as _logout
 
 
 router = APIRouter()
+
+
+BASE_URL = '/admin'
+
+
+async def check_is_logged(request: Request):
+    current_user = await _auth_user(request)
+    if current_user is None:
+        raise HTTPException(status_code=401, detail=f'Unauthorized')
 
 
 @router.get("/")
@@ -36,7 +46,7 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
     if full_base_url.endswith('/'):
         full_base_url = full_base_url[:-1]
     settings = {
-        'webroot': await cfg.get_webroot(),
+        'webroot': await cfg.get_webroot() or full_base_url,
         'full_base_url': full_base_url
     }
 
@@ -46,7 +56,7 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         'spec': 'https://identity.foundation/didcomm-messaging/spec/',
         'features': 'https://github.com/Sirius-social/didcomm#features',
         'download': 'https://hub.docker.com/r/socialsirius/didcomm',
-        'base_url': '/admin',
+        'base_url': BASE_URL,
         'current_user': current_user,
         'current_step': current_step,
         'env': env,
@@ -77,6 +87,12 @@ async def login(request: Request, response: Response, db: Database = Depends(get
         raise HTTPException(status_code=400, detail=f'Not found user with username: "{username}"')
 
 
+@router.get("/logout")
+async def login(request: Request, response: Response):
+    await _logout(request, response)
+    return RedirectResponse(url=BASE_URL)
+
+
 @router.post("/create_user", status_code=201)
 async def create_user(request: Request, response: Response, db: Database = Depends(get_db)):
     js = await request.json()
@@ -95,3 +111,17 @@ async def create_user(request: Request, response: Response, db: Database = Depen
     else:
         user = await crud.create_user(db, username, password1)
         await login(response, user)
+
+
+@router.get("/ping")
+async def ping():
+    return {'success': True}
+
+
+@router.post("/set_webroot", status_code=201)
+async def set_webroot(request: Request, db: Database = Depends(get_db)):
+    await check_is_logged(request)
+    js = await request.json()
+    value = js.get('value')
+    cfg = GlobalConfig(db, GlobalMemcachedClient.get())
+    await cfg.set_webroot(value)

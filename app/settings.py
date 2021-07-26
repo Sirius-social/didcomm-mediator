@@ -39,10 +39,9 @@ for item in MSG_DELIVERY_SERVICES.split(','):
     else:
         address = item
         REDIS.append(address)
-REDIS = MSG_DELIVERY_SERVICES.split(',')
+
 
 WEBROOT = os.environ.get('WEBROOT')
-assert REDIS is not None, 'You must set WEBROOT env variable, for example: "https://myserver.com"'
 
 # Postgres
 DATABASE_HOST = os.getenv('DATABASE_HOST')
