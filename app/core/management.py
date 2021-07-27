@@ -39,6 +39,10 @@ def clear_memcached():
     os.system(f"(echo 'flush_all' | netcat {addr} {port}) &")
 
 
+def reload_nginx():
+    os.system("service nginx reload")
+
+
 def reset():
     async def _routine():
         await _reset_global_settings(database)
@@ -80,7 +84,7 @@ def check():
 
     if settings.CERT_FILE and settings.CERT_KEY_FILE:
         _validate_certs(settings.CERT_FILE, settings.CERT_KEY_FILE)
-        _setup_nginx(settings.CERT_FILE, settings.CERT_KEY_FILE, 'https')
+        _setup_nginx(settings.CERT_FILE, settings.CERT_KEY_FILE, 'https', only_https=True)
     print('')
     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
     print('Check OK')
@@ -106,12 +110,12 @@ def _validate_certs(cert_file: str, cert_key_file: str):
     context.check_privatekey()
 
 
-def _setup_nginx(cert_file: str, cert_key_file: str, webroot: str):
+def _setup_nginx(cert_file: str, cert_key_file: str, webroot: str, only_https: bool):
     proxy_tmp = Template(NGINX_PROXY_JINJA_TEMPLATE)
     render_proxy = proxy_tmp.render(asgi_port=settings.PORT)
     cfg_tmp = Template(NGINX_CFG_JINJA_TEMPLATE.replace('<proxy>', render_proxy))
     render_cfg = cfg_tmp.render(
-        root_dir='/var/www/html', cert_file=cert_file, cert_key=cert_key_file, webroot=webroot
+        root_dir='/var/www/html', cert_file=cert_file, cert_key=cert_key_file, webroot=webroot, only_https=only_https
     )
     with open('/etc/nginx/sites-available/default', 'w') as f:
         f.truncate()
@@ -163,7 +167,13 @@ server {
                 root {{ root_dir}};
                 try_files $uri $uri/ =404;
         }
-        <proxy>
+        {% if only_https %}
+            location / {
+                return 301 https://$host$request_uri;
+            }
+        {% else %}
+            <proxy>
+        {% endif %}    
 }
 
 

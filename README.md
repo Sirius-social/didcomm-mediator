@@ -88,7 +88,7 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
      **seed** value make it possible to restore Mediator cryptography keys and [DIDs](https://www.w3.org/TR/did-core/)
      independently of hardware and software environment
   2. Replace in [docker-compose.yml](docs/docker-compose.yml) file ```SEED``` environment with generated **seed** on prev step
-  3. Run application ```docker-compose up -d``` and open in browser [Admin Page](http://localhost:8000/admin) to finish configurations
+  3. Run application ```docker-compose up -d``` and open in browser [Admin Page http://localhost:8000/admin](http://localhost:8000/admin) to finish configurations
      via Admin Web Page
      
 ## Deploy

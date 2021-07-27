@@ -9,7 +9,8 @@ CMD_RESET = 'reset'
 CMD_CREATE_SUPERUSER = 'create_superuser'
 CMD_CHECK = 'check'
 CMD_GENERATE_SEED = 'generate_seed'
-ALL_CMD = [CMD_CREATE_SUPERUSER, CMD_CHECK, CMD_RESET, CMD_GENERATE_SEED]
+CMD_SSL_UPDATED = 'ssl_updated'
+ALL_CMD = [CMD_CREATE_SUPERUSER, CMD_CHECK, CMD_RESET, CMD_GENERATE_SEED, CMD_SSL_UPDATED]
 
 arg_parser = argparse.ArgumentParser()
 arg_parser.add_argument(
@@ -39,3 +40,5 @@ elif command == CMD_GENERATE_SEED:
     print('\t\t' + seed)
     print('place it to SEED environment variable')
     print('=================================================================================')
+elif command == CMD_SSL_UPDATED:
+    app.core.management.reload_nginx()

@@ -4,16 +4,29 @@
         <select v-model="form_ssl.option"  id="options" name="options">
           <option value="manual">Manually</option>
           <option value="acme">Let's Encrypt</option>
-          <option value="fiat">External SSL Proxy</option>
+          <option value="external">External SSL Proxy</option>
         </select>
     </div>
     <div
             class="form-group" style="margin-bottom: 5px; margin-top: 40px;"
     >
-        <p class="blockquote-footer">
+        <p v-if="form_ssl.option == 'manual'" class="blockquote-footer">
             This case is prefer if You have SSL <b>certificate</b> and <b>private key</b> files.
             Pass them to environment variables <b>CERT_FILE</b> and <b>CERT_KEY_FILE</b>
             See example <a target="_blank" href="https://github.com/Sirius-social/didcomm/blob/main/docs/SSL_and_Proxy.md#case-1-you-already-have-ssl-cert-and-cert_key-files">here</a>
+        </p>
+        <p v-if="form_ssl.option == 'acme'" class="blockquote-footer">
+            If you don't have SSL <b>certificate</b> and you don't want to <b>buy it</b>, you may automate certificates issuing
+            and updating every 2 month via <a target="_blank" href="https://letsencrypt.org/">Let's Encrypt service</a>
+            This application has <b>pre-installed certbot</b> in docker container and you should configure minimum options to
+            start.
+            See example <a target="_blank" href="https://github.com/Sirius-social/didcomm/blob/main/docs/SSL_and_Proxy.md#case-2-you-dont-have-ssl-cert-and-cert_key-files-and-you-want-to-automate-certs-update-via-lets-encrypt">here</a>
+        </p>
+        <p v-if="form_ssl.option == 'external'" class="blockquote-footer">
+            If you deploy Mediator application in the datacenter or cloud, if you use Orchestration like <b>Kubernetes</b>
+            or <b>Multi-Tower</b> architecture with external proxy+load-balancer,
+            you should public <b>8000</b> http port to avoid traffics overheads through in-container running nginx.
+            See example <a target="_blank" href="https://github.com/Sirius-social/didcomm/blob/main/docs/SSL_and_Proxy.md#case-3-you-are-going-to-run-mediator-app-behind-external-proxy-kubernetes-or-multi-tower-approach-with-external-load-balancer">here</a>
         </p>
     </div>
     <div class="form-group" style="margin-top: 10px;">

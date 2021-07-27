@@ -35,7 +35,8 @@ Then docker-compose configuration seems like this:
     
 ### Case-2: you don't have SSL **cert** and **cert_key** files, and you want to automate certs update via [Let's Encrypt](https://letsencrypt.org/)  
 ### Case-3: you are going to run **Mediator app** behind external proxy (Kubernetes or Multi-Tower approach with external load balancer)
-Example configuration for Nginx and web app published on 8000 port localhost: 
+Example configuration for Nginx and web app published on 8000 port to avoid traffic overheads - external 
+proxy will communicate with application directly: 
 
     ```
     server {
