@@ -61,3 +61,12 @@ global_settings = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.INTEGER, primary_key=True, autoincrement=True),
     sqlalchemy.Column("content", sqlalchemy.JSON)
 )
+
+
+backups = sqlalchemy.Table(
+    'backups',
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.INTEGER, primary_key=True, autoincrement=True),
+    sqlalchemy.Column("binary", sqlalchemy.LargeBinary),
+    sqlalchemy.Column("description", sqlalchemy.String, index=True),
+)
