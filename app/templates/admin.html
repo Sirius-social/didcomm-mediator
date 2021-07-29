@@ -153,10 +153,12 @@
                 error: ''
             },
             form_ssl: {
-                option: 'manual',
+                option: '{{ settings.ssl_option }}',
                 cert_file: '{{ env.cert_file }}',
                 cert_key_file: '{{ env.cert_key_file }}',
-                error: ''
+                error: '',
+                acme_email: '',
+                acme_share_email: false
             }
         },
         methods: {
@@ -199,6 +201,23 @@
                 let self = this;
                 axios.post(
                     url, {value: self.form_webroot.url}
+                ).then(function (response) {
+                    self.form_webroot.error = null;
+                    console.log('======== SUCCESS ========')
+                    console.log(response);
+                    self.current_step += 1;
+                }).catch(function (error) {
+                    let detail = error.data.detail
+                    self.form_webroot.error = detail;
+                    console.log('======== ERROR ========')
+                    console.log(error.data);
+                });
+            },
+            set_ssl_option: function(){
+                let url = '{{ base_url }}' + '/set_ssl_option';
+                let self = this;
+                axios.post(
+                    url, {value: self.form_ssl.option}
                 ).then(function (response) {
                     self.form_webroot.error = null;
                     console.log('======== SUCCESS ========')

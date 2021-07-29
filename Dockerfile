@@ -26,8 +26,8 @@ ENV WORKERS=4
 
 RUN echo "authenticator=webroot\n\
 webroot-path=/var/www/html\n\
-post-hook=manage ssl_updated\n"\
->> /etc/letsencrypt/cli.ini
+post-hook=manage reload\n"\
+> /etc/letsencrypt/cli.ini
 
 RUN echo "[supervisord]\n\
 logfile = /tmp/supervisord.log\n\

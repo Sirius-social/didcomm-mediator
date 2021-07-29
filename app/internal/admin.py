@@ -42,15 +42,18 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
     # variables
     env = {
         'webroot': SETTING_WEBROOT,
-        'cert_file': SETTING_CERT_FILE,
-        'cert_key_file': SETTING_CERT_KEY_FILE
+        'cert_file': SETTING_CERT_FILE or '',
+        'cert_key_file': SETTING_CERT_KEY_FILE or ''
     }
     full_base_url = str(request.base_url)
     if full_base_url.endswith('/'):
         full_base_url = full_base_url[:-1]
+
+    ssl_option = await cfg.get_ssl_option()
     settings = {
         'webroot': await cfg.get_webroot() or full_base_url,
-        'full_base_url': full_base_url
+        'full_base_url': full_base_url,
+        'ssl_option': ssl_option or 'manual'
     }
     if 'x-forwarded-proto' in request.headers:
         scheme = request.headers['x-forwarded-proto']
@@ -131,10 +134,19 @@ async def ping():
     return {'success': True}
 
 
-@router.post("/set_webroot", status_code=201)
+@router.post("/set_webroot", status_code=200)
 async def set_webroot(request: Request, db: Database = Depends(get_db)):
     await check_is_logged(request)
     js = await request.json()
     value = js.get('value')
     cfg = GlobalConfig(db, GlobalMemcachedClient.get())
     await cfg.set_webroot(value)
+
+
+@router.post("/set_ssl_option", status_code=200)
+async def set_ssl_option(request: Request, db: Database = Depends(get_db)):
+    await check_is_logged(request)
+    js = await request.json()
+    value = js.get('value')
+    cfg = GlobalConfig(db, GlobalMemcachedClient.get())
+    await cfg.set_ssl_option(value)

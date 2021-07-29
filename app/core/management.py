@@ -39,7 +39,7 @@ def clear_memcached():
     os.system(f"(echo 'flush_all' | netcat {addr} {port}) &")
 
 
-def reload_nginx():
+def reload():
     os.system("service nginx reload")
 
 
@@ -85,6 +85,8 @@ def check():
     if settings.CERT_FILE and settings.CERT_KEY_FILE:
         _validate_certs(settings.CERT_FILE, settings.CERT_KEY_FILE)
         _setup_nginx(settings.CERT_FILE, settings.CERT_KEY_FILE, 'https', only_https=True)
+    else:
+        _setup_nginx(None, None, 'https', only_https=False)
     print('')
     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
     print('Check OK')
@@ -110,7 +112,7 @@ def _validate_certs(cert_file: str, cert_key_file: str):
     context.check_privatekey()
 
 
-def _setup_nginx(cert_file: str, cert_key_file: str, webroot: str, only_https: bool):
+def _setup_nginx(cert_file: Optional[str], cert_key_file: Optional[str], webroot: Optional[str], only_https: bool):
     proxy_tmp = Template(NGINX_PROXY_JINJA_TEMPLATE)
     render_proxy = proxy_tmp.render(asgi_port=settings.PORT)
     cfg_tmp = Template(NGINX_CFG_JINJA_TEMPLATE.replace('<proxy>', render_proxy))

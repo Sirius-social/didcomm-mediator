@@ -11,7 +11,7 @@
                     <input
                             v-model="form_webroot.url"
                             @keyup="form_webroot.ping = 'starting'"
-                            :readonly="form_webroot.url == form_webroot.env_url"
+                            :readonly="form_webroot.env_url"
                             type="text" class="form-control"
                             name="webroot-url"
                             id="webroot-url"
@@ -60,7 +60,7 @@
 
     <div class="form-group" style="margin-top: 25px;">
         <button
-                v-if="form_webroot.url == form_webroot.env_url"
+                v-if="form_webroot.env_url"
                 @click.prevent="current_step += 1"
                 type="button"
                 class="btn btn-primary btn-lg btn-block login-button"
@@ -68,7 +68,7 @@
             Skip >
         </button>
         <button
-                v-if="form_webroot.url != form_webroot.env_url"
+                v-if="!form_webroot.env_url"
                 @click.prevent="set_webroot"
                 type="button"
                 class="btn btn-primary btn-lg btn-block login-button"

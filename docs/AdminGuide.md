@@ -22,6 +22,10 @@ Much of these commands duplicate features of Admin Web page
     - in container: ```manage reset```
     - out of container: ```docker-compose run --rm application manage reset```
     
+  - Reload internal services like nginx when settings was updated
+    - in container: ```manage reload```
+    - out of container: ```docker-compose run --rm application manage reload```
+    
 
 ## WebRoot
 

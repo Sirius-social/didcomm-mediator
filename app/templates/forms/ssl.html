@@ -36,12 +36,49 @@
             See example <a target="_blank" href="https://github.com/Sirius-social/didcomm/blob/main/docs/SSL_and_Proxy.md#case-3-you-are-going-to-run-mediator-app-behind-external-proxy-kubernetes-or-multi-tower-approach-with-external-load-balancer">here</a>
         </p>
     </div>
+    <div
+            v-if="form_ssl.option == 'acme'"
+            class="form-group"
+            style="margin-bottom: 15px;"
+    >
+        <label class="fw-light" for="acme-email" class="cols-sm-2 control-label">Let's Encrypt registration email</label>
+        <div class="cols-sm-10">
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-users fa" aria-hidden="true"></i></span>
+                <input v-model="form_ssl.acme_email" type="text" class="form-control" name="acme-email" id="acme-email" placeholder="Enter Email" />
+            </div>
+        </div>
+        <div class="form-check">
+          <input v-model="form_ssl.acme_share_email" class="form-check-input" type="checkbox" value="" id="acme-email-share">
+          <label
+                  class="form-check-label fw-light" for="acme-email-share"
+          >
+            Share your email address with the Electronic Frontier Foundation
+            <img
+                    src="{{ url_for('static', path='/icons/q.png') }}" style="max-width: 18px;"
+                    title="Would you be willing to share your email address with the Electronic Frontier
+Foundation, a founding partner of the Let's Encrypt project and the non-profit
+organization that develops Certbot? We'd like to send you email about our work
+encrypting the web, EFF news, campaigns, and ways to support digital freedom."
+
+            >
+          </label>
+        </div>
+        <label class="fw-light" for="acme-webroot-url" class="cols-sm-2 control-label">Domain</label>
+        <div class="cols-sm-10">
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-users fa" aria-hidden="true"></i></span>
+                <input readonly="true" v-model="form_webroot.url" type="text" class="form-control" name="acme-webroot-url" id="acme-webroot-url" placeholder="Domain" />
+            </div>
+        </div>
+    </div>
     <div class="row">
         <button @click="current_step -= 1" type="button" class="col btn btn-outline-secondary btn-lg btn-block login-button" style="margin-right: 50px;">< Prev</button>
         <button
                 type="button"
                 class="col btn btn-primary btn-lg btn-block login-button"
                 :disabled="!ssl_apply_enabled"
+                @click="set_ssl_option()"
         >
             Apply
         </button>
