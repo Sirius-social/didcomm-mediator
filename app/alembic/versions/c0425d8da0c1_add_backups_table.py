@@ -22,6 +22,7 @@ def upgrade():
         sa.Column("id", sa.INTEGER, primary_key=True, autoincrement=True),
         sa.Column("binary", sa.LargeBinary),
         sa.Column("description", sa.String, index=True),
+        sa.Column("context", sa.JSON, nullable=True),
     )
 
 

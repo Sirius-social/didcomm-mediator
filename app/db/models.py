@@ -69,4 +69,5 @@ backups = sqlalchemy.Table(
     sqlalchemy.Column("id", sqlalchemy.INTEGER, primary_key=True, autoincrement=True),
     sqlalchemy.Column("binary", sqlalchemy.LargeBinary),
     sqlalchemy.Column("description", sqlalchemy.String, index=True),
+    sqlalchemy.Column("context", sqlalchemy.JSON, nullable=True),
 )
