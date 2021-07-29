@@ -187,3 +187,33 @@ async def test_global_settings(test_database: Database):
     for param in ['param1', 'param2']:
         value = await get_global_setting(test_database, param)
         assert value is None
+
+
+@pytest.mark.asyncio
+async def test_backups(test_database: Database):
+    """Check backups CRUD operations
+    """
+    # 1. check load for empty value
+    ok, dump, ctx = await load_backup(test_database, 'category')
+    assert ok is False
+    assert dump is None
+    assert ctx is None
+    # 2. save backup
+    ctx = {
+        'email': 'x@gmail.com',
+        'share': True,
+        'adv': 'something-else'
+    }
+    dump = b'big-data'
+    await dump_backup(test_database, 'category', binary=dump, context=ctx)
+    ok, loaded_dump, loaded_ctx = await load_backup(test_database, 'category')
+    assert ok is True
+    assert loaded_dump == dump
+    assert loaded_ctx == ctx
+    # 3. save updated dump
+    new_dump = b'new-big-data'
+    await dump_backup(test_database, 'category', binary=new_dump, context=ctx)
+    ok, loaded_dump, loaded_ctx = await load_backup(test_database, 'category')
+    assert ok is True
+    assert loaded_dump == new_dump
+    assert loaded_ctx == ctx

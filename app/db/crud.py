@@ -1,11 +1,11 @@
 import uuid
-from typing import Optional, Any
+from typing import Optional, Any, Tuple
 
 from databases import Database
 from sqlalchemy import and_
 
 from app.utils import hash_string
-from .models import agents, endpoints, routing_keys, users, global_settings
+from .models import agents, endpoints, routing_keys, users, global_settings, backups
 
 
 class BaseDBError(RuntimeError):
@@ -238,6 +238,38 @@ async def set_global_setting(db: Database, name: str, value: Any):
             values = {
                 'id': GLOBAL_SETTING_PK,
                 'content': content,
+            }
+            await db.execute(query=sql, values=values)
+
+
+async def load_backup(db: Database, description: str) -> Tuple[bool, Optional[bytes], Optional[dict]]:
+    """
+    :return: success, backup-binary, context
+    """
+    sql = backups.select().where(backups.c.description == description)
+    row = await db.fetch_one(query=sql)
+    if row:
+        binary = row['binary']
+        context = row['context']
+        return True, binary, context
+    else:
+        return False, None, None
+
+
+async def dump_backup(db: Database, description: str, binary: bytes, context: dict = None):
+    async with db.transaction():
+        await db.execute(f"LOCK TABLE backups IN ROW EXCLUSIVE MODE;")
+        sql = f"SELECT * FROM backups WHERE description = '{description}' FOR UPDATE;"
+        row = await db.fetch_one(query=sql)
+        if row:
+            sql = backups.update().where(backups.c.description == description)
+            await db.execute(query=sql, values={'binary': binary, 'context': context})
+        else:
+            sql = backups.insert()
+            values = {
+                'description': description,
+                'binary': binary,
+                'context': context
             }
             await db.execute(query=sql, values=values)
 
