@@ -40,7 +40,7 @@
             [[ping_status_caption]]
         </span>
     </div>
-    <div  v-if="form_webroot.url == form_webroot.env_url"
+    <div  v-if="form_webroot.env_url"
             class="form-group" style="margin-bottom: 5px; margin-top: 40px;"
     >
         <p class="blockquote-footer">
@@ -48,6 +48,13 @@
             <a href="https://github.com/Sirius-social/didcomm/blob/main/docs/AdminGuide.md#environment-variables">view the docs</a>  for details.
             If you wish to set webroot here or set to default value <cite>[[form_webroot.full_base_url]]</cite>,
             you should remove <cite>WEBROOT</cite> from docker container environment and restart docker container.
+        </p>
+    </div>
+    <div  v-if="!form_webroot.env_url"
+            class="form-group" style="margin-bottom: 5px; margin-top: 40px;"
+    >
+        <p class="blockquote-footer">
+            <a href="https://github.com/Sirius-social/didcomm/blob/main/docs/AdminGuide.md#environment-variables">view the docs</a>  for details.
         </p>
     </div>
 
@@ -77,6 +84,7 @@
         if (!ping_in_process && app.$data.current_step === 2) {
             ping_in_process = true;
             let url = app.$data.form_webroot.url + '{{ base_url }}' + '/ping';
+            console.log(url);
             axios.get(
                 url
             ).then(function (response) {

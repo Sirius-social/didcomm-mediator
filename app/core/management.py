@@ -176,7 +176,7 @@ server {
         {% endif %}    
 }
 
-
+{% if cert_file  %}
 server {
         server_name {{ webroot }};
         listen 443 ssl;
@@ -186,4 +186,5 @@ server {
         
         <proxy>
 }
+{% endif %}
 """

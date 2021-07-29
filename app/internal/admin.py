@@ -5,7 +5,8 @@ from fastapi import APIRouter, Request, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
 
 import app.db.crud as crud
-from app.settings import templates, WEBROOT as SETTING_WEBROOT, URL_STATIC
+from app.settings import templates, WEBROOT as SETTING_WEBROOT, URL_STATIC, \
+    CERT_FILE as SETTING_CERT_FILE, CERT_KEY_FILE as SETTING_CERT_KEY_FILE
 from app.dependencies import get_db
 from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient
@@ -40,7 +41,9 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
 
     # variables
     env = {
-        'webroot': SETTING_WEBROOT
+        'webroot': SETTING_WEBROOT,
+        'cert_file': SETTING_CERT_FILE,
+        'cert_key_file': SETTING_CERT_KEY_FILE
     }
     full_base_url = str(request.base_url)
     if full_base_url.endswith('/'):
@@ -49,6 +52,11 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         'webroot': await cfg.get_webroot() or full_base_url,
         'full_base_url': full_base_url
     }
+    if 'x-forwarded-proto' in request.headers:
+        scheme = request.headers['x-forwarded-proto']
+        if scheme == 'https':
+            settings['webroot'] = settings['webroot'].replace('http://', 'https://')
+            settings['full_base_url'] = settings['full_base_url'].replace('http://', 'https://')
 
     context = {
         'github': 'https://github.com/Sirius-social/didcomm',

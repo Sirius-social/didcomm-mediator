@@ -153,7 +153,10 @@
                 error: ''
             },
             form_ssl: {
-                option: 'manual'
+                option: 'manual',
+                cert_file: '{{ env.cert_file }}',
+                cert_key_file: '{{ env.cert_key_file }}',
+                error: ''
             }
         },
         methods: {
@@ -223,6 +226,31 @@
                 else {
                     return ''
                 }
+            },
+            ssl_apply_enabled: function(){
+                let enabled = false;
+                if (this.form_ssl.option === 'manual') {
+                    enabled = this.form_ssl.cert_file && this.form_ssl.cert_file;
+                    if (!enabled) {
+                        this.form_ssl.error = 'You should set env vars CERT_FILE and CERT_KEY_FILE to enable this option';
+                    }
+                }
+                else if (this.form_ssl.option === 'acme') {
+                    enabled = !(this.form_ssl.cert_file && this.form_ssl.cert_file);
+                    if (!enabled) {
+                        this.form_ssl.error = 'You should unset env vars CERT_FILE and CERT_KEY_FILE to enable this option';
+                    }
+                }
+                else if (this.form_ssl.option === 'external') {
+                    enabled = !(this.form_ssl.cert_file && this.form_ssl.cert_file);
+                    if (!enabled) {
+                        this.form_ssl.error = 'You should unset env vars CERT_FILE and CERT_KEY_FILE to enable this option';
+                    }
+                }
+                if (enabled) {
+                    this.form_ssl.error = '';
+                }
+                return enabled;
             }
         }
     });
