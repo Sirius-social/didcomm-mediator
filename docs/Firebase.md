@@ -36,3 +36,13 @@ It means in production, operating system will drop any tcp connection
 8. **Mediator** wrap inbound envelop DIDComm message to firebase message and send to **Client Agent**
 9. **Firebase** put message to Queue in the Google cloud to resume dest application.
 10. Mobile OS resume **Client Agent** application cause of non-empty Firebase messages queue
+
+## How to start work with Firebase
+- Register your application in [Firebase console](https://cloud.google.com/firestore/docs/client/get-firebase)
+- Add support for your Agent application for [iOS](https://firebase.google.com/docs/ios/setup) 
+  and [Android](https://firebase.google.com/docs/android/setup)
+- Set **server api key** and **sender id** via [environment vars](./AdminGuide.md#optional-variables)
+  or via Admin page  
+
+![Configure Firebase with Admin](_static/fcm_admin.png?raw=true)
+*configuring firebase secrets with Admin page*
