@@ -33,7 +33,30 @@ Then docker-compose configuration seems like this:
 
     ```
     
-### Case-2: you don't have SSL **cert** and **cert_key** files, and you want to automate certs update via [Let's Encrypt](https://letsencrypt.org/)  
+### Case-2: you don't have SSL **cert** and **cert_key** files, and you want to automate certs update via [Let's Encrypt](https://letsencrypt.org/)
+To enable this option you should set env var **ACME_DIR** that point to mounted volume.
+This docker based application uses ```certbot``` utility with ```webroot``` mechanism,
+see details [here](https://certbot.eff.org/docs/using.html?highlight=webroot#webroot).
+Nginx is using as local webserver. You should have write permissions for **ACME_DIR**
+
+    ```
+
+    ...
+    app:
+        ...
+        environment:
+          ...
+          - ACME_DIR=/acme
+          ...
+        volumes:
+          - /var/my_acme:/acme    # mount directory for webroot mechanism of Let's Encrypt mechanism
+        ports:
+          - "80:80"     # nginx running in container will handle ACME requests for cert issuing
+          - "443:443"   # nginx will server SSL connections and proxy to Mediator application
+    ...
+
+    ```
+
 ### Case-3: you are going to run **Mediator app** behind external proxy (Kubernetes or Multi-Tower approach with external load balancer)
 Example configuration for Nginx and web app published on 8000 port to avoid traffic overheads - external 
 proxy will communicate with application directly: 
