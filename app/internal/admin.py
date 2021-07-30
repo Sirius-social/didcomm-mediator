@@ -10,7 +10,8 @@ from fastapi.responses import RedirectResponse
 
 import app.db.crud as crud
 from app.settings import templates, WEBROOT as SETTING_WEBROOT, URL_STATIC, \
-    CERT_FILE as SETTING_CERT_FILE, CERT_KEY_FILE as SETTING_CERT_KEY_FILE, ACME_DIR as SETTING_ACME_DIR
+    CERT_FILE as SETTING_CERT_FILE, CERT_KEY_FILE as SETTING_CERT_KEY_FILE, ACME_DIR as SETTING_ACME_DIR, \
+    FIREBASE_API_KEY as SETTING_FIREBASE_API_KEY, FIREBASE_SENDER_ID as SETTING_FIREBASE_SENDER_ID
 from app.dependencies import get_db
 from app.core.redis import choice_server_address, AsyncRedisChannel
 from app.core.management import register_acme, issue_cert, reload as _mng_reload, load_cert_metadata as _mng_load_cert_metadata
@@ -52,7 +53,9 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         'webroot': SETTING_WEBROOT,
         'cert_file': SETTING_CERT_FILE or '',
         'cert_key_file': SETTING_CERT_KEY_FILE or '',
-        'acme_dir': SETTING_ACME_DIR or ''
+        'acme_dir': SETTING_ACME_DIR or '',
+        'firebase_api_key': SETTING_FIREBASE_API_KEY or '',
+        'firebase_sender_id': SETTING_FIREBASE_SENDER_ID or ''
     }
     full_base_url = str(request.base_url)
     if full_base_url.endswith('/'):

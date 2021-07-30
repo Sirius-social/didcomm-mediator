@@ -95,6 +95,7 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
 
   - [Admin Guide](docs/AdminGuide.md)
   - [SSL and Proxy](docs/SSL_and_Proxy.md)
+  - [Firebase](docs/Firebase.md)
 
 ## Develop and contribute
 

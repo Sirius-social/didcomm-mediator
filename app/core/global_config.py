@@ -4,6 +4,7 @@ import aiomemcached
 from databases import Database
 
 import app.settings
+import settings
 
 from .repo import Repo
 
@@ -47,8 +48,14 @@ class GlobalConfig:
         value = await self.__repo.get_global_setting(self.CFG_FIREBASE)
         if not value:
             value = {}
-        api_key = value.get('api_key')
-        sender_id = value.get('sender_id')
+        if settings.FIREBASE_API_KEY:
+            api_key = settings.FIREBASE_API_KEY
+        else:
+            api_key = value.get('api_key')
+        if settings.FIREBASE_SENDER_ID:
+            sender_id = settings.FIREBASE_SENDER_ID
+        else:
+            sender_id = value.get('sender_id')
         return api_key, sender_id
 
     async def set_firebase_secret(self, api_key: str, sender_id):

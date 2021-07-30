@@ -338,6 +338,17 @@
                 else {
                     return false;
                 }
+            },
+            firebase_apply_enabled: function(){
+                let env_filled = '{{ env.firebase_api_key }}' || '{{ env.firebase_api_key }}';
+                if (env_filled){
+                    this.form_firebase.error = 'Unset env vars FCM_API_KEY and FCM_SENDER_ID to enable this option.';
+                    return false;
+                }
+                else {
+                    this.form_firebase.error = '';
+                    return true;
+                }
             }
         }
     });

@@ -5,7 +5,11 @@
         <div class="cols-sm-10">
             <div class="input-group">
                 <span class="input-group-addon"><i class="fa fa-users fa" aria-hidden="true"></i></span>
-                <input v-model="form_firebase.api_key"  type="text" class="form-control" name="api_key" id="api_key" placeholder="Enter server API key" />
+                <input
+                        v-model="form_firebase.api_key"  type="text" class="form-control"
+                        :readonly="!firebase_apply_enabled"
+                        name="api_key" id="api_key" placeholder="Enter server API key"
+                />
             </div>
         </div>
     </div>
@@ -14,7 +18,11 @@
         <div class="cols-sm-10">
             <div class="input-group">
                 <span class="input-group-addon"><i class="fa fa-users fa" aria-hidden="true"></i></span>
-                <input v-model="form_firebase.sender_id" type="text" class="form-control" name="sender_id" id="sender_id" placeholder="Enter Sender ID" />
+                <input
+                        v-model="form_firebase.sender_id" type="text"
+                        :readonly="!firebase_apply_enabled"
+                        class="form-control" name="sender_id" id="sender_id" placeholder="Enter Sender ID"
+                />
             </div>
         </div>
     </div>
@@ -29,6 +37,7 @@
         </p>
     </div>
     <div class="form-group" style="margin-top: 10px;">
-        <button @click.prevent="set_firebase_secret()" type="button" class="btn btn-primary btn-lg btn-block login-button">Save</button>
+        <button @click="current_step -= 1" type="button" class="col btn btn-outline-secondary btn-lg btn-block login-button" style="margin-right: 50px;">< Prev</button>
+        <button @click.prevent="set_firebase_secret()" type="button" class="btn btn-primary btn-lg btn-block login-button" style="float: right;">Finish!</button>
     </div>
 </form>
