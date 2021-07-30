@@ -1,6 +1,8 @@
+import asyncio
 import re
 import json
 import uuid
+import datetime
 
 from databases import Database
 from fastapi import APIRouter, Request, Depends, HTTPException, Response
@@ -11,7 +13,7 @@ from app.settings import templates, WEBROOT as SETTING_WEBROOT, URL_STATIC, \
     CERT_FILE as SETTING_CERT_FILE, CERT_KEY_FILE as SETTING_CERT_KEY_FILE, ACME_DIR as SETTING_ACME_DIR
 from app.dependencies import get_db
 from app.core.redis import choice_server_address, AsyncRedisChannel
-from app.core.management import register_acme
+from app.core.management import register_acme, issue_cert, reload as _mng_reload, load_cert_metadata as _mng_load_cert_metadata
 from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient
 
@@ -63,12 +65,15 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
     redis_server = await choice_server_address()
     events_stream = redis_server + '/' + uuid.uuid4().hex
     events_stream_ws = f'{ws_base}/ws/events?stream=' + events_stream
+    firebase_api_key, firebase_sender_id = await cfg.get_firebase_secret()
     settings = {
         'webroot': await cfg.get_webroot() or full_base_url,
         'full_base_url': full_base_url,
         'ssl_option': ssl_option or 'manual',
         'acme_email': acme_email or '',
-        'acme_email_share': 'true' if acme_email_share else 'false'
+        'acme_email_share': 'true' if acme_email_share else 'false',
+        'firebase_api_key': firebase_api_key or '',
+        'firebase_sender_id': firebase_sender_id or ''
     }
     if 'x-forwarded-proto' in request.headers:
         scheme = request.headers['x-forwarded-proto']
@@ -161,6 +166,20 @@ async def set_webroot(request: Request, db: Database = Depends(get_db)):
     await cfg.set_webroot(value)
 
 
+@router.post("/set_firebase_secret", status_code=200)
+async def set_firebase_secret(request: Request, db: Database = Depends(get_db)):
+    await check_is_logged(request)
+    js = await request.json()
+    api_key = js.get('api_key')
+    sender_id = js.get('sender_id')
+    if not api_key:
+        raise HTTPException(status_code=400, detail=f'Server key is empty')
+    if not sender_id:
+        raise HTTPException(status_code=400, detail=f'Sender ID key is empty')
+    cfg = GlobalConfig(db, GlobalMemcachedClient.get())
+    await cfg.set_firebase_secret(api_key, sender_id)
+
+
 @router.post("/set_ssl_option", status_code=200)
 async def set_ssl_option(request: Request, db: Database = Depends(get_db)):
     await check_is_logged(request)
@@ -168,6 +187,7 @@ async def set_ssl_option(request: Request, db: Database = Depends(get_db)):
     value = js.get('value')
     stream = js.get('stream')
     cfg = GlobalConfig(db, GlobalMemcachedClient.get())
+    make_issue = True
     if value == 'acme':
         email = js.get('email')
         share_email = js.get('share_email')
@@ -188,5 +208,26 @@ async def set_ssl_option(request: Request, db: Database = Depends(get_db)):
             })
 
         await register_acme(email, share_email, _logger)
+        webroot = await cfg.get_webroot()
+        if not webroot:
+            raise HTTPException(status_code=400, detail=f'Webroot was not set')
+        domain = webroot.replace('http://', '').replace('https://', '')
+        success, _domain, _utc = await _mng_load_cert_metadata(db)
+        if success:
+            if domain == _domain:
+                utc_now = datetime.datetime.utcnow()
+                utc_timestamp = datetime.datetime.utcfromtimestamp(_utc)
+                limit_delta = datetime.timedelta(weeks=2)
+                utc_next_call = utc_timestamp + limit_delta
+                if utc_next_call > utc_now:
+                    make_issue = False
+                    await _logger('You can not issue new certificate no more than every 2 weeks')
+
+        if make_issue:
+            success = await issue_cert(domain, _logger)
+            if not success:
+                raise HTTPException(status_code=400, detail=f'Certbot error')
 
     await cfg.set_ssl_option(value)
+    if make_issue:
+        await _mng_reload()

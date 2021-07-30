@@ -195,11 +195,11 @@ async def register_acme(email: str, share: bool, logger: Callable = None):
     else:
         logger = empty_logger
 
-    async def call_logger(msg: Union[str, bytes]):
+    async def call_logger(msg: Union[str, bytes], *args, **kwargs):
         if type(msg) is bytes:
             msg = msg.decode()
         for line in msg.split('\n'):
-            await logger(line)
+            await logger(line, *args, **kwargs)
 
     db = Database(settings.SQLALCHEMY_DATABASE_URL)
     await db.connect()
@@ -210,6 +210,9 @@ async def register_acme(email: str, share: bool, logger: Callable = None):
             old_email = ctx.get('email')
             if old_email == email:
                 await logger(f'Email {email} already registered in Lets Encrypt. Finish.')
+                if not os.path.isdir('/etc/letsencrypt/accounts'):
+                    await logger(f'restore certbot account context')
+                    await _restore_path(db, ACME_DESCRIPTION)
                 return
         ctx = {'email': email, 'share': share}
         if os.path.isdir('/etc/letsencrypt/accounts'):
@@ -230,7 +233,23 @@ async def register_acme(email: str, share: bool, logger: Callable = None):
         await db.disconnect()
 
 
-async def issue_cert(domain: str, logger: Callable = None):
+async def load_cert_metadata(db: Database) -> (bool, Optional[str], Optional[int]):
+    """
+    :return: success, domain, utc
+    """
+    ok, binary, ctx = await _load_backup(db, ACME_SSL_CERT)
+    if ok:
+        domain = ctx.get('domain')
+        utc = ctx.get('utc')
+        if domain and utc:
+            return True, domain, utc
+        else:
+            return False, None, None
+    else:
+        return False, None, None
+
+
+async def issue_cert(domain: str, logger: Callable = None) -> bool:
 
     async def empty_logger(*args, **kwargs):
         pass
@@ -241,18 +260,19 @@ async def issue_cert(domain: str, logger: Callable = None):
     else:
         logger = empty_logger
 
-    async def call_logger(msg: Union[str, bytes]):
+    async def call_logger(msg: Union[str, bytes], *args, **kwargs):
         if type(msg) is bytes:
             msg = msg.decode()
         for line in msg.split('\n'):
-            await logger(line)
+            await logger(line, *args, **kwargs)
 
     db = Database(settings.SQLALCHEMY_DATABASE_URL)
     await db.connect()
     try:
         await logger(f"Issue cert for domain {domain} in Let's Encrypt service")
         if not os.path.isdir('/etc/letsencrypt/accounts'):
-            raise RuntimeError('You should register your email at First!')
+            await logger('You should register your email at First!', True)
+            return False
         cmd = ["certbot", "certonly", "--dry-run", "-d", domain]
         await logger(f"Run certbot: %s" % ' '.join(cmd))
         process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -268,8 +288,10 @@ async def issue_cert(domain: str, logger: Callable = None):
             utc = datetime.datetime.utcnow()
             await _dump_path(db, ACME_SSL_CERT, cert_file, {'domain': domain, 'utc': utc})
             await _dump_path(db, ACME_SSL_CERT_KEY, cert_key_file, {'domain': domain, 'utc': utc})
+            return True
         else:
-            raise RuntimeError('Error while issuing certificate')
+            await logger('Error while issuing certificate!', True)
+            return False
     finally:
         await db.disconnect()
 

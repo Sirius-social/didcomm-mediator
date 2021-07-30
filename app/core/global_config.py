@@ -12,6 +12,7 @@ class GlobalConfig:
 
     CFG_WEBROOT = 'webroot'
     CFG_SSL_OPTION = 'ssl'
+    CFG_FIREBASE = 'firebase'
 
     def __init__(self, db: Database, memcached: aiomemcached.Client = None):
         self.__repo = Repo(db, memcached)
@@ -38,3 +39,21 @@ class GlobalConfig:
 
     async def set_any_option(self, name: str, value: str):
         await self.__repo.set_global_setting(name, value)
+
+    async def get_firebase_secret(self) -> (Optional[str], Optional[str]):
+        """
+        :return: api_key, sender_id
+        """
+        value = await self.__repo.get_global_setting(self.CFG_FIREBASE)
+        if not value:
+            value = {}
+        api_key = value.get('api_key')
+        sender_id = value.get('sender_id')
+        return api_key, sender_id
+
+    async def set_firebase_secret(self, api_key: str, sender_id):
+        value = {
+            'api_key': api_key,
+            'sender_id': sender_id
+        }
+        await self.__repo.set_global_setting(self.CFG_FIREBASE, value)

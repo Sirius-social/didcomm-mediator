@@ -83,10 +83,24 @@
                                 {% include "forms/ssl.html" %}
                             </div>
                         </div>
+                        <!--
+                           Form to configure Firebase secrets
+                        -->
+                        <div v-if="current_step == 4" class="card">
+                            <div class="card-header">Step-4: Configure Firebase secrets</div>
+                            <div class="card-body">
+                                {% include "forms/firebase.html" %}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-            <div class="col-lg-6">
+            <div class="col-lg-6" v-if="current_step == 4">
+                <div v-if="!events_stream_is_active" class="masthead-device-mockup">
+                    <img src="/static/firebase.png" style="max-width: 700px;">
+                </div>
+            </div>
+            <div class="col-lg-6" v-if="current_step != 4">
                 <textarea id="log" v-if="events_stream_is_active" style="min-width: 500px;min-height: 400px;background-color: black; color: green;">
                     [[ log ]]
                 </textarea>
@@ -101,7 +115,7 @@
                 <!-- Masthead device mockup feature-->
 
                 <div v-if="!events_stream_is_active" class="masthead-device-mockup">
-                    <img src="{{ url_for('static', path='/icons/lunch.gif') }}" style="max-width: 500px;">
+                    <img src="/static/icons/lunch.gif" style="max-width: 500px;">
                 </div>
 
             </div>
@@ -168,7 +182,13 @@
                 error: '',
                 acme_dir: '{{ env.acme_dir }}',
                 acme_email: '{{ settings.acme_email }}',
-                acme_share_email: {{ settings.acme_email_share }}
+                acme_share_email: {{ settings.acme_email_share }},
+                loading: false
+            },
+            form_firebase: {
+                api_key: "{{ settings.firebase_api_key }}",
+                sender_id: "{{ settings.firebase_sender_id }}",
+                error: ""
             }
         },
         methods: {
@@ -226,6 +246,7 @@
             set_ssl_option: function(){
                 let url = '{{ base_url }}' + '/set_ssl_option';
                 let self = this;
+                self.form_ssl.loading = true;
                 axios.post(
                     url, {
                         value: self.form_ssl.option,
@@ -234,13 +255,35 @@
                         stream: self.events_stream
                     }
                 ).then(function (response) {
+                    self.form_ssl.loading = false;
                     self.form_webroot.error = null;
                     console.log('======== SUCCESS ========')
                     console.log(response);
                     self.current_step += 1;
                 }).catch(function (error) {
+                    self.form_ssl.loading = false;
                     let detail = error.data.detail
                     self.form_ssl.error = detail;
+                    console.log('======== ERROR ========')
+                    console.log(error.data);
+                });
+            },
+            set_firebase_secret: function(){
+                let url = '{{ base_url }}' + '/set_firebase_secret';
+                let self = this;
+                axios.post(
+                    url, {
+                        api_key: self.form_firebase.api_key,
+                        sender_id: self.form_firebase.sender_id
+                    }
+                ).then(function (response) {
+                    self.form_firebase.error = null;
+                    console.log('======== SUCCESS ========')
+                    console.log(response);
+                    self.current_step += 1;
+                }).catch(function (error) {
+                    let detail = error.data.detail
+                    self.form_firebase.error = detail;
                     console.log('======== ERROR ========')
                     console.log(error.data);
                 });

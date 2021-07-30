@@ -1,0 +1,34 @@
+<form class="form-horizontal" method="post" action="#">
+    <h5 v-if="form_firebase.error" class="text-danger">[[ form_firebase.error ]]</h5>
+    <div class="form-group" style="margin-bottom: 5px;">
+        <label class="fw-light" for="api_key" class="cols-sm-2 control-label">Server Key</label>
+        <div class="cols-sm-10">
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-users fa" aria-hidden="true"></i></span>
+                <input v-model="form_firebase.api_key"  type="text" class="form-control" name="api_key" id="api_key" placeholder="Enter server API key" />
+            </div>
+        </div>
+    </div>
+    <div class="form-group" style="margin-bottom: 5px;">
+        <label class="fw-light" for="sender_id" class="cols-sm-2 control-label">Sender ID</label>
+        <div class="cols-sm-10">
+            <div class="input-group">
+                <span class="input-group-addon"><i class="fa fa-users fa" aria-hidden="true"></i></span>
+                <input v-model="form_firebase.sender_id" type="text" class="form-control" name="sender_id" id="sender_id" placeholder="Enter Sender ID" />
+            </div>
+        </div>
+    </div>
+    <div
+            class="form-group" style="margin-bottom: 5px; margin-top: 40px;"
+    >
+        <p class="blockquote-footer">
+            Thanks to supporting
+            <a href="https://firebase.google.com/docs/cloud-messaging">Firebase cloud messaging</a>
+            DID-Communication messages will arrive independently of Power-Saving mode for specific
+            platform (Android/iOS Power-Doze mode)
+        </p>
+    </div>
+    <div class="form-group" style="margin-top: 10px;">
+        <button @click.prevent="set_firebase_secret()" type="button" class="btn btn-primary btn-lg btn-block login-button">Save</button>
+    </div>
+</form>

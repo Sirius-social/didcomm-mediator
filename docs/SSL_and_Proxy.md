@@ -52,7 +52,7 @@ with pre-configured **DNS** record (for example **A** record with binding IP add
           - ACME_DIR=/acme
           ...
         volumes:
-          - /var/my_acme:/acme    # mount directory for webroot mechanism of Let's Encrypt mechanism
+          - /var/my_acme:/acme    # mount directory for webroot mechanism of Let's Encrypt certbot
         ports:
           - "80:80"     # nginx running in container will handle ACME requests for cert issuing
           - "443:443"   # nginx will server SSL connections and proxy to Mediator application

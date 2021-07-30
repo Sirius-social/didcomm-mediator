@@ -76,10 +76,12 @@ encrypting the web, EFF news, campaigns, and ways to support digital freedom."
         <button
                 type="button"
                 class="col btn btn-primary btn-lg btn-block login-button"
-                :disabled="!ssl_apply_enabled"
+                :disabled="!ssl_apply_enabled || form_ssl.loading"
                 @click="set_ssl_option()"
         >
             Apply
+            <img v-if="form_ssl.loading" src="/static/icons/loading.gif" style="width: 50px; height: 30px;">
         </button>
+
     </div>
 </form>
