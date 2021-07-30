@@ -52,15 +52,14 @@
           <input v-model="form_ssl.acme_share_email" class="form-check-input" type="checkbox" value="" id="acme-email-share">
           <label
                   class="form-check-label fw-light" for="acme-email-share"
+                  title="Would you be willing to share your email address with the Electronic Frontier
+Foundation, a founding partner of the Let's Encrypt project and the non-profit
+organization that develops Certbot? We'd like to send you email about our work
+encrypting the web, EFF news, campaigns, and ways to support digital freedom."
           >
             Share your email address with the Electronic Frontier Foundation
             <img
                     src="{{ url_for('static', path='/icons/q.png') }}" style="max-width: 18px;"
-                    title="Would you be willing to share your email address with the Electronic Frontier
-Foundation, a founding partner of the Let's Encrypt project and the non-profit
-organization that develops Certbot? We'd like to send you email about our work
-encrypting the web, EFF news, campaigns, and ways to support digital freedom."
-
             >
           </label>
         </div>

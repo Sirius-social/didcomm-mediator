@@ -8,7 +8,7 @@ from fastapi import APIRouter, Request, Depends, HTTPException, WebSocket
 
 from app.core.repo import Repo
 from app.core.singletons import GlobalMemcachedClient, GlobalRedisChannelsCache
-from app.core.redis import RedisPush, RedisConnectionError, choice_server_address
+from app.core.redis import RedisPush, RedisConnectionError, choice_server_address, AsyncRedisChannel
 from app.utils import build_invitation, extract_content_type, change_redis_server
 from app.core.firebase import FirebaseMessages
 from app.dependencies import get_db
@@ -110,3 +110,20 @@ async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(g
 @router.get('/invitation')
 async def invitation():
     return build_invitation()
+
+
+@router.websocket(f"/{WS_PATH_PREFIX}/events")
+async def events(websocket: WebSocket, db: Database = Depends(get_db)):
+    stream = websocket.query_params.get('stream')
+    logging.debug('*****************************')
+    logging.debug(f'stream: {stream}')
+    logging.debug('*****************************')
+    ch = AsyncRedisChannel(address=stream)
+    await websocket.accept()
+    while True:
+        ok, data = await ch.read(timeout=None)
+        if ok:
+            await websocket.send_json(data)
+        else:
+            await websocket.close()
+            return

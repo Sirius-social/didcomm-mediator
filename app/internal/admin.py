@@ -1,4 +1,6 @@
+import re
 import json
+import uuid
 
 from databases import Database
 from fastapi import APIRouter, Request, Depends, HTTPException, Response
@@ -8,6 +10,7 @@ import app.db.crud as crud
 from app.settings import templates, WEBROOT as SETTING_WEBROOT, URL_STATIC, \
     CERT_FILE as SETTING_CERT_FILE, CERT_KEY_FILE as SETTING_CERT_KEY_FILE
 from app.dependencies import get_db
+from app.core.redis import choice_server_address
 from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient
 
@@ -18,6 +21,8 @@ router = APIRouter()
 
 
 BASE_URL = '/admin'
+CFG_ACME_EMAIL = 'acme.email'
+CFG_ACME_EMAIL_SHARE = 'acme.email.share'
 
 
 async def check_is_logged(request: Request):
@@ -43,17 +48,23 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
     env = {
         'webroot': SETTING_WEBROOT,
         'cert_file': SETTING_CERT_FILE or '',
-        'cert_key_file': SETTING_CERT_KEY_FILE or ''
+        'cert_key_file': SETTING_CERT_KEY_FILE or '',
     }
     full_base_url = str(request.base_url)
     if full_base_url.endswith('/'):
         full_base_url = full_base_url[:-1]
 
     ssl_option = await cfg.get_ssl_option()
+    acme_email = await cfg.get_any_option(CFG_ACME_EMAIL)
+    acme_email_share = await cfg.get_any_option(CFG_ACME_EMAIL_SHARE)
+    redis_server = await choice_server_address()
+    events_stream = redis_server + '/' + uuid.uuid4().hex
     settings = {
         'webroot': await cfg.get_webroot() or full_base_url,
         'full_base_url': full_base_url,
-        'ssl_option': ssl_option or 'manual'
+        'ssl_option': ssl_option or 'manual',
+        'acme_email': acme_email or '',
+        'acme_email_share': 'true' if acme_email_share else 'false'
     }
     if 'x-forwarded-proto' in request.headers:
         scheme = request.headers['x-forwarded-proto']
@@ -76,7 +87,8 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
             'styles': URL_STATIC + '/admin/css/styles.css',
             'vue': URL_STATIC + '/vue.min.js',
             'axios': URL_STATIC + '/axios.min.js',
-        }
+        },
+        'events_stream': events_stream
     }
     response = templates.TemplateResponse(
         "admin.html",
@@ -149,4 +161,13 @@ async def set_ssl_option(request: Request, db: Database = Depends(get_db)):
     js = await request.json()
     value = js.get('value')
     cfg = GlobalConfig(db, GlobalMemcachedClient.get())
+    if value == 'acme':
+        email = js.get('email')
+        share_email = js.get('share_email')
+        regex = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
+        if re.match(regex, email):
+            await cfg.set_any_option(CFG_ACME_EMAIL, email)
+            await cfg.set_any_option(CFG_ACME_EMAIL_SHARE, share_email)
+        else:
+            raise HTTPException(status_code=400, detail=f'Value "{email}" is not email')
     await cfg.set_ssl_option(value)

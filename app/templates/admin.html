@@ -87,14 +87,12 @@
                 </div>
             </div>
             <div class="col-lg-6">
-                <!--
-                <textarea style="min-width: 500px;min-height: 400px;">
+                <textarea v-if="events_stream_is_active" style="min-width: 500px;min-height: 400px;background-color: #2c3034; color: green;">
 
                 </textarea>
-                -->
                 <!-- Masthead device mockup feature-->
 
-                <div class="masthead-device-mockup">
+                <div v-if="!events_stream_is_active" class="masthead-device-mockup">
                     <img src="{{ url_for('static', path='/icons/lunch.gif') }}" style="max-width: 500px;">
                 </div>
 
@@ -134,6 +132,8 @@
         delimiters: ['[[', ']]'],
         data: {
             current_step: {{ current_step }},
+            events_stream: '{{ events_stream }}',
+            events_stream_is_active: false,
             form_login: {
                 username: '',
                 password: '',
@@ -157,8 +157,8 @@
                 cert_file: '{{ env.cert_file }}',
                 cert_key_file: '{{ env.cert_key_file }}',
                 error: '',
-                acme_email: '',
-                acme_share_email: false
+                acme_email: '{{ settings.acme_email }}',
+                acme_share_email: {{ settings.acme_email_share }}
             }
         },
         methods: {
@@ -217,7 +217,11 @@
                 let url = '{{ base_url }}' + '/set_ssl_option';
                 let self = this;
                 axios.post(
-                    url, {value: self.form_ssl.option}
+                    url, {
+                        value: self.form_ssl.option,
+                        email: self.form_ssl.acme_email,
+                        share_email: self.form_ssl.acme_share_email
+                    }
                 ).then(function (response) {
                     self.form_webroot.error = null;
                     console.log('======== SUCCESS ========')
@@ -225,7 +229,7 @@
                     self.current_step += 1;
                 }).catch(function (error) {
                     let detail = error.data.detail
-                    self.form_webroot.error = detail;
+                    self.form_ssl.error = detail;
                     console.log('======== ERROR ========')
                     console.log(error.data);
                 });

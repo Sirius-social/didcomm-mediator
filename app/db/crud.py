@@ -1,5 +1,6 @@
+import os.path
 import uuid
-from typing import Optional, Any, Tuple
+from typing import Optional, Any, Tuple, Union
 
 from databases import Database
 from sqlalchemy import and_
@@ -272,6 +273,52 @@ async def dump_backup(db: Database, description: str, binary: bytes, context: di
                 'context': context
             }
             await db.execute(query=sql, values=values)
+
+
+async def restore_path(db: Database, description: str, base_dir: str = None) -> Tuple[bool, Optional[str], Optional[dict]]:
+    ok, binary, ctx = await load_backup(db, description)
+    if ok:
+        path = ctx.get('_path')
+        is_dir = ctx.get('_is_dir')
+        dump_file = '/tmp/' + uuid.uuid4().hex + '.tar.gz'
+        with open(dump_file, 'w+b') as f:
+            f.truncate(0)
+            f.write(binary)
+        try:
+            if base_dir is None:
+                base_dir = '/'
+            else:
+                path = os.path.join(base_dir, path[1:])
+            exit_code = os.system(f'cd {base_dir} && tar -xvf {dump_file}')
+            if exit_code == 0:
+                return True, path, ctx
+            else:
+                return False, path, ctx
+        finally:
+            os.remove(dump_file)
+    else:
+        return False, None, None
+
+
+async def dump_path(db: Database, description: str, path: str, context: dict = None):
+    dump_file = '/tmp/' + uuid.uuid4().hex + '.tar.gz'
+    if os.path.exists(path):
+        try:
+            exit_code = os.system(f'cd / && tar -czvf {dump_file} {path}')
+            if exit_code == 0:
+                with open(dump_file, 'rb') as f:
+                    binary = f.read()
+                    context['_path'] = path
+                    context['_is_dir'] = os.path.isdir(path)
+                    await dump_backup(db, description, binary, context)
+            else:
+                raise RuntimeError('Error while archive file')
+        finally:
+            os.remove(dump_file)
+    elif os.path.isdir(path):
+        pass
+    else:
+        raise RuntimeError(f'Path {path} does not exists')
 
 
 async def reset_accounts(db: Database):

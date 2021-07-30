@@ -31,3 +31,10 @@ class GlobalConfig:
         if value.endswith('/'):
             value = value[:-1]
         await self.__repo.set_global_setting(self.CFG_WEBROOT, value)
+
+    async def get_any_option(self, name: str) -> Optional[str]:
+        value = await self.__repo.get_global_setting(name)
+        return value
+
+    async def set_any_option(self, name: str, value: str):
+        await self.__repo.set_global_setting(name, value)

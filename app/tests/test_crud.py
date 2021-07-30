@@ -1,4 +1,5 @@
 import uuid
+import hashlib
 
 import pytest
 from databases import Database
@@ -217,3 +218,41 @@ async def test_backups(test_database: Database):
     assert ok is True
     assert loaded_dump == new_dump
     assert loaded_ctx == ctx
+    # 4. dump file
+    path = '/usr/bin/unzip'
+    await dump_path(test_database, 'file', path, {})
+    base_dir = '/tmp'
+    ok, restored_path, ctx = await restore_path(test_database, 'file', base_dir=base_dir)
+    assert ok is True
+    assert path in restored_path
+    with open(path, "rb") as f:
+        file_hash_orig = hashlib.md5()
+        file_hash_orig.update(f.read())
+    with open(restored_path, "rb") as f:
+        file_hash_restored = hashlib.md5()
+        file_hash_restored.update(f.read())
+    assert file_hash_orig.hexdigest() == file_hash_restored.hexdigest()
+    # if restored file already exists
+    ok, restored_path, ctx = await restore_path(test_database, 'file', base_dir=base_dir)
+    assert ok is True
+    # 4. dump dir
+    path = '/etc/letsencrypt'
+    await dump_path(test_database, 'dir', path, {})
+    base_dir = '/tmp'
+    ok, restored_path, ctx = await restore_path(test_database, 'dir', base_dir=base_dir)
+    assert ok is True
+    assert path in restored_path
+    dir_hash_orig = hashlib.md5()
+    dir_hash_restored = hashlib.md5()
+    for root, dir, files in os.walk(path):
+        for file in files:
+            with open(os.path.join(root, file), "rb") as f:
+                dir_hash_orig.update(f.read())
+    for root, dir, files in os.walk(restored_path):
+        for file in files:
+            with open(os.path.join(root, file), "rb") as f:
+                dir_hash_restored.update(f.read())
+    assert file_hash_orig.hexdigest() == file_hash_restored.hexdigest()
+    # if restored dir already exists
+    ok, restored_path, ctx = await restore_path(test_database, 'dir', base_dir=base_dir)
+    assert ok is True
