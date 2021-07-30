@@ -20,4 +20,19 @@ Restrictions that apply to application in doze mode:
 It means in production, operating system will drop any tcp connection 
 (http/websockets/etc) soon when user close application.
 
+## Firebase delivery Step-By-Step logic
 
+![Doze mode](_static/firebase.svg?raw=true)
+
+1. **Mediator** serve endpoints of **Client Agent**
+2. **Client Agent** and **Agent X** has established P2P and communicate with DIDComm messages
+3. **Client Agent** running on mobile device and listen inbound traffic via websocket 
+   or http long polling
+4. Mobile OS suspend **Client Agent** application according battery saving plan, 
+  so any tcp sockets will be suspended too.
+5. **Agent X** send DIDComm message to endpoint (http url reachable from internet)
+6. **Mediator** detect all **Client Agent** tcp connections are unreachable.
+7. **Mediator** detect **Client Agent** declared Firebase device-id in DIDDoc
+8. **Mediator** wrap inbound envelop DIDComm message to firebase message and send to **Client Agent**
+9. **Firebase** put message to Queue in the Google cloud to resume dest application.
+10. Mobile OS resume **Client Agent** application cause of non-empty Firebase messages queue

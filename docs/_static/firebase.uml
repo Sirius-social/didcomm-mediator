@@ -1,0 +1,13 @@
+@startuml
+participant "Agent X"
+"Agent X" -> Mediator: http request \n[application/ssi-agent-wire]
+activate Mediator #FFBBBB
+Mediator -> Mediator: No active polling sockets:\n- Websocket\n- Http poll
+activate Mediator #DarkSalmon
+Mediator -> "Client Agent": << Firebase send data >>
+activate "Client Agent"
+deactivate "Client Agent"
+deactivate Mediator
+Mediator -> "Agent X": Done
+deactivate Mediator
+@enduml
