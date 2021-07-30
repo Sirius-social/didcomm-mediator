@@ -32,6 +32,7 @@ services:
       - LOGLEVEL=DEBUG
       - FCM_API_KEY=fake-key
       - FCM_SENDER_ID=fake-id
+      - ACME_DIR=/certs
     volumes:
       - ./app:/app
       - ./certs:/certs

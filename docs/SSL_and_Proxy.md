@@ -39,6 +39,9 @@ This docker based application uses ```certbot``` utility with ```webroot``` mech
 see details [here](https://certbot.eff.org/docs/using.html?highlight=webroot#webroot).
 Nginx is using as local webserver. You should have write permissions for **ACME_DIR**
 
+**Important:** Let's Encrypt checks if you are owner of the domain, so you should run application on live server
+with pre-configured **DNS** record (for example **A** record with binding IP address)
+
     ```
 
     ...

@@ -26,7 +26,7 @@ ENV WORKERS=4
 
 RUN echo "authenticator=webroot\n\
 webroot-path=/var/www/html\n\
-post-hook=manage reload\n"\
+post-hook=manage reload --broadcast=on\n"\
 > /etc/letsencrypt/cli.ini
 
 RUN echo "[supervisord]\n\
@@ -48,6 +48,14 @@ strip_ansi = false\n\
 \n\
 [program:nginx]\n\
 command=nginx -g 'daemon off;'\n\
+directory=/app\n\
+autorestart = true\n\
+stdout_logfile_maxbytes = 0 \n\
+stderr_logfile_maxbytes = 0 \n\
+stdout_logfile=/dev/stdout\n\
+stderr_logfile=/dev/stdout\n\
+[program:listener]\n\
+command=manage listen_for_changes\n\
 directory=/app\n\
 autorestart = true\n\
 stdout_logfile_maxbytes = 0 \n\

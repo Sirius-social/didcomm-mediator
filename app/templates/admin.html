@@ -87,9 +87,17 @@
                 </div>
             </div>
             <div class="col-lg-6">
-                <textarea v-if="events_stream_is_active" style="min-width: 500px;min-height: 400px;background-color: #2c3034; color: green;">
-
+                <textarea id="log" v-if="events_stream_is_active" style="min-width: 500px;min-height: 400px;background-color: black; color: green;">
+                    [[ log ]]
                 </textarea>
+                <button
+                        v-if="events_stream_is_active"
+                        @click.prevent="events_stream_is_active = false; log = '';"
+                        type="button"
+                        class="btn btn-close btn-lg btn-block"
+                        style="float: right;"
+                >
+                </button>
                 <!-- Masthead device mockup feature-->
 
                 <div v-if="!events_stream_is_active" class="masthead-device-mockup">
@@ -134,6 +142,7 @@
             current_step: {{ current_step }},
             events_stream: '{{ events_stream }}',
             events_stream_is_active: false,
+            log: '',
             form_login: {
                 username: '',
                 password: '',
@@ -157,6 +166,7 @@
                 cert_file: '{{ env.cert_file }}',
                 cert_key_file: '{{ env.cert_key_file }}',
                 error: '',
+                acme_dir: '{{ env.acme_dir }}',
                 acme_email: '{{ settings.acme_email }}',
                 acme_share_email: {{ settings.acme_email_share }}
             }
@@ -220,7 +230,8 @@
                     url, {
                         value: self.form_ssl.option,
                         email: self.form_ssl.acme_email,
-                        share_email: self.form_ssl.acme_share_email
+                        share_email: self.form_ssl.acme_share_email,
+                        stream: self.events_stream
                     }
                 ).then(function (response) {
                     self.form_webroot.error = null;
@@ -259,9 +270,14 @@
                     }
                 }
                 else if (this.form_ssl.option === 'acme') {
-                    enabled = !(this.form_ssl.cert_file && this.form_ssl.cert_file);
+                    enabled = !(this.form_ssl.cert_file && this.form_ssl.cert_file) && this.form_ssl.acme_dir;
                     if (!enabled) {
-                        this.form_ssl.error = 'You should unset env vars CERT_FILE and CERT_KEY_FILE to enable this option';
+                        if (!this.form_ssl.acme_dir) {
+                            this.form_ssl.error = 'You should set ACME_DIR env var to enable this option';
+                        }
+                        else {
+                            this.form_ssl.error = 'You should unset env vars CERT_FILE and CERT_KEY_FILE to enable this option';
+                        }
                     }
                 }
                 else if (this.form_ssl.option === 'external') {
@@ -273,10 +289,42 @@
                 if (enabled) {
                     this.form_ssl.error = '';
                 }
-                return enabled;
+                if (enabled) {
+                    return true;
+                }
+                else {
+                    return false;
+                }
             }
         }
     });
+
+    function connect() {
+        let stream_socket = new WebSocket('{{events_stream_ws}}');
+
+        stream_socket.onclose = function (event) {
+            setTimeout(function() {
+              connect();
+            }, 1000);
+        };
+
+        stream_socket.onmessage = function (event) {
+            app.$data.events_stream_is_active = true;
+            let js = JSON.parse(event.data);
+            app.$data.log += '\r\n' + js.msg;
+            let log = document.getElementById('log');
+            if (log) {
+                log.scrollTop = log.scrollHeight;
+            }
+        };
+
+        stream_socket.onerror = function (error) {
+            console.log("WS Error " + error.message);
+        };
+    }
+
+    connect();
+
 </script>
 
 </body>

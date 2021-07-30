@@ -3,7 +3,8 @@ import asyncio
 import shutil
 import uuid
 import subprocess
-from typing import Optional, Union
+import datetime
+from typing import Optional, Union, Callable
 
 import sirius_sdk
 import OpenSSL.crypto
@@ -13,6 +14,7 @@ from databases import Database
 import settings
 from app.settings import MEMCACHED
 from app.db.database import database
+from app.core.redis import AsyncRedisChannel
 from app.db.crud import reset_global_settings as _reset_global_settings, reset_accounts as _reset_accounts, \
     create_user as _create_user, restore_path as _restore_path, dump_path as _dump_path, load_backup as _load_backup
 from app.core.global_config import GlobalConfig
@@ -20,6 +22,11 @@ from app.core.singletons import GlobalMemcachedClient
 
 
 ACME_DESCRIPTION = 'acme.registration'
+ACME_SSL_CERT = 'acme.cert'
+ACME_SSL_CERT_KEY = 'acme.cert_key'
+ACME_CERT_PATH = '/tmp/cert.pem'
+ACME_CERT_KEY_PATH = '/tmp/privkey.pem'
+BROADCAST_CHANNEL = 'broadcast'
 
 
 def run_sync(*coros):
@@ -43,9 +50,24 @@ def clear_memcached():
     os.system(f"(echo 'flush_all' | netcat {addr} {port}) &")
 
 
-def reload():
+async def reload():
     print('============ RELOAD ============')
-    asyncio.get_event_loop().run_until_complete(load_acme())
+    webroot = await _get_webroot()
+    print(f'Webroot: {webroot}')
+    ssl_option = await _get_ssl_option()
+    print(f'SSL Option: {ssl_option}')
+    if ssl_option == 'acme':
+        ok, cert, privkey = await load_acme()
+        if ok:
+            if settings.ACME_DIR:
+                _setup_nginx(cert, privkey, webroot or 'https', only_https=True, root_dir=settings.ACME_DIR)
+            else:
+                print('Warning: ACME_DIR is not set')
+    elif ssl_option == 'manual':
+        if settings.CERT_FILE and settings.CERT_KEY_FILE:
+            _setup_nginx(settings.CERT_FILE,  settings.CERT_KEY_FILE, webroot or 'https', only_https=True)
+    elif ssl_option == 'external':
+        _setup_nginx(None, None, webroot or 'https', only_https=False)
     os.system("service nginx reload")
     print('================================')
 
@@ -88,12 +110,36 @@ def check():
     if settings.CERT_KEY_FILE:
         if not os.path.isfile(settings.CERT_KEY_FILE):
             raise RuntimeError('Cert file "%s" does not exists' % settings.CERT_KEY_FILE)
+    if settings.ACME_DIR:
+        if not os.path.isdir(settings.ACME_DIR):
+            raise RuntimeError(f'Directory "{settings.ACME_DIR}" does not exists')
+        # check id dir is writable
+        path = os.path.join(settings.ACME_DIR, uuid.uuid4().hex)
+        try:
+            open(path, 'w+')
+        except OSError:
+            raise RuntimeError(f'Directory "{settings.ACME_DIR}" has read-only flags')
+        os.remove(path)
+        acme_dir = os.path.join(settings.ACME_DIR, '.well-known')
+        if not os.path.exists(acme_dir):
+            os.makedirs(acme_dir, 777)
 
     if settings.CERT_FILE and settings.CERT_KEY_FILE:
         _validate_certs(settings.CERT_FILE, settings.CERT_KEY_FILE)
         _setup_nginx(settings.CERT_FILE, settings.CERT_KEY_FILE, 'https', only_https=True)
     else:
-        _setup_nginx(None, None, 'https', only_https=False)
+        cert_file_path = None
+        privkey_file_path = None
+        if settings.ACME_DIR:
+            root_dir = settings.ACME_DIR
+            only_https = True
+            cert_file_path = ACME_CERT_PATH if os.path.isfile(ACME_CERT_PATH) else None
+            if cert_file_path:
+                privkey_file_path = ACME_CERT_KEY_PATH if os.path.isfile(ACME_CERT_KEY_PATH) else None
+        else:
+            root_dir = None
+            only_https = False
+        _setup_nginx(cert_file_path, privkey_file_path, 'https', only_https=only_https, root_dir=root_dir)
     print('')
     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
     print('Check OK')
@@ -106,7 +152,11 @@ def generate_seed() -> str:
     return value
 
 
-async def load_acme():
+async def load_acme() -> (bool, Optional[str], Optional[str]):
+    """
+
+    :return: success, cert_path, privkey_path
+    """
     db = Database(settings.SQLALCHEMY_DATABASE_URL)
     await db.connect()
     try:
@@ -116,11 +166,25 @@ async def load_acme():
             print(f'Restored dir {path}')
         else:
             print('Not found dumps...')
+        if ok:
+            print('Try to load ACME cert and privkey files')
+            base_dir = '/tmp'
+            ok1, restored_cert_path, ctx1 = await _restore_path(db, ACME_SSL_CERT, base_dir=base_dir)
+            ok2, restored_cert_key_path, ctx2 = await _restore_path(db, ACME_SSL_CERT_KEY, base_dir=base_dir)
+            if ok1 and ok2:
+                shutil.copy(restored_cert_path, ACME_CERT_PATH)
+                shutil.copy(restored_cert_key_path, ACME_CERT_KEY_PATH)
+                return True, ACME_CERT_PATH, ACME_CERT_KEY_PATH
+            else:
+                print('Not found cert and privkey files in backups')
+                return False, None, None
+        else:
+            return False, None, None
     finally:
         await db.disconnect()
 
 
-async def register_acme(email: str, share: bool, logger: None):
+async def register_acme(email: str, share: bool, logger: Callable = None):
 
     async def empty_logger(*args, **kwargs):
         pass
@@ -151,11 +215,13 @@ async def register_acme(email: str, share: bool, logger: None):
         if os.path.isdir('/etc/letsencrypt/accounts'):
             shutil.rmtree('/etc/letsencrypt/accounts')
         cmd = ["certbot", "register", "--agree-tos", "--non-interactive", "-m", email]
-        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         output, err = process.communicate()
         exit_code = process.wait()
-        await call_logger(output)
-        await call_logger(err, True)
+        if output:
+            await call_logger(output)
+        if err:
+            await call_logger(err, True)
         if exit_code == 0:
             await _dump_path(db, ACME_DESCRIPTION, '/etc/letsencrypt/accounts', ctx)
         else:
@@ -164,15 +230,89 @@ async def register_acme(email: str, share: bool, logger: None):
         await db.disconnect()
 
 
-def _register_email_with_certbot(email: str, share: bool, logger):
-    cmd = ["certbot", "register", "--agree-tos", "--non-interactive", "-m", email]
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    (output, err) = process.communicate()
-    print(repr(output))
-    print(repr(err))
-    exit_code = process.wait()
-    if exit_code != 0:
+async def issue_cert(domain: str, logger: Callable = None):
+
+    async def empty_logger(*args, **kwargs):
         pass
+
+    if logger:
+        assert asyncio.iscoroutinefunction(logger), 'expected logger is coroutine'
+        logger = asyncio.coroutine(logger)
+    else:
+        logger = empty_logger
+
+    async def call_logger(msg: Union[str, bytes]):
+        if type(msg) is bytes:
+            msg = msg.decode()
+        for line in msg.split('\n'):
+            await logger(line)
+
+    db = Database(settings.SQLALCHEMY_DATABASE_URL)
+    await db.connect()
+    try:
+        await logger(f"Issue cert for domain {domain} in Let's Encrypt service")
+        if not os.path.isdir('/etc/letsencrypt/accounts'):
+            raise RuntimeError('You should register your email at First!')
+        cmd = ["certbot", "certonly", "--dry-run", "-d", domain]
+        await logger(f"Run certbot: %s" % ' '.join(cmd))
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        output, err = process.communicate()
+        exit_code = process.wait()
+        if output:
+            await call_logger(output)
+        if err:
+            await call_logger(err, True)
+        if exit_code == 0:
+            cert_file = f'/etc/letsencrypt/live/{domain}/cert.pem'
+            cert_key_file = f'/etc/letsencrypt/live/{domain}/privkey.pem'
+            utc = datetime.datetime.utcnow()
+            await _dump_path(db, ACME_SSL_CERT, cert_file, {'domain': domain, 'utc': utc})
+            await _dump_path(db, ACME_SSL_CERT_KEY, cert_key_file, {'domain': domain, 'utc': utc})
+        else:
+            raise RuntimeError('Error while issuing certificate')
+    finally:
+        await db.disconnect()
+
+
+async def broadcast(event: str):
+    marker = uuid.uuid4().hex
+    for address in settings.REDIS:
+        address = 'redis://' + address + '/' + BROADCAST_CHANNEL
+        ch = AsyncRedisChannel(address=address)
+        await ch.write({
+            'event': event,
+            'marker': marker
+        })
+
+
+async def listen_broadcast():
+    markers = {}
+
+    async def _listen_channel(addr: str):
+        nonlocal markers
+        ch = AsyncRedisChannel(address=addr)
+        print('Listen broadcasts on address: ' + addr)
+        while True:
+            ok, data = await ch.read(timeout=None)
+            if ok:
+                event = data.get('event')
+                marker = data.get('marker')
+                if event in markers and marker == markers[event]:
+                    continue
+                else:
+                    print(f'Received event: "{event}" with marker: "{marker}"')
+                    if event == 'reload':
+                        await reload()
+                    markers[event] = marker
+            else:
+                return
+
+    listeners = []
+    for address in settings.REDIS:
+        address = 'redis://' + address + '/' + BROADCAST_CHANNEL
+        fut = asyncio.ensure_future(_listen_channel(address))
+        listeners.append(fut)
+    await asyncio.wait(listeners, return_when=asyncio.ALL_COMPLETED)
 
 
 def _validate_certs(cert_file: str, cert_key_file: str):
@@ -188,12 +328,14 @@ def _validate_certs(cert_file: str, cert_key_file: str):
     context.check_privatekey()
 
 
-def _setup_nginx(cert_file: Optional[str], cert_key_file: Optional[str], webroot: Optional[str], only_https: bool):
+def _setup_nginx(cert_file: Optional[str], cert_key_file: Optional[str], webroot: Optional[str], only_https: bool, root_dir: str = None):
     proxy_tmp = Template(NGINX_PROXY_JINJA_TEMPLATE)
     render_proxy = proxy_tmp.render(asgi_port=settings.PORT)
     cfg_tmp = Template(NGINX_CFG_JINJA_TEMPLATE.replace('<proxy>', render_proxy))
+    if root_dir is None:
+        root_dir = '/var/www/html'
     render_cfg = cfg_tmp.render(
-        root_dir='/var/www/html', cert_file=cert_file, cert_key=cert_key_file, webroot=webroot, only_https=only_https
+        root_dir=root_dir, cert_file=cert_file, cert_key=cert_key_file, webroot=webroot, only_https=only_https
     )
     with open('/etc/nginx/sites-available/default', 'w') as f:
         f.truncate()
@@ -211,6 +353,18 @@ async def _get_webroot() -> Optional[str]:
     try:
         cfg = GlobalConfig(db, GlobalMemcachedClient.get())
         value = await cfg.get_webroot()
+        return value
+    finally:
+        await db.disconnect()
+
+
+async def _get_ssl_option() -> Optional[str]:
+    # allocate db conn
+    db = Database(settings.SQLALCHEMY_DATABASE_URL)
+    await db.connect()
+    try:
+        cfg = GlobalConfig(db, GlobalMemcachedClient.get())
+        value = await cfg.get_ssl_option()
         return value
     finally:
         await db.disconnect()

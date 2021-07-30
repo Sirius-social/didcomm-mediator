@@ -8,9 +8,10 @@ from fastapi.responses import RedirectResponse
 
 import app.db.crud as crud
 from app.settings import templates, WEBROOT as SETTING_WEBROOT, URL_STATIC, \
-    CERT_FILE as SETTING_CERT_FILE, CERT_KEY_FILE as SETTING_CERT_KEY_FILE
+    CERT_FILE as SETTING_CERT_FILE, CERT_KEY_FILE as SETTING_CERT_KEY_FILE, ACME_DIR as SETTING_ACME_DIR
 from app.dependencies import get_db
-from app.core.redis import choice_server_address
+from app.core.redis import choice_server_address, AsyncRedisChannel
+from app.core.management import register_acme
 from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient
 
@@ -49,16 +50,19 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         'webroot': SETTING_WEBROOT,
         'cert_file': SETTING_CERT_FILE or '',
         'cert_key_file': SETTING_CERT_KEY_FILE or '',
+        'acme_dir': SETTING_ACME_DIR or ''
     }
     full_base_url = str(request.base_url)
     if full_base_url.endswith('/'):
         full_base_url = full_base_url[:-1]
+    ws_base = full_base_url.replace('http://', 'ws://').replace('https://', 'wss://')
 
     ssl_option = await cfg.get_ssl_option()
     acme_email = await cfg.get_any_option(CFG_ACME_EMAIL)
     acme_email_share = await cfg.get_any_option(CFG_ACME_EMAIL_SHARE)
     redis_server = await choice_server_address()
     events_stream = redis_server + '/' + uuid.uuid4().hex
+    events_stream_ws = f'{ws_base}/ws/events?stream=' + events_stream
     settings = {
         'webroot': await cfg.get_webroot() or full_base_url,
         'full_base_url': full_base_url,
@@ -71,6 +75,7 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         if scheme == 'https':
             settings['webroot'] = settings['webroot'].replace('http://', 'https://')
             settings['full_base_url'] = settings['full_base_url'].replace('http://', 'https://')
+            events_stream_ws = events_stream_ws.replace('ws://', 'wss://')
 
     context = {
         'github': 'https://github.com/Sirius-social/didcomm',
@@ -88,7 +93,8 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
             'vue': URL_STATIC + '/vue.min.js',
             'axios': URL_STATIC + '/axios.min.js',
         },
-        'events_stream': events_stream
+        'events_stream': events_stream,
+        'events_stream_ws': events_stream_ws
     }
     response = templates.TemplateResponse(
         "admin.html",
@@ -160,6 +166,7 @@ async def set_ssl_option(request: Request, db: Database = Depends(get_db)):
     await check_is_logged(request)
     js = await request.json()
     value = js.get('value')
+    stream = js.get('stream')
     cfg = GlobalConfig(db, GlobalMemcachedClient.get())
     if value == 'acme':
         email = js.get('email')
@@ -170,4 +177,16 @@ async def set_ssl_option(request: Request, db: Database = Depends(get_db)):
             await cfg.set_any_option(CFG_ACME_EMAIL_SHARE, share_email)
         else:
             raise HTTPException(status_code=400, detail=f'Value "{email}" is not email')
+
+        ch = AsyncRedisChannel(address=stream)
+
+        async def _logger(msg: str, is_error: bool = False):
+            nonlocal ch
+            await ch.write({
+                'msg': msg,
+                'is_error': is_error
+            })
+
+        await register_acme(email, share_email, _logger)
+
     await cfg.set_ssl_option(value)

@@ -69,3 +69,4 @@ See interoperability protocols details:
   - **FCM_API_KEY**, **FCM_SENDER_ID**: Firebase cloud messaging Server **API Keys** to 
     make able route traffic to mobile devices even OS **Power-Save** mode suspend Agent application on device.
   - **CERT_FILE**, **CERT_KEY_FILE**: SSL **certificate** and **cert private key** files  
+  - **ACME_DIR**: directory for Lets Encrypt ```certbot``` [utility](https://certbot.eff.org/docs/using.html?highlight=webroot#webroot)

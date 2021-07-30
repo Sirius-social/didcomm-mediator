@@ -94,3 +94,4 @@ MEDIATOR_SERVICE_TYPE = 'MediatorService'
 
 CERT_FILE = os.getenv('CERT_FILE')
 CERT_KEY_FILE = os.getenv('CERT_KEY_FILE')
+ACME_DIR = os.getenv('ACME_DIR')

@@ -235,6 +235,23 @@ async def test_backups(test_database: Database):
     # if restored file already exists
     ok, restored_path, ctx = await restore_path(test_database, 'file', base_dir=base_dir)
     assert ok is True
+    # 3.1 check symlink
+    path = '/usr/bin/unzip'
+    link = '/tmp/unzip.link'
+    exit_code = os.system(f'ln -s {path} {link}')
+    assert exit_code == 0
+    await dump_path(test_database, 'link', link, {})
+    base_dir = '/tmp'
+    ok, restored_path, ctx = await restore_path(test_database, 'link', base_dir=base_dir)
+    assert ok is True
+    assert link in restored_path
+    with open(path, "rb") as f:
+        file_hash_orig = hashlib.md5()
+        file_hash_orig.update(f.read())
+    with open(restored_path, "rb") as f:
+        file_hash_restored = hashlib.md5()
+        file_hash_restored.update(f.read())
+    assert file_hash_orig.hexdigest() == file_hash_restored.hexdigest()
     # 4. dump dir
     path = '/etc/letsencrypt'
     await dump_path(test_database, 'dir', path, {})
