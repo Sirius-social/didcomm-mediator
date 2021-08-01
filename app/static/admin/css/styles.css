@@ -11229,9 +11229,12 @@ div.invitation{
   background-color: #1a1e21;
 }
 div.invitation code {
-  color: lightgreen;
+  color: white;
 }
 div.invitation code p {
   margin: 0;
   padding:0;
+}
+div.invitation code p span.key {
+  color: lightgreen;
 }

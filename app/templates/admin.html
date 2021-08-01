@@ -143,7 +143,7 @@
                                         </p>
                                         {% else %}
                                         <p>
-                                          {% for it in range(loop.depth) %}&nbsp;&nbsp;{% endfor %}{{key}}: {{value}},
+                                            {% for it in range(loop.depth) %}&nbsp;&nbsp;{% endfor %}<span class="key">{{key}}:</span> {{value}},
                                         </p>
                                         {% endif %}
                                         {% endfor %}
