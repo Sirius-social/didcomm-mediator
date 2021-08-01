@@ -98,4 +98,4 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
   - [Firebase](docs/Firebase.md)
 
 ## Develop and contribute
-
+  - [Developer Guide](docs/Developer.md)
