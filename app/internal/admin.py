@@ -13,6 +13,7 @@ from app.settings import templates, WEBROOT as SETTING_WEBROOT, URL_STATIC, \
     CERT_FILE as SETTING_CERT_FILE, CERT_KEY_FILE as SETTING_CERT_KEY_FILE, ACME_DIR as SETTING_ACME_DIR, \
     FIREBASE_API_KEY as SETTING_FIREBASE_API_KEY, FIREBASE_SENDER_ID as SETTING_FIREBASE_SENDER_ID
 from app.dependencies import get_db
+from app.utils import build_invitation
 from app.core.redis import choice_server_address, AsyncRedisChannel
 from app.core.management import register_acme, issue_cert, reload as _mng_reload, load_cert_metadata as _mng_load_cert_metadata
 from app.core.global_config import GlobalConfig
@@ -62,6 +63,10 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         full_base_url = full_base_url[:-1]
     ws_base = full_base_url.replace('http://', 'ws://').replace('https://', 'wss://')
 
+    app_is_configured = await cfg.get_app_is_configured()
+    if app_is_configured:
+        await check_is_logged(request)
+
     ssl_option = await cfg.get_ssl_option()
     acme_email = await cfg.get_any_option(CFG_ACME_EMAIL)
     acme_email_share = await cfg.get_any_option(CFG_ACME_EMAIL_SHARE)
@@ -102,7 +107,9 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
             'axios': URL_STATIC + '/axios.min.js',
         },
         'events_stream': events_stream,
-        'events_stream_ws': events_stream_ws
+        'events_stream_ws': events_stream_ws,
+        'app_is_configured': app_is_configured,
+        'invitation': build_invitation(),
     }
     response = templates.TemplateResponse(
         "admin.html",
@@ -181,6 +188,16 @@ async def set_firebase_secret(request: Request, db: Database = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f'Sender ID key is empty')
     cfg = GlobalConfig(db, GlobalMemcachedClient.get())
     await cfg.set_firebase_secret(api_key, sender_id)
+    await cfg.set_app_is_configured(True)
+
+
+@router.post("/set_app_is_configured", status_code=200)
+async def set_app_is_configured(request: Request, db: Database = Depends(get_db)):
+    await check_is_logged(request)
+    js = await request.json()
+    value = js.get('value') == 'on'
+    cfg = GlobalConfig(db, GlobalMemcachedClient.get())
+    await cfg.set_app_is_configured(value)
 
 
 @router.post("/set_ssl_option", status_code=200)

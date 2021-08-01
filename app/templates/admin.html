@@ -44,82 +44,138 @@
 <header class="masthead" id="app">
     <div class="container px-5">
         <div class="row gx-5 align-items-center">
-            <div class="col-lg-6">
-                <!-- Register form-->
-                <div class="row justify-content-center">
-                    <div class="col-md-8">
-                        <!--
-                           Login form
-                        -->
-                        <div v-if="current_step == 0" class="card">
-                            <div class="card-header">Login</div>
-                            <div class="card-body">
-                                {% include "forms/login.html" %}
+            {% if not app_is_configured %}
+                <div class="col-lg-6">
+                    <!-- Register form-->
+                    <div class="row justify-content-center">
+                        <div class="col-md-8">
+                            <!--
+                               Login form
+                            -->
+                            <div v-if="current_step == 0" class="card">
+                                <div class="card-header">Login</div>
+                                <div class="card-body">
+                                    {% include "forms/login.html" %}
+                                </div>
                             </div>
-                        </div>
-                        <!--
-                           Form for creation admin account (if not exists)
-                        -->
-                        <div v-if="current_step == 1" class="card">
-                            <div class="card-header">Step-1: Create Admin account</div>
-                            <div class="card-body">
-                                {% include "forms/create_user.html" %}
+                            <!--
+                               Form for creation admin account (if not exists)
+                            -->
+                            <div v-if="current_step == 1" class="card">
+                                <div class="card-header">Step-1: Create Admin account</div>
+                                <div class="card-body">
+                                    {% include "forms/create_user.html" %}
+                                </div>
                             </div>
-                        </div>
-                        <!--
-                           Form to configure webroot and LetsEncrypt
-                        -->
-                        <div v-if="current_step == 2" class="card">
-                            <div class="card-header">Step-2: Configure webroot URL</div>
-                            <div class="card-body">
-                                {% include "forms/webroot.html" %}
+                            <!--
+                               Form to configure webroot and LetsEncrypt
+                            -->
+                            <div v-if="current_step == 2" class="card">
+                                <div class="card-header">Step-2: Configure webroot URL</div>
+                                <div class="card-body">
+                                    {% include "forms/webroot.html" %}
+                                </div>
                             </div>
-                        </div>
-                        <!--
-                           Form to configure SSL & ACME
-                        -->
-                        <div v-if="current_step == 3" class="card">
-                            <div class="card-header">Step-3: Configure SSL</div>
-                            <div class="card-body">
-                                {% include "forms/ssl.html" %}
+                            <!--
+                               Form to configure SSL & ACME
+                            -->
+                            <div v-if="current_step == 3" class="card">
+                                <div class="card-header">Step-3: Configure SSL</div>
+                                <div class="card-body">
+                                    {% include "forms/ssl.html" %}
+                                </div>
                             </div>
-                        </div>
-                        <!--
-                           Form to configure Firebase secrets
-                        -->
-                        <div v-if="current_step == 4" class="card">
-                            <div class="card-header">Step-4: Configure Firebase secrets</div>
-                            <div class="card-body">
-                                {% include "forms/firebase.html" %}
+                            <!--
+                               Form to configure Firebase secrets
+                            -->
+                            <div v-if="current_step == 4" class="card">
+                                <div class="card-header">Step-4: Configure Firebase secrets</div>
+                                <div class="card-body">
+                                    {% include "forms/firebase.html" %}
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
-            <div class="col-lg-6" v-if="current_step == 4">
-                <div v-if="!events_stream_is_active" class="masthead-device-mockup">
-                    <img src="/static/firebase.png" style="max-width: 700px;">
+                <div class="col-lg-6" v-if="current_step == 4">
+                    <div v-if="!events_stream_is_active" class="masthead-device-mockup">
+                        <img src="/static/firebase.png" style="max-width: 700px;">
+                    </div>
                 </div>
-            </div>
-            <div class="col-lg-6" v-if="current_step != 4">
-                <textarea id="log" v-if="events_stream_is_active" style="min-width: 500px;min-height: 400px;background-color: black; color: green;">
-                    [[ log ]]
-                </textarea>
-                <button
-                        v-if="events_stream_is_active"
-                        @click.prevent="events_stream_is_active = false; log = '';"
-                        type="button"
-                        class="btn btn-close btn-lg btn-block"
-                        style="float: right;"
-                >
-                </button>
-                <!-- Masthead device mockup feature-->
+                <div class="col-lg-6" v-if="current_step != 4">
+                    <textarea id="log" v-if="events_stream_is_active" style="min-width: 500px;min-height: 400px;background-color: black; color: green;">
+                        [[ log ]]
+                    </textarea>
+                    <button
+                            v-if="events_stream_is_active"
+                            @click.prevent="events_stream_is_active = false; log = '';"
+                            type="button"
+                            class="btn btn-close btn-lg btn-block"
+                            style="float: right;"
+                    >
+                    </button>
+                    <!-- Masthead device mockup feature-->
 
-                <div v-if="!events_stream_is_active" class="masthead-device-mockup">
-                    <img src="/static/icons/lunch.gif" style="max-width: 500px;">
+                    <div v-if="!events_stream_is_active" class="masthead-device-mockup">
+                        <img src="/static/icons/lunch.gif" style="max-width: 500px;">
+                    </div>
+
+                </div>
+            {% else %}
+                <div class="col-lg-12">
+                    <div class="row justify-content-center">
+                        <!--
+                           Invitation form
+                        -->
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-header">Mediator Invitation <a @click.prevent="copy_invitation_to_clipboard" href="" style="float: right;cursor:pointer;"title="Copy to Clipboard"><img src="/static/icons/copy.svg" style="width: 30px;height: 30px; float: right; margin: 0 5px;"></img>Copy</a></div>
+                                <div class="invitation card-body">
+                                    <code>{
+                                        {% for key, value in invitation.items() recursive %}
+                                        {% if value is mapping %}
+                                        <p>
+                                         {% for it in range(loop.depth) %}&nbsp;&nbsp;{% endfor %}{{key}}: {
+                                        </p>
+                                        {{ loop(value.items()) }}
+                                        <p>
+                                          {% for it in range(loop.depth) %}&nbsp;&nbsp;{% endfor %}}
+                                        </p>
+                                        {% else %}
+                                        <p>
+                                          {% for it in range(loop.depth) %}&nbsp;&nbsp;{% endfor %}{{key}}: {{value}},
+                                        </p>
+                                        {% endif %}
+                                        {% endfor %}
+                                    }</code>
+                                </div>
+                            </div>
+                        </div>
+                        <!--
+                           Health checks
+                        -->
+                        <div class="col-md-5">
+                            <div class="card">
+                                <div class="card-header">Health check</div>
+                                <div class="card-body"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-12">
+                    <div class="row justify-content-center">
+                        <!--
+                           P2P connections table
+                        -->
+                        <div class="col-md-11">
+                            <div class="card">
+                                <div class="card-header">Connections (recipients)</div>
+                                <div class="card-body"></div>
+                        </div>
+                    </div>
                 </div>
 
-            </div>
+            {% endif %}
         </div>
     </div>
 </header>
@@ -157,6 +213,7 @@
             current_step: {{ current_step }},
             events_stream: '{{ events_stream }}',
             events_stream_is_active: false,
+            invitation_json: {{ invitation | tojson  }},
             log: '',
             form_login: {
                 username: '',
@@ -281,13 +338,46 @@
                     self.form_firebase.error = null;
                     console.log('======== SUCCESS ========')
                     console.log(response);
-                    self.current_step += 1;
+                    //self.current_step += 1;
+                    location.reload();
                 }).catch(function (error) {
                     let detail = error.data.detail
                     self.form_firebase.error = detail;
                     console.log('======== ERROR ========')
                     console.log(error.data);
                 });
+            },
+            app_is_configured: function(on) {
+                let url = '{{ base_url }}' + '/set_app_is_configured';
+                let self = this;
+                let value = 'off'
+                if (on) {
+                    value = 'on';
+                }
+                axios.post(
+                    url, {
+                        value: value,
+                    }
+                ).then(function (response) {
+                    console.log('======== SUCCESS ========')
+                    console.log(response);
+                }).catch(function (error) {
+                    let detail = error.data.detail
+                    console.log('======== ERROR ========')
+                    console.log(error.data);
+                });
+            },
+            copy_invitation_to_clipboard: function(){
+                var dummy = document.createElement("textarea");
+                // to avoid breaking orgain page when copying more words
+                // cant copy when adding below this code
+                // dummy.style.display = 'none'
+                document.body.appendChild(dummy);
+                //Be careful if you use texarea. setAttribute('value', value), which works with "input" does not work with "textarea". – Eduard
+                dummy.value = JSON.stringify(this.invitation_json, null, 2);
+                dummy.select();
+                document.execCommand("copy");
+                document.body.removeChild(dummy);
             }
         },
         computed: {
@@ -332,8 +422,6 @@
                 }
                 if (enabled) {
                     this.form_ssl.error = '';
-                }
-                if (enabled) {
                     return true;
                 }
                 else {
@@ -350,7 +438,7 @@
                     this.form_firebase.error = '';
                     return true;
                 }
-            }
+            },
         }
     });
 

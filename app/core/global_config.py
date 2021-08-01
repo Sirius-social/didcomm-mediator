@@ -14,6 +14,7 @@ class GlobalConfig:
     CFG_WEBROOT = 'webroot'
     CFG_SSL_OPTION = 'ssl'
     CFG_FIREBASE = 'firebase'
+    CFG_APP_CONFIGURED = 'configured'
 
     def __init__(self, db: Database, memcached: aiomemcached.Client = None):
         self.__repo = Repo(db, memcached)
@@ -64,3 +65,13 @@ class GlobalConfig:
             'sender_id': sender_id
         }
         await self.__repo.set_global_setting(self.CFG_FIREBASE, value)
+
+    async def get_app_is_configured(self) -> bool:
+        value = await self.__repo.get_global_setting(self.CFG_APP_CONFIGURED)
+        return value == 'on'
+
+    async def set_app_is_configured(self, value: bool):
+        if value is True:
+            await self.__repo.set_global_setting(self.CFG_APP_CONFIGURED, 'on')
+        else:
+            await self.__repo.set_global_setting(self.CFG_APP_CONFIGURED, 'off')

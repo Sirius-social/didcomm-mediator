@@ -11224,3 +11224,14 @@ div.non-pingable {
 span.non-pingable {
   color: red;
 }
+
+div.invitation{
+  background-color: #1a1e21;
+}
+div.invitation code {
+  color: lightgreen;
+}
+div.invitation code p {
+  margin: 0;
+  padding:0;
+}
