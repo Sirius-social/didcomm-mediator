@@ -37,7 +37,7 @@ It means in production, operating system will drop any tcp connection
 9. **Firebase** put message to Queue in the Google cloud to resume dest application.
 10. Mobile OS resume **Client Agent** application cause of non-empty Firebase messages queue
 
-## How to start work with Firebase
+## How to start working with Firebase
 - Register your application in [Firebase console](https://cloud.google.com/firestore/docs/client/get-firebase)
 - Add support for your Agent application for [iOS](https://firebase.google.com/docs/ios/setup) 
   and [Android](https://firebase.google.com/docs/android/setup)
