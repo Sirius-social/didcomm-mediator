@@ -62,7 +62,7 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         'cert_key_file': SETTING_CERT_KEY_FILE or '',
         'acme_dir': SETTING_ACME_DIR or '',
         'firebase_api_key': SETTING_FIREBASE_API_KEY or '',
-        'firebase_sender_id': SETTING_FIREBASE_SENDER_ID or ''
+        'firebase_sender_id': SETTING_FIREBASE_SENDER_ID or '',
     }
     full_base_url = str(request.base_url)
     if full_base_url.endswith('/'):
@@ -193,12 +193,16 @@ async def set_firebase_secret(request: Request, db: Database = Depends(get_db)):
     js = await request.json()
     api_key = js.get('api_key')
     sender_id = js.get('sender_id')
-    if not api_key:
-        raise HTTPException(status_code=400, detail=f'Server key is empty')
-    if not sender_id:
-        raise HTTPException(status_code=400, detail=f'Sender ID key is empty')
+    skip = js.get('skip', False)
     cfg = GlobalConfig(db, GlobalMemcachedClient.get())
-    await cfg.set_firebase_secret(api_key, sender_id)
+    if skip:
+        await cfg.reset_firebase_secret()
+    else:
+        if not api_key:
+            raise HTTPException(status_code=400, detail=f'Server key is empty')
+        if not sender_id:
+            raise HTTPException(status_code=400, detail=f'Sender ID key is empty')
+        await cfg.set_firebase_secret(api_key, sender_id)
 
 
 @router.post("/set_email_credentials", status_code=200)

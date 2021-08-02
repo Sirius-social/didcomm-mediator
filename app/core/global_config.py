@@ -62,12 +62,15 @@ class GlobalConfig:
             sender_id = value.get('sender_id')
         return api_key, sender_id
 
-    async def set_firebase_secret(self, api_key: str, sender_id):
+    async def set_firebase_secret(self, api_key: str, sender_id: str):
         value = {
             'api_key': api_key,
             'sender_id': sender_id
         }
         await self.__repo.set_global_setting(self.CFG_FIREBASE, value)
+
+    async def reset_firebase_secret(self):
+        await self.__repo.set_global_setting(self.CFG_FIREBASE, None)
 
     async def get_app_is_configured(self) -> bool:
         value = await self.__repo.get_global_setting(self.CFG_APP_CONFIGURED)

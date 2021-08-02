@@ -258,7 +258,9 @@
             form_firebase: {
                 api_key: "{{ settings.firebase_api_key }}",
                 sender_id: "{{ settings.firebase_sender_id }}",
-                error: ""
+                error: "",
+                skip: {% if env.firebase_api_key %}false{% else %}true{% endif %},
+                env_firebase_api_key: "{{ env.firebase_api_key }}"
             },
             form_email: {
                 credentials: {{ settings.email_credentials | tojson  }},
@@ -350,7 +352,8 @@
                 axios.post(
                     url, {
                         api_key: self.form_firebase.api_key,
-                        sender_id: self.form_firebase.sender_id
+                        sender_id: self.form_firebase.sender_id,
+                        skip: self.form_firebase.skip
                     }
                 ).then(function (response) {
                     self.form_firebase.error = null;
@@ -470,6 +473,9 @@
                 }
             },
             firebase_apply_enabled: function(){
+                if (this.form_firebase.skip) {
+                    return false;
+                }
                 let env_filled = '{{ env.firebase_api_key }}' || '{{ env.firebase_api_key }}';
                 if (env_filled){
                     this.form_firebase.error = 'Unset env vars FCM_API_KEY and FCM_SENDER_ID to enable this option.';
