@@ -12,11 +12,14 @@
             <th scope="row">1</th>
             <td>Firebase</td>
             <td>
-                <span class="fw-light">API Key: </span>
-                <span class="fw-bold">[[ form_firebase.api_key ]]</span>
-                <br/>
-                <span class="fw-light">Sender ID: </span>
-                <span class="fw-bold">[[ form_firebase.sender_id ]]</span>
+                <span v-if="!form_firebase.api_key" class="fw-bold">Empty</span>
+                <div v-if="form_firebase.api_key" >
+                    <span class="fw-light">API Key: </span>
+                    <span class="fw-bold">[[ form_firebase.api_key ]]</span>
+                    <br/>
+                    <span class="fw-light">Sender ID: </span>
+                    <span class="fw-bold">[[ form_firebase.sender_id ]]</span>
+                </div>
             </td>
         </tr>
         <tr>
