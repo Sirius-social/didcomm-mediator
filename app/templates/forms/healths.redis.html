@@ -1,0 +1,28 @@
+<table class="table">
+  <thead class="thead-dark">
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Message delivery</th>
+      <th scope="col">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+   {% for redis in health.redis %}
+        <tr>
+              <th scope="row">{{redis.id}}</th>
+              <td>{{ redis.address }}</td>
+              <td>
+              {% if redis.success %}
+                  <div class="ring-container">
+                      <div class="ringring pingable"></div>
+                  </div>
+              {% else %}
+                  <div class="ring-container">
+                      <div class="ringring non-pingable"></div>
+                  </div>
+              {% endif %}
+              </td>
+        </tr>
+   {% endfor %}
+  </tbody>
+</table>
