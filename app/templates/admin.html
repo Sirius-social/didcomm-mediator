@@ -448,6 +448,27 @@
                 dummy.select();
                 document.execCommand("copy");
                 document.body.removeChild(dummy);
+            },
+            reset_settings: function(){
+                if (confirm("Are you sure? All settings will be clean!!!")) {
+                    let url = '{{ base_url }}' + '/set_app_is_configured';
+                    let value = 'off'
+                    axios.post(
+                        url, {
+                            value: value,
+                        }
+                    ).then(function (response) {
+                        console.log('======== SUCCESS ========')
+                        console.log(response);
+                        location.reload();
+                    }).catch(function (error) {
+                        let detail = error.data.detail
+                        console.log('======== ERROR ========')
+                        console.log(error.data);
+                    });
+                } else {
+                  console.log("You pressed Cancel!");
+                }
             }
         },
         computed: {

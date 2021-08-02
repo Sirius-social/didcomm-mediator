@@ -1,15 +1,13 @@
-
+<button @click="reset_settings" type="button" class="col btn btn-outline-secondary btn-lg btn-block login-button" style="margin-right: 50px;">Reset Settings</button>
 <table class="table">
   <thead class="thead-dark">
     <tr>
-      <th scope="col">#</th>
       <th scope="col">Setting</th>
       <th scope="col">Value</th>
     </tr>
   </thead>
   <tbody>
         <tr>
-            <th scope="row">1</th>
             <td>Firebase</td>
             <td>
                 <span v-if="!form_firebase.api_key" class="fw-bold">Empty</span>
@@ -23,7 +21,6 @@
             </td>
         </tr>
         <tr>
-            <th scope="row">2</th>
             <td>SSL</td>
             <td>
                 <span class="fw-light">Option: </span>
@@ -46,7 +43,6 @@
             </td>
         </tr>
         <tr>
-            <th scope="row">3</th>
             <td>Email</td>
             <td>
                 <span class="fw-light">Option: </span>
