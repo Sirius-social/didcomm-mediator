@@ -1,0 +1,54 @@
+
+<table class="table">
+  <thead class="thead-dark">
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Setting</th>
+      <th scope="col">Value</th>
+    </tr>
+  </thead>
+  <tbody>
+        <tr>
+            <th scope="row">1</th>
+            <td>Firebase</td>
+            <td>
+                <span class="fw-light">API Key: </span>
+                <span class="fw-bold">[[ form_firebase.api_key ]]</span>
+                <br/>
+                <span class="fw-light">Sender ID: </span>
+                <span class="fw-bold">[[ form_firebase.sender_id ]]</span>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row">2</th>
+            <td>SSL</td>
+            <td>
+                <span class="fw-light">Option: </span>
+                <span class="fw-bold">[[ form_ssl.option ]]</span>
+                <br/>
+                <div v-if="form_ssl.option == 'manual'">
+                    <span class="fw-light">Cert: </span>
+                    <span class="fw-bold">[[ form_ssl.cert_file ]]</span>
+                    <br/>
+                    <span class="fw-light">Private Key: </span>
+                    <span class="fw-bold">[[ form_ssl.cert_key_file ]]</span>
+                </div>
+                <div v-if="form_ssl.option == 'acme'">
+                    <span class="fw-light">ACME Dir: </span>
+                    <span class="fw-bold">[[ form_ssl.acme_dir ]]</span>
+                    <br/>
+                    <span class="fw-light">Certbot email: </span>
+                    <span class="fw-bold">[[ form_ssl.acme_email ]]</span>
+                </div>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row">3</th>
+            <td>Email</td>
+            <td>
+                <span class="fw-light">Option: </span>
+                <span class="fw-bold">[[ form_email.option ]]</span>
+            </td>
+        </tr>
+  </tbody>
+</table>
