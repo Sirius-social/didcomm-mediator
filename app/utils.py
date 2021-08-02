@@ -5,8 +5,11 @@ from urllib.parse import urljoin
 from typing import Optional, Callable, Any
 
 import sirius_sdk
+from databases import Database
 from fastapi import Request
 
+from app.core.global_config import GlobalConfig
+from app.core.singletons import GlobalMemcachedClient
 from app.settings import WEBROOT, MEDIATOR_LABEL, KEYPAIR, ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX
 
 
@@ -29,7 +32,37 @@ def build_ws_endpoint_addr() -> str:
     return mediator_endpoint
 
 
+async def async_build_ws_endpoint_addr(db: Database) -> Optional[str]:
+    cfg = GlobalConfig(db, GlobalMemcachedClient.get())
+    mediator_endpoint = await cfg.get_webroot()
+    if mediator_endpoint:
+        if mediator_endpoint.startswith('https://'):
+            mediator_endpoint = mediator_endpoint.replace('https://', 'wss://')
+        elif mediator_endpoint.startswith('http://'):
+            mediator_endpoint = mediator_endpoint.replace('http://', 'ws://')
+        else:
+            raise RuntimeError('Invalid WEBROOT url')
+        mediator_endpoint = urljoin(mediator_endpoint, WS_PATH_PREFIX)
+        return mediator_endpoint
+    else:
+        return None
+
+
 def build_invitation(id_: str = None) -> dict:
+
+    return sirius_sdk.aries_rfc.Invitation(
+        id_=id_,
+        label=MEDIATOR_LABEL,
+        recipient_keys=[KEYPAIR[0]],
+        endpoint=build_ws_endpoint_addr(),
+        routing_keys=[]
+    )
+
+
+async def async_build_invitation(db: Database, id_: str = None) -> dict:
+
+    invitation = build_invitation(id_)
+    invitation['endpoint'] = await async_build_ws_endpoint_addr(db)
 
     return sirius_sdk.aries_rfc.Invitation(
         id_=id_,

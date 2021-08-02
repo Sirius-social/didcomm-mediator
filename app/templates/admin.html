@@ -160,19 +160,44 @@
                                 </div>
                             </div>
                         </div>
-                        <!--
-                           Health checks
-                        -->
+
                         <div class="col-md-5">
                             <div class="card">
-                                <div class="card-header">Health check</div>
+                                <div class="card-header">Advanced settings</div>
                                 <div class="card-body">
-                                    {% include "forms/healths.html" %}
+
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+
+                <!--
+                   Health checks
+                -->
+                <div class="col-lg-12">
+                    <div class="row justify-content-center">
+                        <!--
+                           P2P connections table
+                        -->
+                        <div class="col-md-11">
+                            <div class="card">
+                                <div class="card-header">Health check</div>
+                                <div class="card-body">
+                                    <div class="row">
+                                        <div class="col">
+                                            {% include "forms/healths.redis.html" %}
+                                        </div>
+                                        <div class="col">
+                                            {% include "forms/healths.services.html" %}
+                                        </div>
+                                    </div>
+                                </div>
+                        </div>
+                    </div>
+                </div>
+
+
                 <div class="col-lg-12">
                     <div class="row justify-content-center">
                         <!--
