@@ -166,7 +166,9 @@
                         <div class="col-md-5">
                             <div class="card">
                                 <div class="card-header">Health check</div>
-                                <div class="card-body"></div>
+                                <div class="card-body">
+                                    {% include "forms/healths.html" %}
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -224,6 +226,7 @@
             events_stream_is_active: false,
             invitation_json: {{ invitation | tojson  }},
             log: '',
+            health: {{ health | tojson }},
             form_login: {
                 username: '',
                 password: '',

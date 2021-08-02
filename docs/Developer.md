@@ -21,10 +21,10 @@ Edge Agent in DIDComm decentralized environment with self-service.
    
    **A**: Depends on application settings. There are some alternatives:
     - Admin may **turn on** service for any recipient.
-      Mediator operates with any recipient that was established **P2P**/**Pairwise** with mediator 
+      Mediator operates with anyone recipient that was established **P2P**/**Pairwise** with mediator 
       dynamically. Any recipient may establish connection dynamically via [RFC 0160](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol)
       and request any service.
-    - Admin may **turn off** service for any recipient. Admin may send invitation via email
+    - Admin may **turn off** service for anyone recipient. Admin may send invitation via email
       with secret link to connection configuration page. 
     - Admin may create/remove static connections via Admin page.  
 

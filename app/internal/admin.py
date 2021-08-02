@@ -20,6 +20,7 @@ from app.core.management import register_acme, issue_cert, reload as _mng_reload
 from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient
 
+from .helpers import check_redis, check_services
 from .auth import auth_user as _auth_user, login as _login, logout as _logout
 
 
@@ -94,6 +95,11 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
             settings['full_base_url'] = settings['full_base_url'].replace('http://', 'https://')
             events_stream_ws = events_stream_ws.replace('ws://', 'wss://')
 
+    health = {}
+    if app_is_configured:
+        health['redis'] = await check_redis()
+        health['services'] = await check_services()
+
     context = {
         'github': 'https://github.com/Sirius-social/didcomm',
         'issues': 'https://github.com/Sirius-social/didcomm/issues',
@@ -105,6 +111,7 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         'current_step': current_step,
         'env': env,
         'settings': settings,
+        'health': health,
         'static': {
             'styles': URL_STATIC + '/admin/css/styles.css',
             'vue': URL_STATIC + '/vue.min.js',

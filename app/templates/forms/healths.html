@@ -1,0 +1,59 @@
+<table class="table">
+  <thead class="thead-dark">
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Message delivery</th>
+      <th scope="col">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+   {% for redis in health.redis %}
+        <tr>
+              <th scope="row">{{redis.id}}</th>
+              <td>{{ redis.address }}</td>
+              <td>
+              {% if redis.success %}
+                  <div class="ring-container">
+                      <div class="ringring pingable"></div>
+                  </div>
+              {% else %}
+                  <div class="ring-container">
+                      <div class="ringring non-pingable"></div>
+                  </div>
+              {% endif %}
+              </td>
+        </tr>
+   {% endfor %}
+  </tbody>
+</table>
+
+<table class="table">
+  <thead class="thead-dark">
+    <tr>
+      <th scope="col">#</th>
+      <th scope="col">Service</th>
+      <th scope="col">URL</th>
+      <th scope="col">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for service in health.services %}
+        <tr>
+              <th scope="row">{{service.id}}</th>
+              <td>{{ service.name }}</td>
+              <td>{{ service.address }}</td>
+              <td>
+              {% if service.success %}
+                  <div class="ring-container">
+                      <div class="ringring pingable"></div>
+                  </div>
+              {% else %}
+                  <div class="ring-container">
+                      <div class="ringring non-pingable"></div>
+                  </div>
+              {% endif %}
+              </td>
+        </tr>
+   {% endfor %}
+  </tbody>
+</table>
