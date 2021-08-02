@@ -36,7 +36,12 @@ elif command == CMD_CHECK:
     app.core.management.check()
     asyncio.get_event_loop().run_until_complete(app.core.management.reload())
 elif command == CMD_RESET:
-    app.core.management.reset()
+    choice = input('Clear all accounts and settings? y/n: ')
+    if choice == 'y':
+        print('Accepted')
+        app.core.management.reset()
+    else:
+        print('Declined')
 elif command == CMD_GENERATE_SEED:
     seed = app.core.management.generate_seed()
     print('')

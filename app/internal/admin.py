@@ -13,8 +13,9 @@ from app.settings import templates, WEBROOT as SETTING_WEBROOT, URL_STATIC, \
     CERT_FILE as SETTING_CERT_FILE, CERT_KEY_FILE as SETTING_CERT_KEY_FILE, ACME_DIR as SETTING_ACME_DIR, \
     FIREBASE_API_KEY as SETTING_FIREBASE_API_KEY, FIREBASE_SENDER_ID as SETTING_FIREBASE_SENDER_ID
 from app.dependencies import get_db
-from app.utils import build_invitation
+from app.utils import build_invitation, run_in_thread
 from app.core.redis import choice_server_address, AsyncRedisChannel
+from app.core.emails import check_server as emails_check_server
 from app.core.management import register_acme, issue_cert, reload as _mng_reload, load_cert_metadata as _mng_load_cert_metadata
 from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient
@@ -40,6 +41,7 @@ async def check_is_logged(request: Request):
 async def admin_panel(request: Request, db: Database = Depends(get_db)):
     cfg = GlobalConfig(db, GlobalMemcachedClient.get())
     current_user = await _auth_user(request)
+    app_is_configured = await cfg.get_app_is_configured()
     if current_user is None:
         superuser = await crud.load_superuser(db, mute_errors=True)
         if superuser:
@@ -47,7 +49,10 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         else:
             current_step = 1  # create superuser form
     else:
-        current_step = 2  # configure Webroot & SSL
+        if app_is_configured:
+            current_step = 0  # login form
+        else:
+            current_step = 2  # configure Webroot & SSL
 
     # variables
     env = {
@@ -63,10 +68,6 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         full_base_url = full_base_url[:-1]
     ws_base = full_base_url.replace('http://', 'ws://').replace('https://', 'wss://')
 
-    app_is_configured = await cfg.get_app_is_configured()
-    if app_is_configured:
-        await check_is_logged(request)
-
     ssl_option = await cfg.get_ssl_option()
     acme_email = await cfg.get_any_option(CFG_ACME_EMAIL)
     acme_email_share = await cfg.get_any_option(CFG_ACME_EMAIL_SHARE)
@@ -74,6 +75,7 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
     events_stream = redis_server + '/' + uuid.uuid4().hex
     events_stream_ws = f'{ws_base}/ws/events?stream=' + events_stream
     firebase_api_key, firebase_sender_id = await cfg.get_firebase_secret()
+    email_settings = await cfg.get_email_credentials()
     settings = {
         'webroot': await cfg.get_webroot() or full_base_url,
         'full_base_url': full_base_url,
@@ -81,7 +83,9 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         'acme_email': acme_email or '',
         'acme_email_share': 'true' if acme_email_share else 'false',
         'firebase_api_key': firebase_api_key or '',
-        'firebase_sender_id': firebase_sender_id or ''
+        'firebase_sender_id': firebase_sender_id or '',
+        'email_option': email_settings.get('option', 'no_emails'),
+        'email_credentials': email_settings.get('credentials', {})
     }
     if 'x-forwarded-proto' in request.headers:
         scheme = request.headers['x-forwarded-proto']
@@ -188,6 +192,54 @@ async def set_firebase_secret(request: Request, db: Database = Depends(get_db)):
         raise HTTPException(status_code=400, detail=f'Sender ID key is empty')
     cfg = GlobalConfig(db, GlobalMemcachedClient.get())
     await cfg.set_firebase_secret(api_key, sender_id)
+
+
+@router.post("/set_email_credentials", status_code=200)
+async def set_email_credentials(request: Request, db: Database = Depends(get_db)):
+    await check_is_logged(request)
+    js = await request.json()
+    option = js.get('option')
+    credentials = js.get('credentials')
+    if not option:
+        raise HTTPException(status_code=400, detail=f'option is empty')
+    if option != 'no_emails':
+        if not credentials:
+            raise HTTPException(status_code=400, detail=f'credentials is empty')
+    cfg = GlobalConfig(db, GlobalMemcachedClient.get())
+    value = {
+        'option': option,
+        'credentials': credentials
+    }
+    await cfg.set_email_credentials(value)
+    if option == 'server':
+        for fld in ['address', 'port', 'username', 'password', 'from_email']:
+            if fld not in credentials:
+                raise HTTPException(status_code=400, detail=f'Field "{fld}" must be set')
+        print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        print(repr(credentials))
+        fut = asyncio.ensure_future(run_in_thread(
+            func=emails_check_server,
+            address=credentials.get('address', ''),
+            port=credentials.get('port', 465),
+            username=credentials.get('username', ''),
+            password=credentials.get('password', ''),
+            use_ssl=credentials.get('use_ssl') is True,
+            use_tls=credentials.get('use_tls') is True
+        ))
+        try:
+            await asyncio.wait([fut], timeout=5)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f'Error while try to connect. Details: ' + str(e))
+        if fut.done():
+            success, err = fut.result()
+            if not success:
+                raise HTTPException(status_code=400, detail=err)
+        else:
+            raise HTTPException(status_code=400, detail=f'Connection timeout expired')
+    elif option == 'sendgrid':
+        for fld in ['sendgrid_from_email', 'sendgrid_api_key']:
+            if fld not in credentials:
+                raise HTTPException(status_code=400, detail=f'Field "{fld}" must be set')
     await cfg.set_app_is_configured(True)
 
 

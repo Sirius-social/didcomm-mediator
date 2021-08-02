@@ -44,7 +44,7 @@
 <header class="masthead" id="app">
     <div class="container px-5">
         <div class="row gx-5 align-items-center">
-            {% if not app_is_configured %}
+            {% if not app_is_configured or not current_user %}
                 <div class="col-lg-6">
                     <!-- Register form-->
                     <div class="row justify-content-center">
@@ -92,6 +92,15 @@
                                 <div class="card-header">Step-4: Configure Firebase secrets</div>
                                 <div class="card-body">
                                     {% include "forms/firebase.html" %}
+                                </div>
+                            </div>
+                            <!--
+                               Form to configure Emails
+                            -->
+                            <div v-if="current_step == 5" class="card">
+                                <div class="card-header">Step-5: Configure Email notifications</div>
+                                <div class="card-body">
+                                    {% include "forms/email.html" %}
                                 </div>
                             </div>
                         </div>
@@ -247,6 +256,12 @@
                 api_key: "{{ settings.firebase_api_key }}",
                 sender_id: "{{ settings.firebase_sender_id }}",
                 error: ""
+            },
+            form_email: {
+                credentials: {{ settings.email_credentials | tojson  }},
+                option: '{{ settings.email_option }}',
+                error: "",
+                loading: false
             }
         },
         methods: {
@@ -338,11 +353,34 @@
                     self.form_firebase.error = null;
                     console.log('======== SUCCESS ========')
                     console.log(response);
-                    //self.current_step += 1;
-                    location.reload();
+                    self.current_step += 1;
                 }).catch(function (error) {
                     let detail = error.data.detail
                     self.form_firebase.error = detail;
+                    console.log('======== ERROR ========')
+                    console.log(error.data);
+                });
+            },
+            set_email_credentials: function(){
+                let url = '{{ base_url }}' + '/set_email_credentials';
+                let self = this;
+                self.form_email.error = '';
+                self.form_email.loading = true;
+                axios.post(
+                    url, {
+                        option: self.form_email.option,
+                        credentials: self.form_email.credentials,
+                    }
+                ).then(function (response) {
+                    self.form_email.loading = false;
+                    self.form_email.error = '';
+                    console.log('======== SUCCESS ========')
+                    console.log(response);
+                    location.reload();
+                }).catch(function (error) {
+                    self.form_email.loading = false;
+                    let detail = error.data.detail
+                    self.form_email.error = detail;
                     console.log('======== ERROR ========')
                     console.log(error.data);
                 });

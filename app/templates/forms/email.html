@@ -1,0 +1,81 @@
+<form class="form-horizontal" method="post" action="#">
+    <h5 v-if="form_email.error" class="text-danger">[[form_email.error]]</h5>
+    <div class="form-group" style="margin-bottom: 10px;">
+        <select v-model="form_email.option"  id="options" name="options">
+          <option value="no_emails">No Emails</option>
+          <option value="server">Server</option>
+          <option value="sendgrid">SendGrid</option>
+        </select>
+    </div>
+    <div class="form-group" v-if="form_email.option == 'server'">
+
+        <div class="form-check">
+          <input v-model="form_email.credentials.use_ssl" class="form-check-input" type="checkbox" value="" id="email-use-ssl">
+          <label for="email-use-ssl">Use SSL</label>
+        </div>
+
+        <div class="form-check">
+          <input v-model="form_email.credentials.use_tls" class="form-check-input" type="checkbox" value="" id="email-use-tls">
+          <label for="email-use-tls">Use TLS</label>
+        </div>
+
+        <label class="fw-light" for="email-address" class="col cols-sm-2 control-label">Server address</label>
+        <div class="input-group">
+            <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+            <input v-model="form_email.credentials.address" type="text" class="form-control" name="email-address" id="email-address" placeholder="smtp.gmail.com" />
+        </div>
+
+        <label class="fw-light" for="email-port" class="col cols-sm-1 control-label">Port</label>
+        <div class="input-group">
+            <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+            <input v-model="form_email.credentials.port" type="number" class="form-control" name="email-port" id="email-port" placeholder="465" />
+        </div>
+
+        <label class="fw-light" for="email-username" class="col cols-sm-2 control-label">Username</label>
+        <div class="input-group">
+            <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+            <input v-model="form_email.credentials.username" type="text" class="form-control" name="email-username" id="email-username" placeholder="Enter username" />
+        </div>
+
+        <label class="fw-light" for="email-password" class="col cols-sm-2 control-label">Password</label>
+        <div class="input-group">
+            <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+            <input v-model="form_email.credentials.password" type="password" class="form-control" name="email-password" id="email-password" placeholder="Enter password" />
+        </div>
+
+        <label class="fw-light" for="email-from-email" class="col cols-sm-2 control-label">From Email</label>
+        <div class="input-group">
+            <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+            <input v-model="form_email.credentials.from_email" type="text" class="form-control" name="email-from-email" id="email-from-email" placeholder="Enter from email" />
+        </div>
+
+    </div>
+    <div class="form-group" v-if="form_email.option == 'sendgrid'">
+        <label class="fw-light" for="email-sendgrid-from-email" class="col cols-sm-2 control-label">From Email</label>
+        <div class="input-group">
+            <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+            <input v-model="form_email.credentials.sendgrid_from_email" type="text" class="form-control" name="email-sendgrid-from-email" id="email-sendgrid-from-email" placeholder="Enter from email" />
+        </div>
+
+        <label class="fw-light" for="email-sendgrid-key" class="col cols-sm-2 control-label">SendGrid API KEY</label>
+        <div class="input-group">
+            <span class="input-group-addon"><i class="fa fa-lock fa-lg" aria-hidden="true"></i></span>
+            <input v-model="form_email.credentials.sendgrid_api_key" type="text" class="form-control" name="email-sendgrid-key" id="email-sendgrid-key" placeholder="Enter API KEY" />
+        </div>
+    </div>
+    <p class="blockquote-footer" style="margin-top: 20px;">
+        You may send invitations via email with secret link to configure static connections for recipients.
+    </p>
+    <div class="row">
+        <button @click="current_step -= 1" type="button" class="col btn btn-outline-secondary btn-lg btn-block login-button" style="margin-right: 50px;">< Prev</button>
+        <button
+                type="button"
+                class="col btn btn-primary btn-lg btn-block login-button"
+                @click="set_email_credentials"
+        >
+            Save
+            <img v-if="form_email.loading" src="/static/icons/loading.gif" style="width: 50px; height: 30px;">
+        </button>
+
+    </div>
+</form>

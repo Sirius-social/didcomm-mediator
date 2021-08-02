@@ -1,6 +1,8 @@
+import asyncio
 import hashlib
+import threading
 from urllib.parse import urljoin
-from typing import Optional
+from typing import Optional, Callable, Any
 
 import sirius_sdk
 from fastapi import Request
@@ -51,3 +53,47 @@ def hash_string(s: str) -> str:
     m = hashlib.md5()
     m.update(s.encode())
     return m.hexdigest()
+
+
+class LoopInThread(threading.Thread):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.on_ready = asyncio.Event()
+        self.on_ready.clear()
+        self.loop: Optional[asyncio.BaseEventLoop] = None
+
+    def run(self):
+        self.loop = asyncio.SelectorEventLoop()
+        asyncio.set_event_loop(self.loop)
+        self.on_ready.set()
+        self.loop.run_forever()
+
+    def kill(self):
+        if self.loop:
+            self.loop.stop()
+
+    @classmethod
+    async def execute(cls, func: Callable, *args, **kwargs) -> Any:
+        inst = LoopInThread()
+        inst.start()
+        await inst.on_ready.wait()
+
+        result = None
+        on_done = asyncio.Event()
+        on_done.clear()
+
+        async def co():
+            nonlocal result
+            nonlocal on_done
+            result = func(*args, **kwargs)
+            on_done.set()
+
+        asyncio.run_coroutine_threadsafe(co(), loop=inst.loop)
+        await on_done.wait()
+        return result
+
+
+async def run_in_thread(func: Callable, *args, **kwargs) -> Any:
+    ret = await LoopInThread.execute(func, *args, **kwargs)
+    return ret

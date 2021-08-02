@@ -1,3 +1,5 @@
+import json
+
 from typing import Optional
 
 import aiomemcached
@@ -15,6 +17,7 @@ class GlobalConfig:
     CFG_SSL_OPTION = 'ssl'
     CFG_FIREBASE = 'firebase'
     CFG_APP_CONFIGURED = 'configured'
+    CFG_EMAIL_CRED = 'email'
 
     def __init__(self, db: Database, memcached: aiomemcached.Client = None):
         self.__repo = Repo(db, memcached)
@@ -75,3 +78,19 @@ class GlobalConfig:
             await self.__repo.set_global_setting(self.CFG_APP_CONFIGURED, 'on')
         else:
             await self.__repo.set_global_setting(self.CFG_APP_CONFIGURED, 'off')
+
+    async def get_email_credentials(self) -> dict:
+        value_str = await self.__repo.get_global_setting(self.CFG_EMAIL_CRED)
+        if value_str:
+            value = json.loads(value_str)
+            return value
+        else:
+            return {}
+
+    async def set_email_credentials(self, credentials: dict = None):
+        if credentials:
+            value = credentials
+        else:
+            value = {}
+        value = json.dumps(value)
+        await self.__repo.set_global_setting(self.CFG_EMAIL_CRED, value)
