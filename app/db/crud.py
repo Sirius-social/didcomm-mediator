@@ -3,10 +3,10 @@ import uuid
 from typing import Optional, Any, Tuple, Union
 
 from databases import Database
-from sqlalchemy import and_
+from sqlalchemy import and_, or_
 
 from app.utils import hash_string
-from .models import agents, endpoints, routing_keys, users, global_settings, backups
+from .models import agents, endpoints, routing_keys, users, global_settings, backups, pairwises
 
 
 class BaseDBError(RuntimeError):
@@ -114,6 +114,36 @@ async def load_endpoint(db: Database, uid: str) -> Optional[dict]:
         return _restore_endpoint_from_row(row)
     else:
         return None
+
+
+async def load_pairwises(db: Database, filters: dict = None, offset: int = None, limit: int = None) -> list:
+    sql = pairwises.select()
+    if filters:
+        cond_items = []
+        for key, value in filters.items():
+            value = value + '%'
+            if key == 'their_did':
+                cond_items.append(pairwises.c.their_did.ilike(value))
+            elif key == 'my_did':
+                cond_items.append(pairwises.c.my_did.ilike(value))
+            elif key == 'their_label':
+                cond_items.append(pairwises.c.their_label.ilike(value))
+        if cond_items:
+            cond = or_(*cond_items)
+            sql = sql.where(cond)
+    if offset is not None:
+        sql = sql.offset(offset)
+    if limit is not None:
+        sql = sql.limit(limit)
+    rows = await db.fetch_all(query=sql)
+    if rows:
+        collection = []
+        for row in rows:
+            p = _restore_pairwise_from_row(row)
+            collection.append(p)
+        return collection
+    else:
+        return []
 
 
 async def load_agent_via_verkey(db: Database, verkey: str) -> Optional[dict]:
@@ -350,6 +380,17 @@ def _restore_endpoint_from_row(row) -> dict:
         'agent_id': row['agent_id'],
         'redis_pub_sub': row['redis_pub_sub'],
         'fcm_device_id': row['fcm_device_id']
+    }
+
+
+def _restore_pairwise_from_row(row) -> dict:
+    return {
+        'their_did': row['their_did'],
+        'their_verkey': row['their_verkey'],
+        'my_did': row['my_did'],
+        'my_verkey': row['my_verkey'],
+        'metadata': row['metadata'],
+        'their_label': row['their_label']
     }
 
 

@@ -5,6 +5,7 @@ import pytest
 from databases import Database
 
 from app.db.crud import *
+from app.db.models import pairwises
 
 
 @pytest.mark.asyncio
@@ -273,3 +274,49 @@ async def test_backups(test_database: Database):
     # if restored dir already exists
     ok, restored_path, ctx = await restore_path(test_database, 'dir', base_dir=base_dir)
     assert ok is True
+
+
+@pytest.mark.asyncio
+async def test_load_pairwise_collection(test_database: Database, random_me: (str, str, str)):
+    pairwise_count = 100
+
+    for n in range(pairwise_count):
+        p2p = {
+            'their_did': f'their_did{n}',
+            'their_verkey': f'their_verkey{n}',
+            'my_did': f'my_did{n}',
+            'my_verkey': f'my_verkey{n}',
+            'metadata': {},
+            'their_label': f'label{n}'
+        }
+        sql = pairwises.insert()
+        await test_database.execute(query=sql, values=p2p)
+
+    # test Sane
+    collection = await load_pairwises(test_database)
+    assert len(collection) == pairwise_count
+    for n in range(pairwise_count):
+        e = collection[n]
+        assert e['their_did'] == f'their_did{n}'
+    # test pagination
+    collection = await load_pairwises(test_database, offset=90)
+    assert len(collection) == 10
+    collection = await load_pairwises(test_database, limit=10)
+    assert len(collection) == 10
+    collection = await load_pairwises(test_database, limit=10, offset=10)
+    assert len(collection) == 10
+    assert collection[0]['their_did'] == 'their_did10'
+    assert collection[-1]['their_did'] == 'their_did19'
+    # test filters
+    collection = await load_pairwises(test_database, filters={'their_did': 'their_did10'})
+    assert len(collection) == 1
+    assert collection[0]['their_did'] == 'their_did10'
+    collection = await load_pairwises(test_database, filters={'their_label': 'label1'})
+    assert len(collection) == 11
+    assert collection[0]['their_label'] == 'label1'
+    assert collection[1]['their_label'] == 'label10'
+    assert collection[-1]['their_label'] == 'label19'
+    collection = await load_pairwises(test_database, filters={'their_did': 'their_did10', 'their_label': 'label11'})
+    assert len(collection) == 2
+    assert collection[0]['their_did'] == 'their_did10'
+    assert collection[1]['their_label'] == 'label11'

@@ -6,6 +6,7 @@ from app.utils import async_build_ws_endpoint_addr
 from app.core.redis import AsyncRedisChannel
 from app.core.singletons import GlobalMemcachedClient
 from app.core.global_config import GlobalConfig
+from app.db.crud import load_pairwises
 
 
 async def check_redis() -> list:
@@ -33,10 +34,7 @@ async def check_url(url: str) -> bool:
             return True
         else:
             return False
-    except Exception as e:
-        print('=================== CHECK URL ===================')
-        print(repr(e))
-        print('=================================================')
+    except:
         return False
 
 
@@ -58,3 +56,13 @@ async def check_services(db: Database) -> list:
         }
         services.append(item)
     return services
+
+
+async def load_connections(db: Database, search_str: str = None, offset: int = 0, limit: int = None) -> list:
+    _filters = {}
+    if search_str:
+        _filters['their_label'] = search_str
+    _offset = offset if offset else None
+    _limit = limit if limit is not None else None
+    collection = await load_pairwises(db, filters=_filters, offset=_offset, limit=_limit)
+    return collection

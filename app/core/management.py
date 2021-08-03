@@ -14,6 +14,7 @@ from databases import Database
 import settings
 from app.settings import MEMCACHED
 from app.db.database import database
+from app.db.models import pairwises
 from app.core.redis import AsyncRedisChannel
 from app.db.crud import reset_global_settings as _reset_global_settings, reset_accounts as _reset_accounts, \
     create_user as _create_user, restore_path as _restore_path, dump_path as _dump_path, load_backup as _load_backup
@@ -335,6 +336,30 @@ async def listen_broadcast():
         fut = asyncio.ensure_future(_listen_channel(address))
         listeners.append(fut)
     await asyncio.wait(listeners, return_when=asyncio.ALL_COMPLETED)
+
+
+async def create_debug_pairwise_collection():
+    db = Database(settings.SQLALCHEMY_DATABASE_URL)
+    await db.connect()
+    try:
+        sql = pairwises.delete()
+        await db.execute(query=sql)
+        for n in range(100):
+            p2p = {
+                'their_did': f'their_did[{n}]',
+                'their_verkey': f'their_verkey[{n}]',
+                'my_did': f'my_did[{n}]',
+                'my_verkey': f'my_verkey[{n}]',
+                'metadata': {
+                    'key1': 5,
+                    'key2': 'value'
+                },
+                'their_label': f'label [{n}]'
+            }
+            sql = pairwises.insert()
+            await db.execute(query=sql, values=p2p)
+    finally:
+        await db.disconnect()
 
 
 def _validate_certs(cert_file: str, cert_key_file: str):
