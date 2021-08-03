@@ -21,7 +21,7 @@ from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient
 
 from .helpers import check_redis, check_services
-from .auth import auth_user as _auth_user, login as _login, logout as _logout
+from .auth import auth_user as _auth_user, login as _login, logout as _logout, SESSION_COOKIE_KEY
 
 
 router = APIRouter()
@@ -30,6 +30,7 @@ router = APIRouter()
 BASE_URL = '/admin'
 CFG_ACME_EMAIL = 'acme.email'
 CFG_ACME_EMAIL_SHARE = 'acme.email.share'
+PAGE_SIZE = 20
 
 
 async def check_is_logged(request: Request):
@@ -42,6 +43,7 @@ async def check_is_logged(request: Request):
 async def admin_panel(request: Request, db: Database = Depends(get_db)):
     cfg = GlobalConfig(db, GlobalMemcachedClient.get())
     current_user = await _auth_user(request)
+    session_id = request.cookies.get(SESSION_COOKIE_KEY)
     app_is_configured = await cfg.get_app_is_configured()
     if current_user is None:
         superuser = await crud.load_superuser(db, mute_errors=True)
@@ -121,7 +123,7 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         'events_stream': events_stream,
         'events_stream_ws': events_stream_ws,
         'app_is_configured': app_is_configured,
-        'invitation': await async_build_invitation(db),
+        'invitation': await async_build_invitation(db, session_id),
     }
     response = templates.TemplateResponse(
         "admin.html",
@@ -315,3 +317,18 @@ async def set_ssl_option(request: Request, db: Database = Depends(get_db)):
     await cfg.set_ssl_option(value)
     if make_issue:
         await _mng_reload()
+
+
+@router.post("/load_pairwise_collection", status_code=200)
+async def load_pairwise_collection(request: Request, db: Database = Depends(get_db)):
+    await check_is_logged(request)
+    js = await request.json()
+    search = js.get('search')
+    page = js.get('page', 1)
+    #
+    filters = {}
+    if search:
+        filters['their_label'] = search
+    #
+    collection = await crud.load_pairwises(db, filters=filters)
+    return collection

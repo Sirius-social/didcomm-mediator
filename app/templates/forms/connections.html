@@ -1,0 +1,24 @@
+<form class="form-inline">
+  <div class="form-group mx-sm-3 mb-2">
+    <label for="connections-search" class="sr-only">Search connections</label>
+    <input v-model="pairwise_cache.search" type="text" class="form-control" id="connections-search" placeholder="Enter search text..." style="width: 50%;">
+  </div>
+  <div class="form-group mx-sm-3 mb-2">
+    <table class="table table-striped">
+      <thead>
+        <tr>
+          <th scope="col">DID</th>
+          <th scope="col">Label</th>
+          <th scope="col">Verkey</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr v-for="con in connections">
+          <th scope="row">[[ con.their_did ]]</th>
+          <td>[[ con.their_label ]]</td>
+          <td>[[ con.their_verkey ]]</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</form>

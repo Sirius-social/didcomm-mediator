@@ -194,11 +194,12 @@
                 <!--
                    P2P connections table
                 -->
-                <div class="col-lg-12">
+                <div class="col-lg-12" style="margin-top: 10px;">
                     <div class="row justify-content-center">
                         <div class="col-md-11">
                             <div class="card">
                                 <div class="card-header">Connections (recipients)</div>
+                                    {% include 'forms/connections.html' %}
                                 <div class="card-body"></div>
                         </div>
                     </div>
@@ -208,7 +209,7 @@
                 <!--
                    Health checks
                 -->
-                <div class="col-lg-12">
+                <div class="col-lg-12" style="margin-top: 10px;">
                     <div class="row justify-content-center">
                         <!--
                            P2P connections table
@@ -271,6 +272,11 @@
             invitation_json: {{ invitation | tojson  }},
             log: '',
             health: {{ health | tojson }},
+            pairwise_cache: {
+                data: null,
+                current_row: null,
+                search: ''
+            },
             form_login: {
                 username: '',
                 password: '',
@@ -511,6 +517,41 @@
             }
         },
         computed: {
+            connections: function(){
+                if (this.pairwise_cache.data) {
+                    if (this.pairwise_cache.search) {
+                        let result = [];
+                        let lower_search = this.pairwise_cache.search.toLowerCase();
+                        for (const index in this.pairwise_cache.data) {
+                            let row = this.pairwise_cache.data[index];
+                            if (row.their_label.toLowerCase().includes(lower_search)) {
+                                result.push(row);
+                            }
+                        }
+                        return result;
+                    }
+                    else {
+                        return this.pairwise_cache.data;
+                    }
+                }
+                else {
+                    let url = '{{ base_url }}' + '/load_pairwise_collection';
+                    let self = this;
+                    axios.post(
+                        url, {
+                            search: this.pairwise_cache.search,
+                        }
+                    ).then(function (response) {
+                        console.log('======== SUCCESS ========')
+                        console.log(response);
+                        self.pairwise_cache.data = response.data;
+                    }).catch(function (error) {
+                        let detail = error.data.detail
+                        console.log('======== ERROR ========')
+                        console.log(error.data);
+                    });
+                }
+            },
             ping_status_caption: function(){
                 if (this.form_webroot.ping == 'success') {
                     return 'webroot is reachable'
