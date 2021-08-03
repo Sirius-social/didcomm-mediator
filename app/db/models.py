@@ -31,7 +31,8 @@ pairwises = sqlalchemy.Table(
     sqlalchemy.Column("their_verkey", sqlalchemy.String, index=True),
     sqlalchemy.Column("my_did", sqlalchemy.String, index=True),
     sqlalchemy.Column("my_verkey", sqlalchemy.String, index=True),
-    sqlalchemy.Column("metadata", sqlalchemy.JSON)
+    sqlalchemy.Column("metadata", sqlalchemy.JSON),
+    sqlalchemy.Column("their_label", sqlalchemy.String, nullable=True, index=True),
 )
 
 
