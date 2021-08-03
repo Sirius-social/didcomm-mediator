@@ -26,7 +26,8 @@ class MediatorPairwiseList(AbstractPairwiseList):
                 "their_verkey": pairwise.their.verkey,
                 "my_did": pairwise.me.did,
                 "my_verkey": pairwise.me.verkey,
-                "metadata": metadata
+                "metadata": metadata,
+                'their_label': pairwise.their.label
             }
             await db.execute(query=sql, values=values)
 
@@ -39,7 +40,8 @@ class MediatorPairwiseList(AbstractPairwiseList):
                 "their_verkey": pairwise.their.verkey,
                 "my_did": pairwise.me.did,
                 "my_verkey": pairwise.me.verkey,
-                "metadata": metadata
+                "metadata": metadata,
+                'their_label': pairwise.their.label
             }
             await db.execute(query=sql, values=values)
 
