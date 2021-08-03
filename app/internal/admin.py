@@ -116,6 +116,7 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
             'styles': URL_STATIC + '/admin/css/styles.css',
             'vue': URL_STATIC + '/vue.min.js',
             'axios': URL_STATIC + '/axios.min.js',
+            'jquery': URL_STATIC + '/jquery-3.6.0.min.js'
         },
         'events_stream': events_stream,
         'events_stream_ws': events_stream_ws,

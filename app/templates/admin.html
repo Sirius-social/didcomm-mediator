@@ -7,6 +7,7 @@
     <link href="{{ static.styles }}" rel="stylesheet">
     <script src="{{ static.vue }}"></script>
     <script src="{{ static.axios }}"></script>
+    <script src="{{ static.jquery }}"></script>
 </head>
 
 <body id="top">
@@ -42,6 +43,23 @@
 </nav>
 <!-- Mashead header-->
 <header class="masthead" id="app">
+
+    <!--   Modal -------->
+    <div class="modal" id="form-modal" style="background-color: rgba(0,0,0,0.3)" tabindex="-1" role="dialog" aria-labelledby="original" aria-hidden="true">
+      <div class="modal-dialog modal-md" role="document" style="margin-top:10%;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="text-primary modal-title" >[[ form_modal.title ]]</h5>
+          </div>
+          <div class="modal-body">
+              <p class="text-danger">[[ form_modal.prompt ]]</p>
+              <button @click="close_modal_form(false)" class="btn btn-primary">Decline</button>
+              <button @click="close_modal_form(true)" class="btn btn-danger" style="float: right;">Accept</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="container px-5">
         <div class="row gx-5 align-items-center">
             {% if not app_is_configured or not current_user %}
@@ -293,6 +311,11 @@
                 option: '{{ settings.email_option }}',
                 error: "",
                 loading: false
+            },
+            form_modal: {
+                title: '',
+                prompt: '',
+                accept_cb: null
             }
         },
         methods: {
@@ -450,25 +473,41 @@
                 document.body.removeChild(dummy);
             },
             reset_settings: function(){
-                if (confirm("Are you sure? All settings will be clean!!!")) {
-                    let url = '{{ base_url }}' + '/set_app_is_configured';
-                    let value = 'off'
-                    axios.post(
-                        url, {
-                            value: value,
-                        }
-                    ).then(function (response) {
-                        console.log('======== SUCCESS ========')
-                        console.log(response);
-                        location.reload();
-                    }).catch(function (error) {
-                        let detail = error.data.detail
-                        console.log('======== ERROR ========')
-                        console.log(error.data);
-                    });
-                } else {
-                  console.log("You pressed Cancel!");
+                this.open_modal_form(
+                    'Reset Settings?',
+                    "Are you sure? All settings will be clean!!!",
+                    function (){
+                        let url = '{{ base_url }}' + '/set_app_is_configured';
+                        let value = 'off'
+                        axios.post(
+                            url, {
+                                value: value,
+                            }
+                        ).then(function (response) {
+                            console.log('======== SUCCESS ========')
+                            console.log(response);
+                            location.reload();
+                        }).catch(function (error) {
+                            let detail = error.data.detail
+                            console.log('======== ERROR ========')
+                            console.log(error.data);
+                        });
+                    }
+                );
+            },
+            open_modal_form: function(title, prompt, accept_callback){
+                this.form_modal.title = title;
+                this.form_modal.prompt = prompt;
+                this.form_modal.accept_cb = accept_callback;
+                $('#form-modal').show();
+            },
+            close_modal_form: function(accepted) {
+                if (accepted) {
+                    if (this.form_modal.accept_cb) {
+                        this.form_modal.accept_cb();
+                    }
                 }
+                $('#form-modal').hide();
             }
         },
         computed: {
