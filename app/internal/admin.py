@@ -98,7 +98,7 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
     health = {}
     if app_is_configured:
         health['redis'] = await check_redis()
-        health['services'] = await check_services()
+        health['services'] = await check_services(db)
 
     context = {
         'github': 'https://github.com/Sirius-social/didcomm',

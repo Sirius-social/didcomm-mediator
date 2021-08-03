@@ -6,6 +6,7 @@
       <th scope="col">Service</th>
       <th scope="col">URL</th>
       <th scope="col">Status</th>
+      <th scope="col">Comment</th>
     </tr>
   </thead>
   <tbody>
@@ -25,6 +26,7 @@
                   </div>
               {% endif %}
               </td>
+              <td class="{% if service.success %}text-success{% else %}text-danger{% endif %}">{{ service.comment }}</td>
         </tr>
    {% endfor %}
   </tbody>
