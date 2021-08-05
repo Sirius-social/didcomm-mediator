@@ -320,3 +320,10 @@ async def test_load_pairwise_collection(test_database: Database, random_me: (str
     assert len(collection) == 2
     assert collection[0]['their_did'] == 'their_did10'
     assert collection[1]['their_label'] == 'label11'
+    # test count
+    cnt = await load_pairwises_count(test_database)
+    assert cnt == pairwise_count
+    cnt = await load_pairwises_count(test_database, filters={'their_did': 'their_did10', 'their_label': 'label11'})
+    assert cnt == 2
+    cnt = await load_pairwises_count(test_database, filters={'their_label': 'label1'})
+    assert cnt == 11

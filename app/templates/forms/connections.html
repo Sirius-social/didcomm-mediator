@@ -1,7 +1,7 @@
 <form class="form-inline">
-  <div class="form-group mx-sm-3 mb-2">
-    <label for="connections-search" class="sr-only">Search connections</label>
-    <input v-model="pairwise_cache.search" type="text" class="form-control" id="connections-search" placeholder="Enter search text..." style="width: 50%;">
+  <div class="form-group mx-sm-3 mb-2" style="margin-top: 10px;">
+    <label for="connections-search" class="sr-only">Search connections by Label (2 symbols and more)</label>
+    <input v-model="pairwise_search" type="text" class="form-control" id="connections-search" placeholder="Enter search text..." style="width: 50%;">
   </div>
   <div class="form-group mx-sm-3 mb-2">
     <table class="table table-striped">
@@ -13,20 +13,24 @@
         </tr>
       </thead>
       <tbody>
-        <tr v-for="con in connections">
-          <th scope="row">[[ con.their_did ]]</th>
-          <td>[[ con.their_label ]]</td>
+        <tr @click.prevent="pairwise_details = con.metadata" v-for="con in connections_for_page" style="cursor: pointer;">
+          <th scope="row">[[ con.their_label ]]</th>
+          <td>[[ con.their_did ]]</td>
           <td>[[ con.their_verkey ]]</td>
         </tr>
       </tbody>
     </table>
     <nav aria-label="Page navigation example">
       <ul class="pagination">
-        <li class="page-item"><a class="page-link" href="#">Previous</a></li>
-        <li class="page-item"><a class="page-link" href="#">1</a></li>
-        <li class="page-item"><a class="page-link" href="#">2</a></li>
-        <li class="page-item"><a class="page-link" href="#">3</a></li>
-        <li class="page-item"><a class="page-link" href="#">Next</a></li>
+        <li @click.prevent="shift_page(false)" class="page-item">
+            <a class="page-link" href="">Previous</a>
+        </li>
+        <li @click.prevent="pairwise_cache.current_page = iter" v-bind:class="{ active: pairwise_cache.current_page == iter}" class="page-item" v-for="iter in connections_page_count">
+            <a class="page-link" href="#">[[ iter ]]</a>
+        </li>
+        <li @click.prevent="shift_page(true)" class="page-item">
+            <a class="page-link" href="#">Next</a>
+        </li>
       </ul>
     </nav>
   </div>

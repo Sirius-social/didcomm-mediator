@@ -3,7 +3,7 @@ import uuid
 from typing import Optional, Any, Tuple, Union
 
 from databases import Database
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, func, select
 
 from app.utils import hash_string
 from .models import agents, endpoints, routing_keys, users, global_settings, backups, pairwises
@@ -119,17 +119,8 @@ async def load_endpoint(db: Database, uid: str) -> Optional[dict]:
 async def load_pairwises(db: Database, filters: dict = None, offset: int = None, limit: int = None) -> list:
     sql = pairwises.select()
     if filters:
-        cond_items = []
-        for key, value in filters.items():
-            value = value + '%'
-            if key == 'their_did':
-                cond_items.append(pairwises.c.their_did.ilike(value))
-            elif key == 'my_did':
-                cond_items.append(pairwises.c.my_did.ilike(value))
-            elif key == 'their_label':
-                cond_items.append(pairwises.c.their_label.ilike(value))
-        if cond_items:
-            cond = or_(*cond_items)
+        cond = _build_pairwise_sql_cond(filters)
+        if cond is not None:
             sql = sql.where(cond)
     if offset is not None:
         sql = sql.offset(offset)
@@ -144,6 +135,16 @@ async def load_pairwises(db: Database, filters: dict = None, offset: int = None,
         return collection
     else:
         return []
+
+
+async def load_pairwises_count(db: Database, filters: dict = None) -> int:
+    cond = _build_pairwise_sql_cond(filters) if filters else None
+    if cond is not None:
+        sql = select([func.count(pairwises.c.their_did)]).where(cond)
+    else:
+        sql = select([func.count(pairwises.c.their_did)])
+    count = await db.execute(query=sql)
+    return count
 
 
 async def load_agent_via_verkey(db: Database, verkey: str) -> Optional[dict]:
@@ -362,6 +363,22 @@ async def reset_global_settings(db: Database):
         sql = global_settings.delete()
         await db.execute(query=sql)
 
+
+def _build_pairwise_sql_cond(filters: dict):
+    cond_items = []
+    for key, value in filters.items():
+        value = value + '%'
+        if key == 'their_did':
+            cond_items.append(pairwises.c.their_did.ilike(value))
+        elif key == 'my_did':
+            cond_items.append(pairwises.c.my_did.ilike(value))
+        elif key == 'their_label':
+            cond_items.append(pairwises.c.their_label.ilike(value))
+    if cond_items:
+        cond = or_(*cond_items)
+    else:
+        cond = None
+    return cond
 
 def _restore_agent_from_row(row) -> dict:
     return {
