@@ -335,7 +335,10 @@ async def load_pairwise_collection(request: Request, db: Database = Depends(get_
     for p in collection_:
         metadata = p['metadata'] or {}
         if not p['their_label']:
-            p['their_label'] = metadata.get('their', {}).get('diddoc1', '')
+            p['their_label'] = metadata.get('their', {}).get('label', '')
+        their_did_doc = metadata.get('their', {}).get('did_doc', {})
+        if their_did_doc:
+            p['metadata'] = their_did_doc
         collection.append(p)
     total_count = await crud.load_pairwises_count(db, filters=filters)
     return {
