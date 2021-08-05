@@ -9,14 +9,18 @@
         <tr>
           <th scope="col">Label</th>
           <th scope="col">DID</th>
+          <!--
           <th scope="col">Verkey</th>
+          -->
         </tr>
       </thead>
       <tbody>
         <tr @click.prevent="pairwise_details = con.metadata" v-for="con in connections_for_page" style="cursor: pointer;">
           <th scope="row">[[ con.their_label ]]</th>
           <td>[[ con.their_did ]]</td>
+          <!--
           <td>[[ con.their_verkey ]]</td>
+          -->
         </tr>
       </tbody>
     </table>
