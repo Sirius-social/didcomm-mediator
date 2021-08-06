@@ -7,6 +7,7 @@ from databases import Database
 from fastapi import APIRouter, Request, Depends, HTTPException, WebSocket
 
 from app.core.repo import Repo
+from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient, GlobalRedisChannelsCache
 from app.core.redis import RedisPush, RedisConnectionError, choice_server_address, AsyncRedisChannel
 from app.utils import build_invitation, extract_content_type, change_redis_server
@@ -35,12 +36,13 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
     logging.debug('*****************************')
     await websocket.accept()
     repo = Repo(db, memcached=GlobalMemcachedClient.get())
+    cfg = GlobalConfig(db, memcached=GlobalMemcachedClient.get())
     # Parse query params
     endpoint_uid = websocket.query_params.get('endpoint')
     logging.debug(f'endpoint_uid: {endpoint_uid}')
 
     if endpoint_uid is None:
-        await scenario_onboard(websocket, repo)
+        await scenario_onboard(websocket, repo, cfg)
     else:
         await scenario_endpoint(websocket, endpoint_uid, repo)
     logging.debug('\n**************************')

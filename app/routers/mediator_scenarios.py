@@ -12,20 +12,22 @@ from sirius_sdk.agent.aries_rfc.base import RegisterMessage, AriesProblemReport
 from sirius_sdk.agent.aries_rfc.feature_0095_basic_message.messages import Message as BasicMessage
 
 from app.core.coprotocols import ClientWebSocketCoProtocol
-from app.core.redis import choice_server_address as choice_redis_server_address
 from app.core.repo import Repo
+from app.core.global_config import GlobalConfig
 from app.core.redis import RedisPull
 from app.core.rfc import extract_key as rfc_extract_key
 from app.core.websocket_listener import WebsocketListener
-from app.settings import KEYPAIR, DID, WEBROOT, MEDIATOR_SERVICE_TYPE, FCM_SERVICE_TYPE
-from app.utils import build_ws_endpoint_addr, build_endpoint_url
+from app.settings import KEYPAIR, DID
+from app.utils import build_endpoint_url
+
+from .utils import build_did_doc_extra, post_create_pairwise
 
 
 class BasicMessageProblemReport(AriesProblemReport, metaclass=RegisterMessage):
     PROTOCOL = BasicMessage.PROTOCOL
 
 
-async def onboard(websocket: WebSocket, repo: Repo):
+async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
     """Scenario for onboarding procedures:
       - establish Pairwise (P2P)
       - Trust Ping
@@ -33,6 +35,7 @@ async def onboard(websocket: WebSocket, repo: Repo):
 
     :param websocket: websocket session  with client
     :param repo: Repository to get access to persistent data
+    :param: cfg: configurations
     """
     # Wrap parsing and unpacking enc_messages in listener
     listener = WebsocketListener(ws=websocket, my_keys=KEYPAIR)
@@ -56,34 +59,19 @@ async def onboard(websocket: WebSocket, repo: Repo):
                 # Agent was start p2p establish
                 request: sirius_sdk.aries_rfc.ConnRequest = event.message
                 request.validate()
-                their_did = request.did_doc['id']
-                endpoint_uid = hashlib.sha256(their_did.encode('utf-8')).hexdigest()
+                ws_endpoint, endpoint_uid, did_doc_extra = await build_did_doc_extra(
+                    repo=repo,
+                    their_did=request.did_doc['id'],
+                    their_verkey=event.sender_verkey
+                )
                 # Configure AriesRFC 0160 state machine
                 state_machine = sirius_sdk.aries_rfc.Inviter(
                     me=sirius_sdk.Pairwise.Me(did=DID, verkey=KEYPAIR[0]),
                     connection_key=event.recipient_verkey,
-                    my_endpoint=sirius_sdk.Endpoint(address=build_ws_endpoint_addr(), routing_keys=[]),
+                    my_endpoint=sirius_sdk.Endpoint(address=ws_endpoint, routing_keys=[]),
                     coprotocol=ClientWebSocketCoProtocol(
                         ws=websocket, my_keys=KEYPAIR, their_verkey=event.sender_verkey
                     )
-                )
-                # Declare MediatorService endpoint via DIDDoc
-                did_doc = ConnProtocolMessage.build_did_doc(did=DID, verkey=KEYPAIR[0], endpoint=build_ws_endpoint_addr())
-                did_doc_extra = {'service': did_doc['service']}
-                mediator_service_endpoint = build_ws_endpoint_addr()
-                mediator_service_endpoint = urljoin(mediator_service_endpoint, f'?endpoint={endpoint_uid}')
-                did_doc_extra['service'].append({
-                    "id": 'did:peer:' + DID + ";indy",
-                    "type": MEDIATOR_SERVICE_TYPE,
-                    "recipientKeys": [],
-                    "serviceEndpoint": mediator_service_endpoint,
-                })
-                # configure redis pubsub infrastructure for endpoint
-                redis_server = await choice_redis_server_address()
-                await repo.ensure_endpoint_exists(
-                    uid=endpoint_uid,
-                    redis_pub_sub=f'{redis_server}/{endpoint_uid}',
-                    verkey=event.sender_verkey
                 )
                 # Run AriesRFC-0160 state-machine
                 success, p2p = await state_machine.create_connection(
@@ -92,24 +80,7 @@ async def onboard(websocket: WebSocket, repo: Repo):
                 if success:
                     # If all OK, store p2p and metadata info to database
                     await sirius_sdk.PairwiseList.ensure_exists(p2p)
-                    # Try to extract firebase device_id
-                    fcm_device_id = None
-                    if p2p.their.did_doc:
-                        their_services = p2p.their.did_doc.get('service', [])
-                        for service in their_services:
-                            if service['type'] == FCM_SERVICE_TYPE:
-                                fcm_device_id = service['serviceEndpoint']
-                                break
-                    await repo.ensure_agent_exists(
-                        did=p2p.their.did, verkey=p2p.their.verkey, metadata=p2p.metadata, fcm_device_id=fcm_device_id
-                    )
-                    agent = await repo.load_agent(did=p2p.their.did)
-                    await repo.ensure_endpoint_exists(
-                        uid=endpoint_uid,
-                        agent_id=agent['id'],
-                        verkey=p2p.their.verkey,
-                        fcm_device_id=fcm_device_id
-                    )
+                    await post_create_pairwise(repo, p2p, endpoint_uid)
                 else:
                     if state_machine.problem_report:
                         await listener.response(for_event=event, message=state_machine.problem_report)
@@ -125,9 +96,10 @@ async def onboard(websocket: WebSocket, repo: Repo):
                         publish the endpoint as a mediator.
                         
                     Details: https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination#mediation-request'''
+                    webroot = await cfg.get_webroot()
                     keys = await repo.list_routing_key(router_endpoint['uid'])
                     resp = MediateGrant(
-                        endpoint=urljoin(WEBROOT, build_endpoint_url(router_endpoint['uid'])),
+                        endpoint=urljoin(webroot, build_endpoint_url(router_endpoint['uid'])),
                         routing_keys=[f"did:key:{k['key']}" for k in keys]
                     )
                     await listener.response(for_event=event, message=resp)
