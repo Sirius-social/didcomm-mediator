@@ -1,6 +1,7 @@
 import hashlib
 from urllib.parse import urljoin
 
+import sirius_sdk
 from sirius_sdk import Pairwise
 from sirius_sdk.agent.aries_rfc.feature_0160_connection_protocol.messages import ConnProtocolMessage
 
@@ -59,3 +60,59 @@ async def post_create_pairwise(repo: Repo, p2p: Pairwise, endpoint_uid: str):
         verkey=p2p.their.verkey,
         fcm_device_id=fcm_device_id
     )
+
+
+async def create_static_connection(repo: Repo, label: str, their_did: str, their_verkey: str, fcm_device_id: str = None) -> Pairwise:
+    ws_endpoint, endpoint_uid, did_doc_extra = await build_did_doc_extra(
+        repo=repo,
+        their_did=their_did,
+        their_verkey=their_verkey
+    )
+    their_endpoint = 'ws://'
+    their_did_doc = ConnProtocolMessage.build_did_doc(did=their_did, verkey=their_verkey, endpoint=their_endpoint)
+    if fcm_device_id:
+        their_did_doc['service'].append({
+            "id": 'did:peer:' + their_did + ";indy",
+            "type": FCM_SERVICE_TYPE,
+            "recipientKeys": [],
+            "priority": 1,
+            "serviceEndpoint": fcm_device_id,
+        })
+    my_did_doc = ConnProtocolMessage.build_did_doc(did=DID, verkey=KEYPAIR[0], endpoint=ws_endpoint)
+    my_did_doc['service'] = did_doc_extra['service']
+
+    await sirius_sdk.DID.store_their_did(their_did, their_verkey)
+
+    me = Pairwise.Me(
+        did=DID,
+        verkey=KEYPAIR[0],
+        did_doc=my_did_doc
+    )
+    their = Pairwise.Their(
+        did=their_did,
+        label=label,
+        endpoint=their_endpoint,
+        verkey=their_verkey,
+        routing_keys=[],
+        did_doc=their_did_doc
+    )
+    metadata = {
+        'me': {
+            'did': DID,
+            'verkey': KEYPAIR[0],
+            'did_doc': dict(my_did_doc)
+        },
+        'their': {
+            'did': their_did,
+            'verkey': their_verkey,
+            'label': label,
+            'endpoint': {
+                'address': their_endpoint,
+                'routing_keys': []
+            },
+            'did_doc': their_did_doc
+        }
+    }
+    p2p = Pairwise(me=me, their=their, metadata=metadata)
+    await sirius_sdk.PairwiseList.ensure_exists(p2p)
+    return p2p

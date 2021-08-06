@@ -17,9 +17,11 @@ from app.dependencies import get_db
 from app.utils import async_build_invitation, run_in_thread
 from app.core.redis import choice_server_address, AsyncRedisChannel
 from app.core.emails import check_server as emails_check_server
+from app.core.repo import Repo
 from app.core.management import register_acme, issue_cert, reload as _mng_reload, load_cert_metadata as _mng_load_cert_metadata
 from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient
+from app.routers.utils import create_static_connection as _create_static_connection
 
 from .helpers import check_redis, check_services
 from .auth import auth_user as _auth_user, login as _login, logout as _logout, SESSION_COOKIE_KEY
@@ -324,7 +326,7 @@ async def set_ssl_option(request: Request, db: Database = Depends(get_db)):
 async def load_pairwise_collection(request: Request, db: Database = Depends(get_db)):
     await check_is_logged(request)
     js = await request.json()
-    search = js.get('search')
+    search = js.get('search', '')
     page = js.get('page', 1)
     #
     filters = {}
@@ -348,9 +350,20 @@ async def load_pairwise_collection(request: Request, db: Database = Depends(get_
     }
 
 
-@router.post("/check_pairwise_attrs", status_code=200)
-async def check_pairwise_attrs(request: Request, db: Database = Depends(get_db)):
+@router.post("/create_static_connection", status_code=200)
+async def create_static_connection(request: Request, db: Database = Depends(get_db)):
     await check_is_logged(request)
     js = await request.json()
     did = js.get('did')
     verkey = js.get('verkey')
+    label = js.get('label')
+
+    if not did:
+        raise HTTPException(status_code=400, detail=f'DID not set')
+    if not verkey:
+        raise HTTPException(status_code=400, detail=f'Verkey not set')
+    if not label:
+        raise HTTPException(status_code=400, detail=f'Label not set')
+    repo = Repo(db, memcached=GlobalMemcachedClient.get())
+
+    await _create_static_connection(repo, label=label, their_did=did, their_verkey=verkey)

@@ -44,7 +44,7 @@
 <!-- Mashead header-->
 <header class="masthead" id="app">
 
-    <!--   Modal -------->
+    <!-- Prompt  Modal -------->
     <div class="modal" id="form-modal" style="background-color: rgba(0,0,0,0.3)" tabindex="-1" role="dialog" aria-labelledby="original" aria-hidden="true">
       <div class="modal-dialog modal-md" role="document" style="margin-top:10%;">
         <div class="modal-content">
@@ -59,6 +59,22 @@
         </div>
       </div>
     </div>
+    <!-- Create static connection Modal -------->
+    <div class="modal" id="create-conn-modal" style="background-color: rgba(0,0,0,0.3)" tabindex="-1" role="dialog" aria-labelledby="original" aria-hidden="true">
+      <div class="modal-dialog modal-md" role="document" style="margin-top:10%;">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="text-primary modal-title" >Create static connection</h5>
+          </div>
+          <div class="modal-body">
+              {% include 'forms/static_connection.html' %}
+              <button @click="close_create_static_conn_modal" class="btn btn-primary">Decline</button>
+              <button @click="create_static_conn" class="btn btn-danger" style="float: right;">Create</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
 
     <div class="container px-5">
         <div class="row gx-5 align-items-center">
@@ -204,7 +220,7 @@
                                         <div class="col-6">
                                             {% include 'forms/connections.html' %}
                                         </div>
-                                        <div class="col">
+                                        <div class="col-4">
                                             {% include 'forms/connection.details.html' %}
                                         </div>
                                     </div>
@@ -334,6 +350,13 @@
                 title: '',
                 prompt: '',
                 accept_cb: null
+            },
+            form_static_connection: {
+                error: '',
+                did: '',
+                verkey: '',
+                label: '',
+                fcm_device_id: ''
             }
         },
         methods: {
@@ -538,6 +561,35 @@
                         this.pairwise_cache.current_page -= 1;
                     }
                 }
+            },
+            open_create_static_conn_modal: function(){
+                this.form_static_connection.error = '';
+                this.form_static_connection.did = '';
+                this.form_static_connection.verkey = '';
+                this.form_static_connection.label = '';
+                $('#create-conn-modal').show();
+            },
+            close_create_static_conn_modal: function(){
+                $('#create-conn-modal').hide();
+            },
+            create_static_conn: function(){
+                let url = '{{ base_url }}' + '/create_static_connection';
+                let self = this;
+                axios.post(
+                    url, {
+                        label: self.form_static_connection.label,
+                        did: self.form_static_connection.did,
+                        verkey: self.form_static_connection.verkey
+                    }
+                ).then(function (response) {
+                    console.log('======== SUCCESS ========')
+                    console.log(response);
+                }).catch(function (error) {
+                    let detail = error.data.detail
+                    self.form_static_connection.error = detail;
+                    console.log('======== ERROR ========')
+                    console.log(error.data);
+                });
             }
         },
         computed: {
@@ -564,7 +616,7 @@
                     let self = this;
                     axios.post(
                         url, {
-                            search: this.pairwise_search,
+                            //search: this.pairwise_search,
                         }
                     ).then(function (response) {
                         console.log('======== SUCCESS ========')
@@ -671,10 +723,10 @@
         },
         watch: {
             pairwise_search: function(new_val, old_val){
-                if (new_val.length > 1) {
+                if (new_val.length) {
                     this.pairwise_cache.filtered_total = null;
                     this.pairwise_cache.current_page = 1;
-                    //this.pairwise_details = null;
+                    this.pairwise_details = null;
                 }
             }
         }
