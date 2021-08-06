@@ -27,6 +27,14 @@ class Repo:
         self.__db = db
         self.__memcached = memcached or aiomemcached.Client(host=MEMCACHED_SERVER, pool_minsize=1)
 
+    @property
+    def db(self) -> Database:
+        return self.__db
+
+    @property
+    def memcached(self) -> aiomemcached.Client:
+        return self.__memcached
+
     async def ensure_agent_exists(self, did: str, verkey: str, metadata: dict = None, fcm_device_id: str = None):
         await self._delete_cache(did, namespace=self.NAMESPACE_AGENTS)
         agent_verkey = await self._get_cache(did, namespace=self.NAMESPACE_AGENTS_VERKEYS)

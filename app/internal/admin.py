@@ -4,6 +4,7 @@ import json
 import uuid
 import datetime
 
+import sirius_sdk
 from databases import Database
 from fastapi import APIRouter, Request, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
@@ -345,3 +346,11 @@ async def load_pairwise_collection(request: Request, db: Database = Depends(get_
         'collection': collection,
         'total': total_count
     }
+
+
+@router.post("/check_pairwise_attrs", status_code=200)
+async def check_pairwise_attrs(request: Request, db: Database = Depends(get_db)):
+    await check_is_logged(request)
+    js = await request.json()
+    did = js.get('did')
+    verkey = js.get('verkey')

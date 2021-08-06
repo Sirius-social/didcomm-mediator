@@ -46,7 +46,7 @@
             <td>Email</td>
             <td>
                 <span class="fw-light">Option: </span>
-                <span class="fw-bold">[[ form_email.option ]]</span>
+                <span class="fw-bold">[[ form_email.option ]]</span><span v-if="form_email.credentials.address">([[ form_email.credentials.address ]])</span>
             </td>
         </tr>
   </tbody>
