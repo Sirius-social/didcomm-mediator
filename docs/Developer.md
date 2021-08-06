@@ -20,7 +20,7 @@ Edge Agent in DIDComm decentralized environment with self-service.
           invitations or recipient filters?
    
    **A**: Depends on application settings. There are some alternatives:
-    - Admin may **turn on** service for any recipient.
+    - Mediator will serve any recipient.
       Mediator operates with anyone recipient that was established **P2P**/**Pairwise** with mediator 
       dynamically. Any recipient may establish connection dynamically via [RFC 0160](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol)
       and request any service.
