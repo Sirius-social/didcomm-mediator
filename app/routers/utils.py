@@ -2,6 +2,7 @@ import hashlib
 from urllib.parse import urljoin
 
 import sirius_sdk
+from sirius_sdk.encryption import pack_message
 from sirius_sdk import Pairwise
 from sirius_sdk.agent.aries_rfc.feature_0160_connection_protocol.messages import ConnProtocolMessage
 
@@ -60,6 +61,17 @@ async def post_create_pairwise(repo: Repo, p2p: Pairwise, endpoint_uid: str):
         verkey=p2p.their.verkey,
         fcm_device_id=fcm_device_id
     )
+
+
+def validate_verkey(verkey: str) -> bool:
+    try:
+        pack_message('test', to_verkeys=[verkey])
+        return True
+    except Exception as e:
+        print('===================================')
+        print(repr(e))
+        print('===================================')
+        return False
 
 
 async def create_static_connection(repo: Repo, label: str, their_did: str, their_verkey: str, fcm_device_id: str = None) -> Pairwise:

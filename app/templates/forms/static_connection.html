@@ -43,10 +43,15 @@
     <div class="form-group" style="margin-bottom: 5px;">
         <label class="fw-light" for="conn_fcm_device_id" class="cols-sm-2 control-label">Firebase Device ID</label>
         <div class="cols-sm-10">
+            <div class="form-check">
+              <input v-model="form_static_connection.fcm_device_enabled" class="form-check-input" type="checkbox" value="" id="email-use-ssl">
+              <label for="conn-dev-id">FCM</label>
+            </div>
             <div class="input-group">
                 <span class="input-group-addon"><i class="fa fa-users fa" aria-hidden="true"></i></span>
                 <input
                         v-model="form_static_connection.fcm_device_id"  type="text" class="form-control"
+                        :readonly="!form_static_connection.fcm_device_enabled"
                         name="conn_fcm_device_id" id="conn_fcm_device_id" placeholder="Enter device id"
                 />
             </div>

@@ -21,7 +21,7 @@ from app.core.repo import Repo
 from app.core.management import register_acme, issue_cert, reload as _mng_reload, load_cert_metadata as _mng_load_cert_metadata
 from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient
-from app.routers.utils import create_static_connection as _create_static_connection
+from app.routers.utils import create_static_connection as _create_static_connection, validate_verkey as _validate_verkey
 
 from .helpers import check_redis, check_services
 from .auth import auth_user as _auth_user, login as _login, logout as _logout, SESSION_COOKIE_KEY
@@ -358,13 +358,22 @@ async def create_static_connection(request: Request, db: Database = Depends(get_
     did = js.get('did')
     verkey = js.get('verkey')
     label = js.get('label')
+    fcm_device_enabled = js.get('fcm_device_enabled', False)
+    fcm_device_id = js.get('fcm_device_id')
 
+    if fcm_device_enabled:
+        if not fcm_device_id:
+            raise HTTPException(status_code=400, detail=f'FCM device id is Empty')
+    else:
+        fcm_device_id = None
     if not did:
         raise HTTPException(status_code=400, detail=f'DID not set')
     if not verkey:
         raise HTTPException(status_code=400, detail=f'Verkey not set')
+    if not _validate_verkey(verkey):
+        raise HTTPException(status_code=400, detail=f'Invalid verkey "{verkey}"')
     if not label:
         raise HTTPException(status_code=400, detail=f'Label not set')
     repo = Repo(db, memcached=GlobalMemcachedClient.get())
 
-    await _create_static_connection(repo, label=label, their_did=did, their_verkey=verkey)
+    await _create_static_connection(repo, label=label, their_did=did, their_verkey=verkey, fcm_device_id=fcm_device_id)

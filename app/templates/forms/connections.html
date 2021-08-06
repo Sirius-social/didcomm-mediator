@@ -2,7 +2,10 @@
   <div class="form-group mx-sm-3 mb-2" style="margin-top: 10px;">
     <button @click.prevent="open_create_static_conn_modal" class="btn btn-primary" style="float: right;" title="Add static connection">+</button>
     <label for="connections-search" class="sr-only">Search connections by Label (2 symbols and more)</label>
-    <input v-model="pairwise_search" type="text" class="form-control" id="connections-search" placeholder="Enter search text..." style="width: 50%;">
+    <div class="row">
+        <input class="col" v-model="pairwise_search" type="text" class="form-control" id="connections-search" placeholder="Enter search text..." style="width: 50%;">
+        <button @click.prevent="reload" class="btn btn-close"></button>
+    </div>
   </div>
 
   <div class="form-group mx-sm-3 mb-2">

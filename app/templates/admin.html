@@ -356,6 +356,7 @@
                 did: '',
                 verkey: '',
                 label: '',
+                fcm_device_enabled: false,
                 fcm_device_id: ''
             }
         },
@@ -579,7 +580,9 @@
                     url, {
                         label: self.form_static_connection.label,
                         did: self.form_static_connection.did,
-                        verkey: self.form_static_connection.verkey
+                        verkey: self.form_static_connection.verkey,
+                        fcm_device_enabled: self.form_static_connection.fcm_device_enabled,
+                        fcm_device_id: self.form_static_connection.fcm_device_id
                     }
                 ).then(function (response) {
                     console.log('======== SUCCESS ========')
@@ -592,6 +595,10 @@
                     console.log('======== ERROR ========')
                     console.log(error.data);
                 });
+            },
+            reload: function(){
+                let redirect_to = '{{ base_url }}';
+                    location.replace(redirect_to);
             }
         },
         computed: {
