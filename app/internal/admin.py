@@ -127,6 +127,7 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         'events_stream_ws': events_stream_ws,
         'app_is_configured': app_is_configured,
         'invitation': await async_build_invitation(db, session_id),
+        'pairwise_search': request.query_params.get('search', '')
     }
     response = templates.TemplateResponse(
         "admin.html",

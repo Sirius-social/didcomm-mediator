@@ -296,7 +296,7 @@
             invitation_json: {{ invitation | tojson  }},
             log: '',
             health: {{ health | tojson }},
-            pairwise_search: '',
+            pairwise_search: '{{ pairwise_search }}',
             pairwise_details: null,
             pairwise_cache: {
                 data: null,
@@ -584,6 +584,8 @@
                 ).then(function (response) {
                     console.log('======== SUCCESS ========')
                     console.log(response);
+                    let redirect_to = '{{ base_url }}?search=' + self.form_static_connection.label;
+                    location.replace(redirect_to);
                 }).catch(function (error) {
                     let detail = error.data.detail
                     self.form_static_connection.error = detail;
