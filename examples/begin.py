@@ -17,7 +17,7 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
     # Подключаемся по вебсокету
     session = aiohttp.ClientSession()
     ws = await session.ws_connect(
-        url=HARDCODED_INVITATION['serviceEndpoint']
+        url=HARDCODED_INVITATION['serviceEndpoint'], ssl=False
     )
 
     # Настраиваем транспорт, указываем открытый ключ партнера для туннелирования

@@ -23,11 +23,19 @@ Edge Agent in DIDComm decentralized environment with self-service.
     - Mediator will serve any recipient.
       Mediator operates with anyone recipient that was established **P2P**/**Pairwise** with mediator 
       dynamically. Any recipient may establish connection dynamically via [RFC 0160](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol)
-      and request any service.
-    - Admin may create/remove static connections via Admin page.  
+      and request any service. 
+    - Admin create static connections via Admin page.
 
 ## 1. Initialize communication with Mediator
-TODO
+Take a look at Two cases. 
+  - Case 1: Recipient, running on mobile agent, does not have P2P connection to communicate 
+    with Mediator application. Recipient agent should establish P2P connection to Mediator:
+     - P2P connection establishing is covered by [Aries RFC-160](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol)
+     - Before to start establish P2P Mediator must share P2P [invitation](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol#0-invitation-to-connect)
+       among client-side developers. You may get invitation json string via Admin page
+       ![P2P invitation](_static/invitation.png?raw=true)
+       Invitation has public internet address of endpoint and cryptographic keys.
+     -   
 
 ## 2. Grand of endpoint. Recipient keys.
 TODO

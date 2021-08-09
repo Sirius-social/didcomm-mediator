@@ -587,7 +587,7 @@
                 ).then(function (response) {
                     console.log('======== SUCCESS ========')
                     console.log(response);
-                    let redirect_to = '{{ settings.full_base_url }}?search=' + self.form_static_connection.label;
+                    let redirect_to = '{{ settings.full_base_url }}{{ base_url }}?search=' + self.form_static_connection.label;
                     location.replace(redirect_to);
                 }).catch(function (error) {
                     let detail = error.data.detail
@@ -597,7 +597,7 @@
                 });
             },
             reload: function(){
-                let redirect_to = '{{ settings.full_base_url }}';
+                let redirect_to = '{{ settings.full_base_url }}{{ base_url }}';
                     location.replace(redirect_to);
             }
         },
