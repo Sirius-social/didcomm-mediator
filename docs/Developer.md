@@ -32,11 +32,51 @@ Take a look at Two cases.
     with Mediator application. Recipient agent should establish P2P connection to Mediator:
      - P2P connection establishing is covered by [Aries RFC-160](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol)
      - Before to start establish P2P Mediator must share P2P [invitation](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol#0-invitation-to-connect)
-       among client-side developers. You may get invitation json string via Admin page
+       among client-side developers. Mediator admin may get invitation json string via Admin page
        ![P2P invitation](_static/invitation.png?raw=true)
-       Invitation has public internet address of endpoint and cryptographic keys.
-     -   
-
+       *Invitation has public internet address of endpoint and cryptographic keys.*
+     - Mediator uses Websocket as transport for duplex communication, so recipient agent
+       should set ```ws://``` as Endpoint address in ```IndyAgent``` service
+         ```
+         ...
+         "service": [
+            {
+              "id": "did:peer:JHiaU6HisgxjyRMdPfcGtE;indy",
+              "priority": 0,
+              "recipientKeys": [
+                 "JHiaU6HisgxjyRMdPfcGtE#1"
+              ],
+              "serviceEndpoint": "ws://",
+              "type": "IndyAgent"
+            },
+         ...
+         ```
+     - If recipient agent has Firebase cloud messaging **device-id**, then it should declare it in DIDDoc service list
+       ```
+       ...
+        {
+          "id": "did:peer:JHiaU6HisgxjyRMdPfcGtE;indy",
+          "priority": 1,
+          "recipientKeys": [],
+          "serviceEndpoint": "firebase-device-id",
+          "type": "FCMService"
+        }
+       ...
+       ```
+       *For this purpose string* **FCMService**  *reserved as service type:* 
+     - On finish step Mediator declare in DIDDoc: 
+       - Websocket URL to listen endpoint inbound traffic
+         ```
+         ...
+         {
+           "id": "did:peer:QNJ354Uc6MKz7wDjEM9qjZ;indy",
+           "priority": 1,
+           "recipientKeys": [],
+           "serviceEndpoint": "ws://mediator.socialsirius.com:8000/ws?endpoint=e2afc79cc785801e4fff71ca0314bae8cf9959f37d05c7ca722721acc91530ab",
+           "type": "MediatorService"
+         }
+         ...
+         ```
 ## 2. Grand of endpoint. Recipient keys.
 TODO
 
