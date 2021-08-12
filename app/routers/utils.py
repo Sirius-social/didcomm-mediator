@@ -26,6 +26,7 @@ async def build_did_doc_extra(repo: Repo, their_did: str, their_verkey: str) -> 
     did_doc_extra['service'].append({
         "id": 'did:peer:' + DID + ";indy",
         "type": MEDIATOR_SERVICE_TYPE,
+        "priority": 1,
         "recipientKeys": [],
         "serviceEndpoint": mediator_service_endpoint,
     })
