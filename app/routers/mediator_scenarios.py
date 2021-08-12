@@ -15,7 +15,7 @@ from app.core.coprotocols import ClientWebSocketCoProtocol
 from app.core.repo import Repo
 from app.core.global_config import GlobalConfig
 from app.core.redis import RedisPull
-from app.core.rfc import extract_key as rfc_extract_key
+from app.core.rfc import extract_key as rfc_extract_key, ensure_is_key as rfc_ensure_is_key
 from app.core.websocket_listener import WebsocketListener
 from app.settings import KEYPAIR, DID
 from app.utils import build_endpoint_url
@@ -110,11 +110,11 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         if upd['action'] == 'add':
                             key = rfc_extract_key(upd['recipient_key'])
                             await repo.add_routing_key(router_endpoint['uid'], key)
-                            updated.append(KeylistAddAction(key, result='success'))
+                            updated.append(KeylistAddAction(rfc_ensure_is_key(key), result='success'))
                         elif upd['action'] == 'remove':
                             key = rfc_extract_key(upd['recipient_key'])
                             await repo.remove_routing_key(router_endpoint['uid'], key)
-                            updated.append(KeylistRemoveAction(key, result='success'))
+                            updated.append(KeylistRemoveAction(rfc_ensure_is_key(key), result='success'))
                         else:
                             raise RuntimeError(f"Unexpected action: {upd['action']}")
                     resp = KeylistUpdateResponce(updated=updated)
@@ -124,7 +124,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                     offset = req.get('paginate', {}).get('offset', None) or 0
                     limit = req.get('paginate', {}).get('limit', None) or 1000000
                     keys = await repo.list_routing_key(router_endpoint['uid'])
-                    keys = [k['key'] for k in keys]
+                    keys = [rfc_ensure_is_key(k['key']) for k in keys]
                     paged_keys = keys[offset:limit]
                     resp = Keylist(
                         keys=paged_keys,
