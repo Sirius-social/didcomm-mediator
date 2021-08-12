@@ -6,7 +6,7 @@ import sirius_sdk
 from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.messages import MediateRequest, \
     KeylistAddAction, KeylistRemoveAction, KeylistUpdate, KeylistQuery
 
-from helpers.common import HARDCODED_INVITATION
+from helpers.common import HARDCODED_INVITATION, pretty
 from helpers.crypto import LocalCrypto, create_did_and_keys
 from helpers.did import LocalDID
 from helpers.coprotocols import WebSocketCoProtocol
@@ -24,23 +24,23 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
 
     mediator_invitation = sirius_sdk.aries_rfc.Invitation(**HARDCODED_INVITATION)
 
-    # Подключаемся по вебсокету
-    print('#1. Connecting to mediator')
-    print('#1.1 Allocate websocket connection...')
+    # Make connection to Mediator using websocket as duplex transport
+    pretty('#1. Connecting to mediator')
+    pretty('#1.1 Allocate websocket connection...')
     session = aiohttp.ClientSession()
     ws = await session.ws_connect(
-        url=HARDCODED_INVITATION['serviceEndpoint']
+        url=HARDCODED_INVITATION['serviceEndpoint'], ssl=False
     )
-    print('#1.2 Websocket connection successfully established')
+    pretty('#1.2 Websocket connection successfully established')
     try:
-        # Настраиваем транспорт, указываем открытый ключ партнера для туннелирования
-        print('#2. Ensure P2P encrypted connection established')
-        print('#2.1 Extract public key (verkey) from Mediator invitation')
+        # We set up the transport, specify the Mediator connection key for tunneling
+        pretty('#2. Ensure P2P encrypted connection established')
+        pretty('#2.1 Extract public key (verkey) from Mediator invitation')
         their_verkey = HARDCODED_INVITATION['recipientKeys'][0]
         coprotocol = WebSocketCoProtocol(ws=ws, my_keys=(my_verkey, my_secret), their_verkey=their_verkey)
 
-        # Запускаем AriesRFC-0160 Invitee
-        print('#2.2 Start connection protocol to establish P2P')
+        # Start AriesRFC-0160 Invitee
+        pretty('#2.2 Start connection protocol to establish P2P')
         state_machine = sirius_sdk.aries_rfc.Invitee(
             me=sirius_sdk.Pairwise.Me(did=my_did, verkey=my_verkey),
             my_endpoint=sirius_sdk.Endpoint(address='ws://', routing_keys=[]),
@@ -51,34 +51,35 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
             my_label='Test-Client',
         )
         if success:
-            print('#3. Mediate request: check routing keys')
+            pretty('#3. Mediate request: check routing keys')
             success, mediate_grant = await coprotocol.switch(message=MediateRequest())
             if success:
                 my_endpoint = mediate_grant['endpoint']
-                print('\n')
-                print('My Endpoint: ' + my_endpoint)
-                print('My routing keys: ' + str(mediate_grant['routing_keys']))
-                print('\n')
+                pretty('My Endpoint: ' + my_endpoint)
+                pretty('My routing keys: ' + str(mediate_grant['routing_keys']))
                 if mediate_grant['routing_keys']:
-                    print('#3.1 remove all routing keys')
+                    pretty('#3.1 remove all routing keys')
                     await clear_all_keys(coprotocol, my_endpoint, mediate_grant['routing_keys'])
 
-                print('#4 Update routing keys for endpoint')
-                print('#4.1 Generate routing key')
+                pretty('#4 Update routing keys for endpoint')
+                pretty('#4.1 Generate routing key')
                 random_verkey, _ = sirius_sdk.encryption.create_keypair()
                 random_verkey = sirius_sdk.encryption.bytes_to_b58(random_verkey)
                 key_to_update = f'did:key:{random_verkey}'
-                print('#4.2 Build update request command Aries-RFC 0211 https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination')
                 route_update_keys = KeylistUpdate(
                     endpoint=my_endpoint,
                     updates=[
                         KeylistAddAction(recipient_key=key_to_update)
                     ]
                 )
+                pretty(
+                    '#4.2 Build update request command Aries-RFC 0211 https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination\n',
+                    route_update_keys
+                )
                 success, update_keys_resp = await coprotocol.switch(message=route_update_keys)
-                print('#4.3 Process keys update response')
+                pretty('#4.3 Process keys update response\n', update_keys_resp)
                 assert success
-                print('#5 Clean all routing keys')
+                pretty('#5 Clean all routing keys')
                 await clear_all_keys(coprotocol, my_endpoint, keys=[key_to_update])
             else:
                 raise RuntimeError('Error while requesting mediator to fetch endpoint address and routing keys')
@@ -89,9 +90,9 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
 
 
 if __name__ == '__main__':
-    # Создаем ключи
+    # Create keys
     my_did_, my_verkey_, my_secret_ = create_did_and_keys(seed='0000000000000000000000000EXAMPLE')
-    # Инициализируем SDK, для простоты переопределим Crypto и DID, чтобы SDK не обращался к агентам
+    # We initialize the SDK, for simplicity we redefine Crypto and DID so that the SDK does not address agents
     sirius_sdk.init(crypto=LocalCrypto(my_verkey_, my_secret_), did=LocalDID())
-    # Запускаем тест
+    # RUN!!!
     asyncio.get_event_loop().run_until_complete(run(my_did_, my_verkey_, my_secret_))
