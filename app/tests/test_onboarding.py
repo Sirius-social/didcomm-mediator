@@ -190,8 +190,8 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         assert 'updated' in upd_res.keys()
         assert 2 == len(upd_res['updated'])
         upd_keys = [item['recipient_key'] for item in upd_res['updated']]
-        assert key1 in upd_keys
-        assert key2 in upd_keys
+        assert key1 in str(upd_keys)
+        assert key2 in str(upd_keys)
         # Remove key
         req = KeylistUpdate(
             endpoint=grant['endpoint'],
