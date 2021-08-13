@@ -10,7 +10,7 @@ from fastapi import Request
 
 from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient
-from app.settings import WEBROOT, MEDIATOR_LABEL, KEYPAIR, ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX
+from app.settings import WEBROOT, MEDIATOR_LABEL, KEYPAIR, ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX, LONG_POLLING_PATH_PREFIX
 
 
 def extract_content_type(request: Request) -> Optional[str]:
@@ -43,6 +43,16 @@ async def async_build_ws_endpoint_addr(db: Database) -> Optional[str]:
         else:
             raise RuntimeError('Invalid WEBROOT url')
         mediator_endpoint = urljoin(mediator_endpoint, WS_PATH_PREFIX)
+        return mediator_endpoint
+    else:
+        return None
+
+
+async def async_build_long_polling_addr(db: Database) -> Optional[str]:
+    cfg = GlobalConfig(db, GlobalMemcachedClient.get())
+    mediator_endpoint = await cfg.get_webroot()
+    if mediator_endpoint:
+        mediator_endpoint = urljoin(mediator_endpoint, LONG_POLLING_PATH_PREFIX)
         return mediator_endpoint
     else:
         return None

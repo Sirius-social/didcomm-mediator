@@ -8,7 +8,7 @@ from sirius_sdk.agent.aries_rfc.feature_0160_connection_protocol.messages import
 
 from app.settings import KEYPAIR, DID, MEDIATOR_SERVICE_TYPE, FCM_SERVICE_TYPE
 from app.core.repo import Repo
-from app.utils import async_build_ws_endpoint_addr
+from app.utils import async_build_ws_endpoint_addr, async_build_long_polling_addr
 from app.core.redis import choice_server_address as choice_redis_server_address
 
 
@@ -29,6 +29,15 @@ async def build_did_doc_extra(repo: Repo, their_did: str, their_verkey: str) -> 
         "priority": 1,
         "recipientKeys": [],
         "serviceEndpoint": mediator_service_endpoint,
+    })
+    long_polling_mediator_service_endpoint = await async_build_long_polling_addr(repo.db)
+    long_polling_mediator_service_endpoint = urljoin(long_polling_mediator_service_endpoint, f'?endpoint={endpoint_uid}')
+    did_doc_extra['service'].append({
+        "id": 'did:peer:' + DID + ";indy",
+        "type": MEDIATOR_SERVICE_TYPE,
+        "priority": 2,
+        "recipientKeys": [],
+        "serviceEndpoint": long_polling_mediator_service_endpoint,
     })
     # configure redis pubsub infrastructure for endpoint
     redis_server = await choice_redis_server_address()

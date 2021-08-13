@@ -19,7 +19,7 @@ from sirius_sdk.messaging import restore_message_instance
 from app.main import app
 from app.dependencies import get_db
 from app.settings import KEYPAIR, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE, DID, \
-    ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX, WEBROOT
+    ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX, WEBROOT, LONG_POLLING_PATH_PREFIX
 from app.core.crypto import MediatorCrypto
 from app.utils import build_invitation
 from app.db.crud import load_agent, load_endpoint_via_verkey
@@ -105,14 +105,14 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         # Check mediator endpoints and services
         mediator_did_doc = response.did_doc
         mediator_services = mediator_did_doc['service']
-        assert 2 == len(mediator_services)
+        assert 3 == len(mediator_services)
         assert any([s['type'] == MEDIATOR_SERVICE_TYPE for s in mediator_services])
         for srv in mediator_services:
             assert DID in str(srv)
             if srv['type'] == MEDIATOR_SERVICE_TYPE:
                 assert '?endpoint=' in srv['serviceEndpoint']
                 url_parts = urlparse(srv['serviceEndpoint'])
-                assert url_parts.path.startswith(f'/{WS_PATH_PREFIX}')
+                assert url_parts.path.startswith(f'/{WS_PATH_PREFIX}') or url_parts.path.startswith(f'/{LONG_POLLING_PATH_PREFIX}')
 
         # Notify connection is OK
         ack = Ack(thread_id=response.ack_message_id, status=Status.OK)
@@ -369,7 +369,8 @@ def test_same_endpoint_for_different_verkeys(random_me: (str, str, str)):
             allocated_http_endpoints.append(grant_response['endpoint'])
 
         # Check all values are equal
-        assert len(allocated_mediator_endpoints) == 2
-        assert allocated_mediator_endpoints[0] == allocated_mediator_endpoints[1]
+        assert len(allocated_mediator_endpoints) == 4
+        assert allocated_mediator_endpoints[0] == allocated_mediator_endpoints[2]
+        assert allocated_mediator_endpoints[1] == allocated_mediator_endpoints[3]
         assert len(allocated_http_endpoints) == 2
         assert allocated_http_endpoints[0] == allocated_http_endpoints[1]

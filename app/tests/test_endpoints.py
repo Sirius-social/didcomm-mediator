@@ -1,4 +1,5 @@
 import json
+import urllib.parse
 import uuid
 import asyncio
 from time import sleep
@@ -8,11 +9,12 @@ from databases import Database
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
 
+import settings
 from app.main import app
 from app.dependencies import get_db
 from app.utils import build_endpoint_url
 from app.db.crud import ensure_endpoint_exists, load_endpoint
-from app.settings import WS_PATH_PREFIX, WEBROOT
+from app.settings import WS_PATH_PREFIX, WEBROOT, LONG_POLLING_PATH_PREFIX
 from app.core.redis import AsyncRedisChannel
 
 from .helpers import override_get_db
@@ -146,6 +148,45 @@ async def test_delivery_via_fcm(test_database: Database, random_me: (str, str, s
     assert len(received_fcm_msgs) == 1
     fcm_msg = received_fcm_msgs[0]
     assert fcm_msg == json.loads(content.decode())
+
+
+@pytest.mark.asyncio
+async def test_delivery_via_long_polling(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):
+    """Check long polling delivery mechanism"""
+    content = b'{"protected": "eyJlbmMiOiAieGNoYWNoYTIwcG9seTEzMDVfaWV0ZiIsICJ0eXAiOiAiSldNLzEuMCIsICJhbGciOiAiQXV0aGNyeXB0IiwgInJlY2lwaWVudHMiOiBbeyJlbmNyeXB0ZWRfa2V5IjogInBKcW1xQS1IVWR6WTNWcFFTb2dySGx4WTgyRnc3Tl84YTFCSmtHU2VMT014VUlwT0RQWTZsMVVsaVVvOXFwS0giLCAiaGVhZGVyIjogeyJraWQiOiAiM1ZxZ2ZUcDZRNFZlRjhLWTdlVHVXRFZBWmFmRDJrVmNpb0R2NzZLR0xtZ0QiLCAic2VuZGVyIjogIjRlYzhBeFRHcWtxamd5NHlVdDF2a0poeWlYZlNUUHo1bTRKQjk1cGZSMG1JVW9KajAwWmswNmUyUEVDdUxJYmRDck8xeTM5LUhGTG5NdW5YQVJZWk5rZ2pyYV8wYTBQODJpbVdNcWNHc1FqaFd0QUhOcUw1OGNkUUYwYz0iLCAiaXYiOiAiVU1PM2o1ZHZwQnFMb2Rvd3V0c244WEMzTkVqSWJLb2oifX1dfQ==", "iv": "MchkHF2M-4hneeUJ", "ciphertext": "UgcdsV-0rIkP25eJuRSROOuqiTEXp4NToKjPMmqqtJs-Ih1b5t3EEbrrHxeSfPsHtlO6J4OqA1jc5uuD3aNssUyLug==", "tag": "sQD8qgJoTrRoyQKPeCSBlQ=="}'
+    content_type = 'application/ssi-agent-wire'
+
+    agent_did, agent_verkey, agent_secret = random_me
+    redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
+
+    await ensure_endpoint_exists(
+        db=test_database, uid=random_endpoint_uid,
+        agent_id=agent_did, verkey=agent_verkey, redis_pub_sub=redis_pub_sub
+    )
+
+    received_lines = []
+
+    async def read_lines():
+        async with AsyncClient(app=app, base_url=WEBROOT) as cli:
+            async with cli.stream('GET', f"/{LONG_POLLING_PATH_PREFIX}?endpoint={random_endpoint_uid}") as response:
+                async for chunk in response.aiter_text():
+                    received_lines.append(chunk)
+
+    send_count = 2
+    fut = asyncio.ensure_future(read_lines())
+    await asyncio.sleep(3)
+    try:
+        async with AsyncClient(app=app, base_url=WEBROOT) as cli:
+            for n in range(send_count):
+                response = await cli.post(
+                    build_endpoint_url(random_endpoint_uid),
+                    headers={"Content-Type": content_type},
+                    data=content,
+                )
+                assert response.status_code == 202
+    finally:
+        fut.cancel()
+    await asyncio.sleep(3)
 
 
 def test_delivery_when_redis_server_fail(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):

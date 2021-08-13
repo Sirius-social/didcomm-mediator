@@ -183,3 +183,43 @@ async def endpoint_processor(websocket: WebSocket, endpoint_uid: str, repo: Repo
         report = BasicMessageProblemReport(problem_code='1', explain=f'Unknown endpoint with id: {endpoint_uid}')
         await websocket.send_bytes(json.dumps(report).encode())
         await websocket.close()
+
+
+async def endpoint_long_polling(request: Request, endpoint_uid: str, repo: Repo):
+    logging.debug('')
+    logging.debug('++++++++++++++++++++++++++++++++++++++++++++++++++')
+    logging.debug(f'+++ Redis listener for endpoint_uid: {endpoint_uid}')
+    logging.debug('++++++++++++++++++++++++++++++++++++++++++++++++++')
+    data = await repo.load_endpoint(endpoint_uid)
+    logging.debug('long-polling endpoint data: ' + repr(data))
+    if data and data.get('redis_pub_sub'):
+        # Read from redis channel in infinite loop
+        pulls = RedisPull()
+        listener = pulls.listen(address=data['redis_pub_sub'])
+
+        async def wait_for_close_conn():
+            while True:
+                if await request.is_disconnected():
+                    logging.debug('Request disconnected')
+                    await listener.close()
+                    return
+
+        fut = asyncio.ensure_future(wait_for_close_conn())
+        try:
+            async for not_closed, req in listener:
+                logging.debug(f'++++++++++++ not_closed: {not_closed}')
+                if not_closed:
+                    req: RedisPull.Request = req
+                    logging.debug('++++++++++++ yield message')
+                    line = json.dumps(req.message)
+                    yield line
+                    await req.ack()
+                    logging.debug('++++++++++ message acked')
+                else:
+                    break
+        finally:
+            fut.cancel()
+    else:
+        report = BasicMessageProblemReport(problem_code='1', explain=f'Unknown endpoint with id: {endpoint_uid}')
+        line = json.dumps(report)
+        yield line

@@ -4,6 +4,7 @@ import logging
 from typing import List
 
 from databases import Database
+from sse_starlette.sse import EventSourceResponse
 from fastapi import APIRouter, Request, Depends, HTTPException, WebSocket
 
 from app.core.repo import Repo
@@ -13,8 +14,9 @@ from app.core.redis import RedisPush, RedisConnectionError, choice_server_addres
 from app.utils import build_invitation, extract_content_type, change_redis_server
 from app.core.firebase import FirebaseMessages
 from app.dependencies import get_db
-from app.settings import ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX
-from .mediator_scenarios import onboard as scenario_onboard, endpoint_processor as scenario_endpoint
+from app.settings import ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX, LONG_POLLING_PATH_PREFIX
+from .mediator_scenarios import onboard as scenario_onboard, \
+    endpoint_processor as scenario_endpoint, endpoint_long_polling
 
 
 router = APIRouter(
@@ -47,6 +49,18 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
         await scenario_endpoint(websocket, endpoint_uid, repo)
     logging.debug('\n**************************')
     logging.debug('*****************************')
+
+
+@router.get(f"/{LONG_POLLING_PATH_PREFIX}")
+async def long_polling(request: Request, db: Database = Depends(get_db)):
+    endpoint_uid = request.query_params.get('endpoint')
+    logging.debug(f'endpoint_uid: {endpoint_uid}')
+    if endpoint_uid is None:
+        raise HTTPException(status_code=404, detail='Empty endpoint id')
+    else:
+        repo = Repo(db, memcached=GlobalMemcachedClient.get())
+        event_generator = endpoint_long_polling(request, endpoint_uid, repo)
+        return EventSourceResponse(event_generator)
 
 
 @router.post(f'/{ENDPOINTS_PATH_PREFIX}/{{endpoint_uid}}', status_code=202)

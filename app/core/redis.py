@@ -346,6 +346,10 @@ class RedisPull:
                 except RedisConnectionError:
                     return False, None
 
+        async def close(self):
+            if self.__channel:
+                await self.__channel.close()
+
         def __aiter__(self):
             return self
 
