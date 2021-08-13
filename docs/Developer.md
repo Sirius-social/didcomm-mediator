@@ -77,6 +77,21 @@ Take a look at Two cases.
          }
          ...
          ```
+       - Http Long polling URL to listen endpoint events
+         ```
+         ...
+         {
+           "id": "did:peer:QNJ354Uc6MKz7wDjEM9qjZ;indy",
+           "priority": 2,
+           "recipientKeys": [],
+           "serviceEndpoint": "http://mediator.socialsirius.com:8000/polling?endpoint=e2afc79cc785801e4fff71ca0314bae8cf9959f37d05c7ca722721acc91530ab",
+           "type": "MediatorService"
+         }
+         ...
+         ```
+
+Check [Example for initialization communication with Mediator](../examples/begin.py)
+
 ## 2. Grand of endpoint. Recipient keys.
 TODO
 
