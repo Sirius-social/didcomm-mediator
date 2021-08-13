@@ -90,7 +90,7 @@ Take a look at Two cases.
          ...
          ```
 
-Check [Example for initialization communication with Mediator](../examples/begin.py)
+Check [Example of initialization communication with Mediator](../examples/begin.py)
 
 ## 2. Grand of endpoint. Recipient keys.
 TODO

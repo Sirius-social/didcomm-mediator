@@ -83,6 +83,14 @@ proxy will communicate with application directly:
                 # transmit any data within 60 seconds
                 # proxy_read_timeout 60;  
         }
+        location /polling {
+                proxy_set_header Host $http_host;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_pass <address of web-application, for example: http://localhost:8000>;
+                # It is better to increase read timeout for long-polling recipients
+                proxy_read_timeout 3600;
+        }
         location / {
                 proxy_set_header Host $http_host;
                 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;

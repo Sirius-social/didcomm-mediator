@@ -427,6 +427,13 @@ NGINX_PROXY_JINJA_TEMPLATE = """
             # transmit any data within 60 seconds
             # proxy_read_timeout 60;
     }
+    location /polling {
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_pass http://localhost:{{ asgi_port }};
+            proxy_read_timeout 3600;
+    }
     location / {
             proxy_set_header Host $http_host;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
