@@ -32,6 +32,17 @@ def random_me() -> (str, str, str):
 
 
 @pytest.fixture()
+def random_keys() -> (str, str):
+    """
+    Generate Random verkey+secret
+
+    :return: verkey, privkey
+    """
+    pub_key, priv_key = sirius_sdk.encryption.ed25519.create_keypair()
+    return sirius_sdk.encryption.bytes_to_b58(pub_key), sirius_sdk.encryption.bytes_to_b58(priv_key)
+
+
+@pytest.fixture()
 def random_their() -> (str, str, str):
     """
     Generate Random identifications

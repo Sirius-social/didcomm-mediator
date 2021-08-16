@@ -13,6 +13,7 @@ from app.core.singletons import GlobalMemcachedClient, GlobalRedisChannelsCache
 from app.core.redis import RedisPush, RedisConnectionError, choice_server_address, AsyncRedisChannel
 from app.utils import build_invitation, extract_content_type, change_redis_server
 from app.core.firebase import FirebaseMessages
+from app.core.forward import forward_wired
 from app.dependencies import get_db
 from app.settings import ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX, LONG_POLLING_PATH_PREFIX
 from .mediator_scenarios import onboard as scenario_onboard, \
@@ -77,14 +78,22 @@ async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(g
     repo = Repo(db=db, memcached=GlobalMemcachedClient.get())
     pushes = RedisPush(db, memcached=GlobalMemcachedClient.get(), channels_cache=GlobalRedisChannelsCache.get())
     endpoint_fields = await repo.load_endpoint(endpoint_uid)
+    routing_keys = await repo.list_routing_key(endpoint_uid)
+    routing_keys = [item['key'] for item in routing_keys]
 
     logging.debug('endpoint_fields: ' + repr(endpoint_fields))
+    logging.debug('routing_keys: ' + str(routing_keys))
 
     payload = b''
     async for chunk in request.stream():
         payload += chunk
     if endpoint_fields:
-        message = json.loads(payload.decode())
+        if routing_keys:
+            their_vk = endpoint_fields['verkey']
+            forwarded_payload = forward_wired(payload, their_vk=their_vk, routing_keys=routing_keys)
+            message = json.loads(forwarded_payload.decode())
+        else:
+            message = json.loads(payload.decode())
         try:
             logging.debug('push message to websocket connection')
             success = await pushes.push(endpoint_uid, message, ttl=5)
