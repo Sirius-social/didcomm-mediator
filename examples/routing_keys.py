@@ -6,7 +6,7 @@ import sirius_sdk
 from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.messages import MediateRequest, \
     KeylistAddAction, KeylistRemoveAction, KeylistUpdate, KeylistQuery
 
-from helpers.common import HARDCODED_INVITATION, pretty
+from helpers.common import HARDCODED_INVITATION, MY_SEED, pretty
 from helpers.crypto import LocalCrypto, create_did_and_keys
 from helpers.did import LocalDID
 from helpers.coprotocols import WebSocketCoProtocol
@@ -91,7 +91,7 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
 
 if __name__ == '__main__':
     # Create keys
-    my_did_, my_verkey_, my_secret_ = create_did_and_keys(seed='0000000000000000000000000EXAMPLE')
+    my_did_, my_verkey_, my_secret_ = create_did_and_keys(seed=MY_SEED)
     # We initialize the SDK, for simplicity we redefine Crypto and DID so that the SDK does not address agents
     sirius_sdk.init(crypto=LocalCrypto(my_verkey_, my_secret_), did=LocalDID())
     # RUN!!!
