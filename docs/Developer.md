@@ -27,9 +27,11 @@ Edge Agent in DIDComm decentralized environment with self-service.
     - Admin create static connections via Admin page.
 
 ## 1. Initialize communication with Mediator
+
 Take a look at Two cases. 
-  - Case 1: Recipient, running on mobile agent, does not have P2P connection to communicate 
+  - **Case 1**: Recipient, running on mobile agent, does not have P2P connection to communicate 
     with Mediator application. Recipient agent should establish P2P connection to Mediator:
+     - Check [Sample source code](../examples/begin.py)
      - P2P connection establishing is covered by [Aries RFC-160](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol)
      - Before to start establish P2P Mediator must share P2P [invitation](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol#0-invitation-to-connect)
        among client-side developers. Mediator admin may get invitation json string via Admin page
@@ -89,8 +91,12 @@ Take a look at Two cases.
          }
          ...
          ```
+         
+  - **Case 2**: Mediator admin created P2P connection. ![Static connection](_static/create_static_connection.png?raw=true).
+    Then recipient should have: **mediator endpoint** and **mediator verkey**.
+    See [sample source code for details](../examples/check_connection.py)
 
-Check [Example of initialization communication with Mediator](../examples/begin.py)
+         
 
 ## 2. Grand of endpoint. Recipient keys.
 TODO
