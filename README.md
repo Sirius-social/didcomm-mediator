@@ -99,3 +99,6 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
 
 ## Develop and contribute
   - [Developer Guide](docs/Developer.md)
+
+To contribute code, send message to [support@socialsirius.com](mailto:support@socialsirius.com?subject=Contribute)
+or [create issue](issues/new) 
