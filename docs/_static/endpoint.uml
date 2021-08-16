@@ -1,0 +1,12 @@
+@startuml
+actor Alice
+participant Mediator
+actor Bob
+ref over Alice, Mediator : simplex channel\n[application/ssi-agent-wire]
+Alice -> Mediator : send message via http request
+ref over Mediator
+Mediator find actual recipient 
+that was binded to the Http endpoint in Grand procedure
+end ref
+Mediator -> Bob : delivery message
+@enduml

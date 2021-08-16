@@ -99,7 +99,27 @@ Take a look at Two cases.
          
 
 ## 2. Grand of endpoint. Recipient keys.
-TODO
+How endpoint works.
+![How endpoint works](_static/endpoint.svg?raw=true).
+
+To make able for **Alice** to send messages to **Bob**, Bob should get unique endpoint from his Mediator.
+Mediator will deliver all inbound messages to **Bob** with:
+
+- unique websocket url that declared in Mediator DIDDoc (service type *"MediatorService"*)
+- unique long-polling http url that declared in Mediator DIDDoc (service type *"MediatorService"*)
+- firebase message delivery if no one of delivery mechanisms described above are not active (no active connections)
+  and **device-id** declared in **Bob** DIDDoc
+
+See details:
+1. protocol to allocate endpoint [RFC-0211](https://github.com/hyperledger/aries-rfcs/tree/main/features/0211-route-coordination)
+2. see [sample code](../examples/endpoint.py) how to receive messages from **Alice**
+
+According to [RFC-0211](https://github.com/hyperledger/aries-rfcs/tree/main/features/0211-route-coordination)
+**Bob** may create/remove/update self routing keys, check [sample code here](../examples/routing_keys.py)
 
 ## 3. Samples
-TODO
+
+1. Create P2P connection with Mediator [examples/begin.py](../examples/begin.py)
+2. Check P2P connection [examples/check_connection.py](../examples/check_connection.py)
+3. Allocate Http endpoint (simplex transport) and receive messages from others [examples/endpoint.py](../examples/endpoint.py)
+4. Create/Remove/Update routing keys [examples/routing_keys.py](../examples/routing_keys.py)
