@@ -48,7 +48,6 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
             logging.debug(json.dumps(event, indent=2, sort_keys=True))
             logging.debug('============================')
 
-            # TODO: raise error and problem_report if not packed (avoiding 0160 protocol)
             if isinstance(event.message, sirius_sdk.aries_rfc.Ping):
                 # Agent sent Ping to check connection
                 ping: sirius_sdk.aries_rfc.Ping = event.message
