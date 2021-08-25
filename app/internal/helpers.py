@@ -26,15 +26,18 @@ async def check_url(url: str) -> bool:
     try:
         if url.startswith('http'):
             async with aiohttp.ClientSession() as session:
-                async with session.get(url) as resp:
+                async with session.get(url, ssl=False) as resp:
                     return True
         elif url.startswith('ws'):
             session = aiohttp.ClientSession()
-            await session.ws_connect(url)
+            await session.ws_connect(url, ssl=False)
             return True
         else:
             return False
-    except:
+    except Exception as e:
+        print('=========== CHECK URL ============')
+        print(repr(e))
+        print('===================================')
         return False
 
 
