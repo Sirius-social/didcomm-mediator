@@ -52,6 +52,18 @@ See interoperability protocols details:
   - [RFC 0160](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol): establish P2P connection
   - [RFC 0211](https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination): allocate endpoint address by client and maintain routing keys
 
+
+## Scaling
+This app is ready to scale up via multiple redis instances and application instances. You 
+may deploy app and redis in any docker orchestration environment. You should declare array of 
+redis instances as comma separated list of redis addresses with **MSG_DELIVERY_SERVICES** environment variable.
+
+![Endpoint messages routing](_static/scaling.svg?raw=true)
+*You can increase your system availability with increase redis and app instances*
+
+![Redis health-check](_static/health_redis.png?raw=true)
+*Example of health-checking for delivering via Redis*
+
 ## Environment variables
 
 ### Critical variables:

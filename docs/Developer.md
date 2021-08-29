@@ -123,3 +123,6 @@ According to [RFC-0211](https://github.com/hyperledger/aries-rfcs/tree/main/feat
 2. Check P2P connection [examples/check_connection.py](../examples/check_connection.py)
 3. Allocate Http endpoint (simplex transport) and receive messages from others [examples/endpoint.py](../examples/endpoint.py)
 4. Create/Remove/Update routing keys [examples/routing_keys.py](../examples/routing_keys.py)
+
+## 4. Pre-requirements before start to write code
+Don't forget to update database models by typing ```alembic upgrade head```

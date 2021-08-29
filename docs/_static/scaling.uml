@@ -1,0 +1,11 @@
+@startuml
+Endpoint -> "Redis Pool" ++ : encrypted msg
+"Redis Pool" -> "Redis Pool" ++ : choise redis instance
+"Redis Pool" -> "redis instance" ++ #005500 : route encrypted msg to [redis channel]
+"redis instance" -> Recipient ** : route to websocket/long-polling socket
+"Recipient" -> "redis instance" : ack
+return done
+return redis delivery success?
+"Redis Pool" -> Recipient !! : if no, try to deliver via Firebase
+return http status 202
+@enduml
