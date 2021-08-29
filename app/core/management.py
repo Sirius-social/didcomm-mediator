@@ -284,7 +284,7 @@ async def issue_cert(domain: str, logger: Callable = None) -> bool:
         if err:
             await call_logger(err, True)
         if exit_code == 0:
-            cert_file = f'/etc/letsencrypt/live/{domain}/cert.pem'
+            cert_file = f'/etc/letsencrypt/live/{domain}/fullchain.pem'
             cert_key_file = f'/etc/letsencrypt/live/{domain}/privkey.pem'
             utc = datetime.datetime.utcnow()
             await _dump_path(db, ACME_SSL_CERT, cert_file, {'domain': domain, 'utc': utc})
