@@ -131,7 +131,7 @@ async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(g
                     if success:
                         return
                     else:
-                        raise HTTPException(status_code=410, detail='Recipient is registered but is not active')
+                        raise HTTPException(status_code=410, detail='Recipient is registered but is not active with Firebase')
                 else:
                     raise HTTPException(status_code=421, detail='Firebase cloud messaging is not configured on server-side')
             else:
