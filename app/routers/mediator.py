@@ -119,8 +119,8 @@ async def endpoint(request: Request, endpoint_uid: str, db: Database = Depends(g
             if fcm_device_id:
                 firebase = FirebaseMessages(db=db)
                 fcm_enabled = await firebase.enabled()
-                logging.debug('FCM is enabled')
                 if fcm_enabled:
+                    logging.debug('FCM is enabled')
                     logging.debug('push message via FCM')
                     try:
                         success = await firebase.send(device_id=fcm_device_id, msg=message)
