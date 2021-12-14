@@ -81,7 +81,7 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
     events_stream = redis_server + '/' + uuid.uuid4().hex
     events_stream_ws = f'{ws_base}/ws/events?stream=' + events_stream
     firebase_api_key, firebase_sender_id = await cfg.get_firebase_secret()
-    if len(firebase_api_key) > 32:
+    if firebase_api_key and len(firebase_api_key) > 32:
         firebase_api_key = firebase_api_key[:13] + ' ..... ' + firebase_api_key[-5:]
     email_settings = await cfg.get_email_credentials()
     settings = {
