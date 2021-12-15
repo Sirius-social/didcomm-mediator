@@ -1,4 +1,5 @@
 import asyncio
+import logging
 import re
 import json
 import uuid
@@ -56,8 +57,13 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         current_user = await _auth_user(request)
         session_id = request.cookies.get(SESSION_COOKIE_KEY)
         app_is_configured = await cfg.get_app_is_configured()
+
+        logging.debug(f'app_is_configured: {app_is_configured}')
+        logging.debug(f'current_user: {repr(current_user)}')
+
         if current_user is None:
             superuser = await crud.load_superuser(db, mute_errors=True)
+            logging.debug('Superuser instance: ')
             if superuser:
                 current_step = 0  # login form
             else:
