@@ -77,6 +77,7 @@ redis instances as comma separated list of redis addresses with **MSG_DELIVERY_S
     Notice, for the same **seed** you will get **const keys**, so keep this value in secret.
 
 ### Optional variables:
+  - **DATABASE_PORT**: database port, by default default postgres port 5432
   - **WEBROOT**: DNS-specific address of server with Mediator App running.
   - **LABEL**: Label that application will public in invitations.  
   - **FCM_API_KEY**, **FCM_SENDER_ID**: Firebase cloud messaging Server **API Keys** to 
