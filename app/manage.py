@@ -32,7 +32,7 @@ if command == CMD_GENERATE_SEED:
     def _generate_seed() -> str:
         value_b = sirius_sdk.encryption.random_seed()
         value = sirius_sdk.encryption.bytes_to_b58(value_b)
-        return value
+        return value[:32]
 
     seed = _generate_seed()
     print('')

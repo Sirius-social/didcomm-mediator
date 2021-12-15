@@ -81,7 +81,7 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
      ```
      =================================================================================
      SEED value is:
-                     CTMUXn1qZwcDKcLHzMku5DodSy6Ntok9jpij5Mm2T4Ji
+                     6tyKXax9gbmyLjRjMXrGouPBQ9SZ8L2h
      place it to SEED environment variable
      =================================================================================
      ```
