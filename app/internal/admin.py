@@ -9,6 +9,7 @@ from databases import Database
 from fastapi import APIRouter, Request, Depends, HTTPException, Response
 from fastapi.responses import RedirectResponse
 
+import asyncpg
 import app.db.crud as crud
 from app.settings import templates, WEBROOT as SETTING_WEBROOT, URL_STATIC, \
     CERT_FILE as SETTING_CERT_FILE, CERT_KEY_FILE as SETTING_CERT_KEY_FILE, ACME_DIR as SETTING_ACME_DIR, \
@@ -34,6 +35,12 @@ BASE_URL = '/admin'
 CFG_ACME_EMAIL = 'acme.email'
 CFG_ACME_EMAIL_SHARE = 'acme.email.share'
 PAGE_SIZE = 20
+STATIC_CFG = {
+    'styles': URL_STATIC + '/admin/css/styles.css',
+    'vue': URL_STATIC + '/vue.min.js',
+    'axios': URL_STATIC + '/axios.min.js',
+    'jquery': URL_STATIC + '/jquery-3.6.0.min.js'
+}
 
 
 async def check_is_logged(request: Request):
@@ -44,101 +51,106 @@ async def check_is_logged(request: Request):
 
 @router.get("/")
 async def admin_panel(request: Request, db: Database = Depends(get_db)):
-    cfg = GlobalConfig(db, GlobalMemcachedClient.get())
-    current_user = await _auth_user(request)
-    session_id = request.cookies.get(SESSION_COOKIE_KEY)
-    app_is_configured = await cfg.get_app_is_configured()
-    if current_user is None:
-        superuser = await crud.load_superuser(db, mute_errors=True)
-        if superuser:
-            current_step = 0  # login form
+    try:
+        cfg = GlobalConfig(db, GlobalMemcachedClient.get())
+        current_user = await _auth_user(request)
+        session_id = request.cookies.get(SESSION_COOKIE_KEY)
+        app_is_configured = await cfg.get_app_is_configured()
+        if current_user is None:
+            superuser = await crud.load_superuser(db, mute_errors=True)
+            if superuser:
+                current_step = 0  # login form
+            else:
+                current_step = 1  # create superuser form
         else:
-            current_step = 1  # create superuser form
-    else:
-        if app_is_configured:
-            current_step = 0  # login form
-        else:
-            current_step = 2  # configure Webroot & SSL
+            if app_is_configured:
+                current_step = 0  # login form
+            else:
+                current_step = 2  # configure Webroot & SSL
 
-    # variables
-    env = {
-        'webroot': SETTING_WEBROOT,
-        'cert_file': SETTING_CERT_FILE or '',
-        'cert_key_file': SETTING_CERT_KEY_FILE or '',
-        'acme_dir': SETTING_ACME_DIR or '',
-        'firebase_api_key': SETTING_FIREBASE_API_KEY or '',
-        'firebase_sender_id': SETTING_FIREBASE_SENDER_ID or '',
-    }
-    full_base_url = str(request.base_url)
-    if full_base_url.endswith('/'):
-        full_base_url = full_base_url[:-1]
-    ws_base = full_base_url.replace('http://', 'ws://').replace('https://', 'wss://')
-
-    ssl_option = await cfg.get_ssl_option()
-    acme_email = await cfg.get_any_option(CFG_ACME_EMAIL)
-    acme_email_share = await cfg.get_any_option(CFG_ACME_EMAIL_SHARE)
-    redis_server = await choice_server_address()
-    events_stream = redis_server + '/' + uuid.uuid4().hex
-    events_stream_ws = f'{ws_base}/ws/events?stream=' + events_stream
-    firebase_api_key, firebase_sender_id = await cfg.get_firebase_secret()
-    if firebase_api_key and len(firebase_api_key) > 32:
-        firebase_api_key = firebase_api_key[:13] + ' ..... ' + firebase_api_key[-5:]
-    email_settings = await cfg.get_email_credentials()
-    settings = {
-        'webroot': await cfg.get_webroot() or full_base_url,
-        'full_base_url': full_base_url,
-        'ssl_option': ssl_option or 'manual',
-        'acme_email': acme_email or '',
-        'acme_email_share': 'true' if acme_email_share else 'false',
-        'firebase_api_key': firebase_api_key or '',
-        'firebase_sender_id': firebase_sender_id or '',
-        'email_option': email_settings.get('option', 'no_emails'),
-        'email_credentials': email_settings.get('credentials', {})
-    }
-    if 'x-forwarded-proto' in request.headers:
-        scheme = request.headers['x-forwarded-proto']
-        if scheme == 'https':
-            settings['webroot'] = settings['webroot'].replace('http://', 'https://')
-            settings['full_base_url'] = settings['full_base_url'].replace('http://', 'https://')
-            events_stream_ws = events_stream_ws.replace('ws://', 'wss://')
-
-    health = {}
-    if app_is_configured:
-        health['redis'] = await check_redis()
-        health['services'] = await check_services(db)
-
-    context = {
-        'github': 'https://github.com/Sirius-social/didcomm',
-        'issues': 'https://github.com/Sirius-social/didcomm/issues',
-        'spec': 'https://identity.foundation/didcomm-messaging/spec/',
-        'features': 'https://github.com/Sirius-social/didcomm#features',
-        'download': 'https://hub.docker.com/r/socialsirius/didcomm',
-        'base_url': BASE_URL,
-        'current_user': current_user,
-        'current_step': current_step,
-        'env': env,
-        'settings': settings,
-        'health': health,
-        'static': {
-            'styles': URL_STATIC + '/admin/css/styles.css',
-            'vue': URL_STATIC + '/vue.min.js',
-            'axios': URL_STATIC + '/axios.min.js',
-            'jquery': URL_STATIC + '/jquery-3.6.0.min.js'
-        },
-        'events_stream': events_stream,
-        'events_stream_ws': events_stream_ws,
-        'app_is_configured': app_is_configured,
-        'invitation': await async_build_invitation(db, session_id),
-        'pairwise_search': request.query_params.get('search', '')
-    }
-    response = templates.TemplateResponse(
-        "admin.html",
-        {
-            "request": request,
-            **context
+        # variables
+        env = {
+            'webroot': SETTING_WEBROOT,
+            'cert_file': SETTING_CERT_FILE or '',
+            'cert_key_file': SETTING_CERT_KEY_FILE or '',
+            'acme_dir': SETTING_ACME_DIR or '',
+            'firebase_api_key': SETTING_FIREBASE_API_KEY or '',
+            'firebase_sender_id': SETTING_FIREBASE_SENDER_ID or '',
         }
-    )
-    return response
+        full_base_url = str(request.base_url)
+        if full_base_url.endswith('/'):
+            full_base_url = full_base_url[:-1]
+        ws_base = full_base_url.replace('http://', 'ws://').replace('https://', 'wss://')
+
+        ssl_option = await cfg.get_ssl_option()
+        acme_email = await cfg.get_any_option(CFG_ACME_EMAIL)
+        acme_email_share = await cfg.get_any_option(CFG_ACME_EMAIL_SHARE)
+        redis_server = await choice_server_address()
+        events_stream = redis_server + '/' + uuid.uuid4().hex
+        events_stream_ws = f'{ws_base}/ws/events?stream=' + events_stream
+        firebase_api_key, firebase_sender_id = await cfg.get_firebase_secret()
+        if firebase_api_key and len(firebase_api_key) > 32:
+            firebase_api_key = firebase_api_key[:13] + ' ..... ' + firebase_api_key[-5:]
+        email_settings = await cfg.get_email_credentials()
+        settings = {
+            'webroot': await cfg.get_webroot() or full_base_url,
+            'full_base_url': full_base_url,
+            'ssl_option': ssl_option or 'manual',
+            'acme_email': acme_email or '',
+            'acme_email_share': 'true' if acme_email_share else 'false',
+            'firebase_api_key': firebase_api_key or '',
+            'firebase_sender_id': firebase_sender_id or '',
+            'email_option': email_settings.get('option', 'no_emails'),
+            'email_credentials': email_settings.get('credentials', {})
+        }
+        if 'x-forwarded-proto' in request.headers:
+            scheme = request.headers['x-forwarded-proto']
+            if scheme == 'https':
+                settings['webroot'] = settings['webroot'].replace('http://', 'https://')
+                settings['full_base_url'] = settings['full_base_url'].replace('http://', 'https://')
+                events_stream_ws = events_stream_ws.replace('ws://', 'wss://')
+
+        health = {}
+        if app_is_configured:
+            health['redis'] = await check_redis()
+            health['services'] = await check_services(db)
+
+        context = {
+            'github': 'https://github.com/Sirius-social/didcomm',
+            'issues': 'https://github.com/Sirius-social/didcomm/issues',
+            'spec': 'https://identity.foundation/didcomm-messaging/spec/',
+            'features': 'https://github.com/Sirius-social/didcomm#features',
+            'download': 'https://hub.docker.com/r/socialsirius/didcomm',
+            'base_url': BASE_URL,
+            'current_user': current_user,
+            'current_step': current_step,
+            'env': env,
+            'settings': settings,
+            'health': health,
+            'static': STATIC_CFG,
+            'events_stream': events_stream,
+            'events_stream_ws': events_stream_ws,
+            'app_is_configured': app_is_configured,
+            'invitation': await async_build_invitation(db, session_id),
+            'pairwise_search': request.query_params.get('search', '')
+        }
+        response = templates.TemplateResponse(
+            "admin.html",
+            {
+                "request": request,
+                **context
+            }
+        )
+        return response
+    except asyncpg.exceptions.UndefinedTableError:
+        return templates.TemplateResponse(
+            "error.html",
+            {
+                "request": request,
+                'static': STATIC_CFG,
+                "message": "Database is not configured"
+            }
+        )
 
 
 @router.post("/login", status_code=201)
