@@ -14,5 +14,5 @@ We offer to use next URLs for checking health of the service
   this restriction use tools like [Pgpool-II](https://www.pgpool.net/mediawiki/index.php/Main_Page)
   - **Memcached**: caching component. To make **memcached** high-available you may deploy it to Cluster
     as service or use  alternate approaches like [this](https://programmer.group/high-availability-ha-architecture-for-memcached-cluster.html)
-  - **Redis**: Use HA Redis cluster or deploy multiple redis instances as separate services (with scale replicas = 1)
+  - **Redis**: Use HA Redis cluster or deploy multiple redis instances as separate services (with scale **replicas = 1**)
   in a cluster (cluster orchestrator will schedule instances for HA purposes).
