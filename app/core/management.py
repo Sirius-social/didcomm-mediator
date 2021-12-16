@@ -13,6 +13,7 @@ from databases import Database
 
 import settings
 from app.settings import MEMCACHED
+from app.dependencies import get_db
 from app.db.database import database
 from app.db.models import pairwises
 from app.core.redis import AsyncRedisChannel
@@ -145,6 +146,32 @@ def check():
     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
     print('Check OK')
     print('!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+
+
+async def liveness_check():
+    """Checks if the application can be running."""
+    # Check database
+    conn = await get_db()
+    if not conn.is_connected:
+        raise RuntimeError('Database is not reachable')
+    # Check Memcached
+    cache = GlobalMemcachedClient.get()
+    check_key = 'liveness_check_' + uuid.uuid4().hex
+    random_value = uuid.uuid4().hex.encode()
+    await cache.set(check_key.encode(), random_value, exptime=3)
+    actual_value, _ = await cache.get(check_key.encode())
+    if actual_value != random_value:
+        raise RuntimeError('Memcached service unavailable')
+    # Check Redis
+    error_addrs = []
+    for redis_addr in settings.REDIS:
+        url = f'redis://{redis_addr}'
+        ok = await AsyncRedisChannel.check_address(url)
+        if not ok:
+            error_addrs.append(url)
+    print(repr(error_addrs))
+    if error_addrs:
+        raise RuntimeError('Redis addresses are unreachable: [%s]' % ','.join(error_addrs))
 
 
 def generate_seed() -> str:

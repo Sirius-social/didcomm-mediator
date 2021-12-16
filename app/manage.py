@@ -2,7 +2,7 @@
 
 import asyncio
 import argparse
-
+import logging
 
 CMD_RESET = 'reset'
 CMD_CREATE_SUPERUSER = 'create_superuser'
@@ -49,7 +49,12 @@ else:
     if command == CMD_CREATE_SUPERUSER:
         app.core.management.create_superuser()
     elif command == CMD_CHECK:
+        logging.warning('Check configuration...')
         app.core.management.check()
+        logging.warning('ok')
+        logging.warning('Check liveness...')
+        asyncio.get_event_loop().run_until_complete(app.core.management.liveness_check())
+        logging.warning('ok')
         asyncio.get_event_loop().run_until_complete(app.core.management.reload())
     elif command == CMD_RESET:
         choice = input('Clear all accounts and settings? y/n: ')

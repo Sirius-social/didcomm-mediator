@@ -28,6 +28,12 @@ WS_PATH_PREFIX = 'ws'
 
 MEMCACHED = os.environ.get('MEMCACHED')
 assert MEMCACHED is not None, 'You must set MEMCACHED env variable that specify memcached server address'
+if ':' in MEMCACHED:
+    host, port = MEMCACHED.split(':')
+    MEMCACHED = host
+    MEMCACHED_PORT = int(port)
+else:
+    MEMCACHED_PORT = 11211
 
 MSG_DELIVERY_SERVICES = os.environ.get('MSG_DELIVERY_SERVICES') or os.environ.get('REDIS')
 assert MSG_DELIVERY_SERVICES is not None, 'You must set MSG_DELIVERY_SERVICES env variable, for example: "redis://address1,redis://address2"'

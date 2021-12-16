@@ -3,7 +3,7 @@ import aiomemcached
 
 from expiringdict import ExpiringDict
 
-from app.settings import MEMCACHED as MEMCACHED_SERVER
+from app.settings import MEMCACHED as MEMCACHED_SERVER, MEMCACHED_PORT
 
 
 class GlobalMemcachedClient:
@@ -16,7 +16,9 @@ class GlobalMemcachedClient:
         if cur_loop_id in self.__instances.keys():
             raise RuntimeError('GlobalMemcachedClient is singleton')
         else:
-            self.memcached = aiomemcached.Client(host=MEMCACHED_SERVER, pool_maxsize=self.MAX_POOL_SIZE)
+            self.memcached = aiomemcached.Client(
+                host=MEMCACHED_SERVER, port=MEMCACHED_PORT, pool_maxsize=self.MAX_POOL_SIZE
+            )
 
     @staticmethod
     def _get_cur_loop_id() -> int:
