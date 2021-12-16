@@ -58,20 +58,25 @@ async def async_build_long_polling_addr(db: Database) -> Optional[str]:
         return None
 
 
-def build_invitation(id_: str = None) -> dict:
+def build_invitation(id_: str = None, pass_endpoint_empty: bool = False) -> dict:
+
+    if pass_endpoint_empty:
+        endpoint = ''
+    else:
+        endpoint = build_ws_endpoint_addr()
 
     return sirius_sdk.aries_rfc.Invitation(
         id_=id_,
         label=MEDIATOR_LABEL,
         recipient_keys=[KEYPAIR[0]],
-        endpoint=build_ws_endpoint_addr(),
+        endpoint=endpoint,
         routing_keys=[]
     )
 
 
 async def async_build_invitation(db: Database, id_: str = None) -> dict:
 
-    invitation = build_invitation(id_)
+    invitation = build_invitation(id_, pass_endpoint_empty=True)
     invitation['endpoint'] = await async_build_ws_endpoint_addr(db)
 
     return sirius_sdk.aries_rfc.Invitation(
