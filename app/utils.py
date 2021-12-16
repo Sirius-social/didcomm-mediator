@@ -77,13 +77,14 @@ def build_invitation(id_: str = None, pass_endpoint_empty: bool = False) -> dict
 async def async_build_invitation(db: Database, id_: str = None) -> dict:
 
     invitation = build_invitation(id_, pass_endpoint_empty=True)
-    invitation['endpoint'] = await async_build_ws_endpoint_addr(db)
+    actual_endpoint = await async_build_ws_endpoint_addr(db)
+    invitation['endpoint'] = actual_endpoint
 
     return sirius_sdk.aries_rfc.Invitation(
         id_=id_,
         label=MEDIATOR_LABEL,
         recipient_keys=[KEYPAIR[0]],
-        endpoint=build_ws_endpoint_addr(),
+        endpoint=actual_endpoint,
         routing_keys=[]
     )
 
