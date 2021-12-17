@@ -86,6 +86,8 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         full_base_url = str(request.base_url)
         if full_base_url.endswith('/'):
             full_base_url = full_base_url[:-1]
+        if 'https' == request.headers.get('x-scheme'):
+            full_base_url = full_base_url.replace('http://', 'https://')
         ws_base = full_base_url.replace('http://', 'ws://').replace('https://', 'wss://')
 
         ssl_option = await cfg.get_ssl_option()
