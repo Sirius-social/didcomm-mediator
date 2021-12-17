@@ -91,6 +91,8 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
         ws_base = full_base_url.replace('http://', 'ws://').replace('https://', 'wss://')
 
         ssl_option = await cfg.get_ssl_option()
+        if not ssl_option and request.headers.get('x-forwarded-host'):
+            ssl_option = 'external'
         acme_email = await cfg.get_any_option(CFG_ACME_EMAIL)
         acme_email_share = await cfg.get_any_option(CFG_ACME_EMAIL_SHARE)
         redis_server = await choice_server_address()
