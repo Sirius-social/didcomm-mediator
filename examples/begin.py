@@ -69,6 +69,9 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
         # In the course of work, errors are possible.
         # The mediator will report them in the form of ProblemReport, let's create such a situation
         # try to get Endpoint without P2P
+
+        # Uncomment lines below to emulate problem-report
+        """
         alien_did, alien_verkey, alien_secret = create_did_and_keys()
         alien_coprotocol = WebSocketCoProtocol(
             ws=ws,
@@ -77,6 +80,7 @@ async def run(my_did: str, my_verkey: str, my_secret: str):
         )
         success, problem_report = await alien_coprotocol.switch(mediate_request)
         pretty('Problem report:\n', problem_report)
+        """
     pretty('Bye!')
 
 
