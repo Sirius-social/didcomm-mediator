@@ -329,7 +329,7 @@
             },
             form_webroot: {
                 url: '{{ settings.webroot }}',
-                env_url: '{{ env.webroot }}',
+                env_url: {% if env.webroot %}'{{ env.webroot }}' {% else %} null {% endif %},
                 full_base_url: '{{ settings.full_base_url }}',
                 ping: 'starting',
                 error: ''
