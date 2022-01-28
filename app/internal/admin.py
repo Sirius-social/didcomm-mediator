@@ -126,10 +126,10 @@ async def admin_panel(request: Request, db: Database = Depends(get_db)):
             health['services'] = await check_services(db)
 
         context = {
-            'github': 'https://github.com/Sirius-social/didcomm',
-            'issues': 'https://github.com/Sirius-social/didcomm/issues',
+            'github': 'https://github.com/Sirius-social/didcomm-mediator',
+            'issues': 'https://github.com/Sirius-social/didcomm-mediator/issues',
             'spec': 'https://identity.foundation/didcomm-messaging/spec/',
-            'features': 'https://github.com/Sirius-social/didcomm#features',
+            'features': 'https://github.com/Sirius-social/didcomm-mediator#features',
             'download': 'https://hub.docker.com/r/socialsirius/didcomm',
             'base_url': BASE_URL,
             'current_user': current_user,

@@ -102,4 +102,4 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
   - [Developer Guide](docs/Developer.md)
 
 To contribute code, send message to [support@socialsirius.com](mailto:support@socialsirius.com?subject=Contribute)
-or [create issue](https://github.com/Sirius-social/didcomm/issues/new) 
+or [create issue](https://github.com/Sirius-social/didcomm-mediator/issues/new) 
