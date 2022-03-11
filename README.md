@@ -23,8 +23,6 @@ This is much closer to an email paradigm than a web paradigm
 ## Installation
 Helm chart [https://github.com/Sirius-social/didcomm-helm](https://github.com/Sirius-social/didcomm-helm)
 
-```kubectl apply -f didcomm-configmap.yml```
-
 ## Motivation
 
 According to The [DIDComm](https://identity.foundation/didcomm-messaging/spec/) design attempts to be:
