@@ -20,6 +20,11 @@ Because of this, the fundamental paradigm for **DIDComm** is
 **Agent Y** over **channel B**. 
 This is much closer to an email paradigm than a web paradigm
 
+## Installation
+Helm chart [https://github.com/Sirius-social/didcomm-helm](https://github.com/Sirius-social/didcomm-helm)
+
+```kubectl apply -f didcomm-configmap.yml```
+
 ## Motivation
 
 According to The [DIDComm](https://identity.foundation/didcomm-messaging/spec/) design attempts to be:
@@ -97,6 +102,7 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
   - [SSL and Proxy](docs/SSL_and_Proxy.md)
   - [Firebase](docs/Firebase.md)
   - [Scaling and Health-Checks](docs/Health_Checks.md)
+  - [Helm chart](https://github.com/Sirius-social/didcomm-helm)
 
 ## Develop and contribute
   - [Developer Guide](docs/Developer.md)
