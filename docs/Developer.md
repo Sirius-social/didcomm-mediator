@@ -123,7 +123,7 @@ According to [RFC-0211](https://github.com/hyperledger/aries-rfcs/tree/main/feat
 2. Check P2P connection [examples/case2_check.py](../examples/case2_check.py)
 3. Allocate Http endpoint (simplex transport) and receive messages from others [examples/case3_endpoint.py](../examples/case3_endpoint.py)
 4. Create/Remove/Update routing keys [examples/case4_routing_keys.py](../examples/case4_routing_keys.py)
-5. Android Edge-Agent Demo [Java SDK](https://github.com/Sirius-social/DIDComm-Android-Sample)
+5. Android Edge-Agent Demo [Android SDK](https://github.com/Sirius-social/DIDComm-Android-Sample)
 
 ## 4. Support in SDK:
 1. [Python SDK](https://github.com/Sirius-social/sirius-sdk-python)
