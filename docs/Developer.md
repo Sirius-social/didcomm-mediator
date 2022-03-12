@@ -31,7 +31,7 @@ Edge Agent in DIDComm decentralized environment with self-service.
 Take a look at Two cases. 
   - **Case 1**: Recipient, running on mobile agent, does not have P2P connection to communicate 
     with Mediator application. Recipient agent should establish P2P connection to Mediator:
-     - Check [Sample source code](../examples/begin.py)
+     - Check [Sample source code](../examples/case1_starting.py)
      - P2P connection establishing is covered by [Aries RFC-160](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol)
      - Before to start establish P2P Mediator must share P2P [invitation](https://github.com/hyperledger/aries-rfcs/tree/master/features/0160-connection-protocol#0-invitation-to-connect)
        among client-side developers. Mediator admin may get invitation json string via Admin page
@@ -94,7 +94,7 @@ Take a look at Two cases.
          
   - **Case 2**: Mediator admin created P2P connection. ![Static connection](_static/create_static_connection.png?raw=true).
     Then recipient should have: **mediator endpoint** and **mediator verkey**.
-    See [sample source code for details](../examples/check_connection.py)
+    See [sample source code for details](../examples/case2_check.py)
 
          
 
@@ -112,17 +112,25 @@ Mediator will deliver all inbound messages to **Bob** with:
 
 See details:
 1. protocol to allocate endpoint [RFC-0211](https://github.com/hyperledger/aries-rfcs/tree/main/features/0211-route-coordination)
-2. see [sample code](../examples/endpoint.py) how to receive messages from **Alice**
+2. see [sample code](../examples/case3_endpoint.py) how to receive messages from **Alice**
 
 According to [RFC-0211](https://github.com/hyperledger/aries-rfcs/tree/main/features/0211-route-coordination)
-**Bob** may create/remove/update self routing keys, check [sample code here](../examples/routing_keys.py)
+**Bob** may create/remove/update self routing keys, check [sample code here](../examples/case4_routing_keys.py)
 
 ## 3. Samples
 
-1. Create P2P connection with Mediator [examples/begin.py](../examples/begin.py)
-2. Check P2P connection [examples/check_connection.py](../examples/check_connection.py)
-3. Allocate Http endpoint (simplex transport) and receive messages from others [examples/endpoint.py](../examples/endpoint.py)
-4. Create/Remove/Update routing keys [examples/routing_keys.py](../examples/routing_keys.py)
+1. Create P2P connection with Mediator [examples/case1_starting.py](../examples/case1_starting.py)
+2. Check P2P connection [examples/case2_check.py](../examples/case2_check.py)
+3. Allocate Http endpoint (simplex transport) and receive messages from others [examples/case3_endpoint.py](../examples/case3_endpoint.py)
+4. Create/Remove/Update routing keys [examples/case4_routing_keys.py](../examples/case4_routing_keys.py)
+5. Android Edge-Agent Demo [Java SDK](https://github.com/Sirius-social/DIDComm-Android-Sample)
 
-## 4. Pre-requirements before start to write code
+## 4. Support in SDK:
+1. [Python SDK](https://github.com/Sirius-social/sirius-sdk-python)
+2. [Kotlin SDK](https://github.com/Sirius-social/sirius-sdk-kotlin)
+3. [Java SDK](https://github.com/Sirius-social/sirius-sdk-java)
+4. [Android SDK](https://github.com/Sirius-social/sirius-sdk-android)
+5. [PHP SDK](https://github.com/Sirius-social/sirius-sdk-php)
+
+## 5. Pre-requirements before start to write code
 Don't forget to update database models by typing ```alembic upgrade head```
