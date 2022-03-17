@@ -12,12 +12,16 @@ from app.utils import async_build_ws_endpoint_addr, async_build_long_polling_add
 from app.core.redis import choice_server_address as choice_redis_server_address
 
 
+def build_consistent_endpoint_uid(did: str) -> str:
+    return hashlib.sha256(did.encode('utf-8')).hexdigest()
+
+
 async def build_did_doc_extra(repo: Repo, their_did: str, their_verkey: str) -> (str, str, dict):
     """
     :return: endpoint addr, endpoint-uid, extra did_doc
     """
     ws_endpoint = await async_build_ws_endpoint_addr(repo.db)
-    endpoint_uid = hashlib.sha256(their_did.encode('utf-8')).hexdigest()
+    endpoint_uid = build_consistent_endpoint_uid(their_did)
     # Declare MediatorService endpoint via DIDDoc
     did_doc = ConnProtocolMessage.build_did_doc(did=DID, verkey=KEYPAIR[0], endpoint=ws_endpoint)
     did_doc_extra = {'service': did_doc['service']}

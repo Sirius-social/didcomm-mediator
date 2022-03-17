@@ -2,6 +2,7 @@ import json
 from typing import Tuple, Optional
 
 from aiohttp.client_ws import ClientWebSocketResponse
+import sirius_sdk
 from sirius_sdk import AbstractP2PCoProtocol
 from sirius_sdk.encryption.ed25519 import pack_message, unpack_message
 from sirius_sdk.messaging import Message, restore_message_instance
@@ -48,3 +49,14 @@ class WebSocketCoProtocol(AbstractP2PCoProtocol):
         await self.send(message)
         msg, _, _ = await self.get_one()
         return True, msg
+
+
+class WebSocketListener:
+
+    def __init__(self, ws: ClientWebSocketResponse):
+        self.__transport: ClientWebSocketResponse = ws
+
+    async def get_one(self) -> (Optional[Message], str, Optional[str]):
+        payload = await self.__transport.receive_bytes()
+        message, sender_vk, recip_vk = await sirius_sdk.Crypto.unpack_message(payload)
+        return message, sender_vk, recip_vk

@@ -1,20 +1,34 @@
+import base64
 import json
 from typing import Any, Optional
 
 import sirius_sdk
 from sirius_sdk.agent.wallet.abstract.crypto import AbstractCrypto
 from sirius_sdk.encryption import sign_message, verify_signed_message, pack_message, \
-    unpack_message, b58_to_bytes, bytes_to_b58
+    unpack_message, b58_to_bytes, bytes_to_b58, create_keypair
 
 
 class LocalCrypto(AbstractCrypto):
 
+    """Crypto module on device side, for example Indy-Wallet or HSM or smth else
+
+      - you may override this code block with Aries-Askar
+    """
+
     def __init__(self, verkey: str, secret: str):
-        self.__verkey: bytes = b58_to_bytes(verkey)
-        self.__secret: bytes = b58_to_bytes(secret)
+        self.__keys = []
+        vk = b58_to_bytes(verkey)
+        sk = b58_to_bytes(secret)
+        self.__keys.append([vk, sk])
 
     async def create_key(self, seed: str = None, crypto_type: str = None) -> str:
-        raise NotImplemented
+        if seed:
+            seed = seed.encode()
+        else:
+            seed = None
+        vk, sk = create_keypair(seed)
+        self.__keys.append([vk, sk])
+        return bytes_to_b58(vk)
 
     async def set_key_metadata(self, verkey: str, metadata: dict) -> None:
         raise NotImplemented
@@ -23,10 +37,10 @@ class LocalCrypto(AbstractCrypto):
         raise NotImplemented
 
     async def crypto_sign(self, signer_vk: str, msg: bytes) -> bytes:
-        self.__check_verkey(signer_vk)
+        vk, sk = self.__check_verkey(signer_vk)
         signature = sign_message(
             message=msg,
-            secret=self.__secret
+            secret=sk
         )
         return signature
 
@@ -45,7 +59,7 @@ class LocalCrypto(AbstractCrypto):
         raise NotImplemented
 
     async def pack_message(self, message: Any, recipient_verkeys: list, sender_verkey: str = None) -> bytes:
-        self.__check_verkey(sender_verkey)
+        vk, sk = self.__check_verkey(sender_verkey)
         if isinstance(message, dict):
             message = json.dumps(message)
         elif isinstance(message, bytes):
@@ -53,23 +67,39 @@ class LocalCrypto(AbstractCrypto):
         packed = pack_message(
             message=message,
             to_verkeys=recipient_verkeys,
-            from_verkey=self.__verkey,
-            from_sigkey=self.__secret
+            from_verkey=vk,
+            from_sigkey=sk
         )
         return packed
 
     async def unpack_message(self, jwe: bytes):
+        jwe = json.loads(jwe.decode())
+        protected = jwe['protected']
+        payload = json.loads(base64.b64decode(protected))
+        recipients = payload['recipients']
+        vk, sk = None, None
+        for item in recipients:
+            rcp_vk = b58_to_bytes(item['header']['kid'])
+            for vk_, sk_ in self.__keys:
+                if rcp_vk == vk_:
+                    vk, sk = vk_, sk_
+                    break
+        if not vk:
+            raise RuntimeError('Unknown recipient keys')
         message, sender_vk, recip_vk = unpack_message(
             enc_message=jwe,
-            my_verkey=self.__verkey,
-            my_sigkey=self.__secret
+            my_verkey=vk,
+            my_sigkey=sk
         )
         message = json.loads(message)
         return message, sender_vk, recip_vk
 
-    def __check_verkey(self, verkey: str):
-        if verkey != bytes_to_b58(self.__verkey):
-            raise RuntimeError('Only single verkey supported')
+    def __check_verkey(self, verkey: str) -> (bytes, bytes):
+        verkey_bytes = b58_to_bytes(verkey)
+        for vk, sk in self.__keys:
+            if vk == verkey_bytes:
+                return vk, sk
+        raise RuntimeError('Unknown Verkey')
 
 
 def create_did_and_keys(seed: str = None) -> (str, str, str):

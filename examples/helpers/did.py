@@ -5,6 +5,8 @@ from sirius_sdk.agent.wallet.abstract.did import AbstractDID
 
 class LocalDID(AbstractDID):
 
+    """You may override this code block with Aries-Askar"""
+
     def __init__(self):
         self._storage = dict()
 

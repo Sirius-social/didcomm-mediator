@@ -3,6 +3,7 @@ import hashlib
 import json
 import logging
 from urllib.parse import urljoin
+from typing import Optional
 
 import sirius_sdk
 from fastapi import WebSocket, Request, HTTPException, WebSocketDisconnect
@@ -14,13 +15,16 @@ from sirius_sdk.agent.aries_rfc.feature_0095_basic_message.messages import Messa
 from app.core.coprotocols import ClientWebSocketCoProtocol
 from app.core.repo import Repo
 from app.core.global_config import GlobalConfig
-from app.core.redis import RedisPull
+from app.core.redis import RedisPull, AsyncRedisChannel
 from app.core.rfc import extract_key as rfc_extract_key, ensure_is_key as rfc_ensure_is_key
 from app.core.websocket_listener import WebsocketListener
 from app.settings import KEYPAIR, DID
 from app.utils import build_endpoint_url
 
-from .utils import build_did_doc_extra, post_create_pairwise
+from .utils import build_did_doc_extra, post_create_pairwise, build_consistent_endpoint_uid
+
+
+URI_QUEUE_TRANSPORT = 'didcomm:transport/queue'
 
 
 class BasicMessageProblemReport(AriesProblemReport, metaclass=RegisterMessage):
@@ -38,6 +42,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
     :param: cfg: configurations
     """
     # Wrap parsing and unpacking enc_messages in listener
+    inbound_listener: Optional[asyncio.Future] = None
     listener = WebsocketListener(ws=websocket, my_keys=KEYPAIR)
     async for event in listener:
         try:
@@ -80,6 +85,15 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                     # If all OK, store p2p and metadata info to database
                     await sirius_sdk.PairwiseList.ensure_exists(p2p)
                     await post_create_pairwise(repo, p2p, endpoint_uid)
+
+                    # If recipient supports Queue Transport then it can receive inbound via same websocket connection
+                    their_services = p2p.their.did_doc.get('service', [])
+                    if any([service['serviceEndpoint'] == URI_QUEUE_TRANSPORT for service in their_services]):
+                        if inbound_listener and not inbound_listener.done():
+                            pass
+                        else:
+                            stream = build_consistent_endpoint_uid(p2p.their.did)
+                            inbound_listener = asyncio.ensure_future(listen_inbound(websocket, stream))
                 else:
                     if state_machine.problem_report:
                         await listener.response(for_event=event, message=state_machine.problem_report)
@@ -222,3 +236,13 @@ async def endpoint_long_polling(request: Request, endpoint_uid: str, repo: Repo)
         report = BasicMessageProblemReport(problem_code='1', explain=f'Unknown endpoint with id: {endpoint_uid}')
         line = json.dumps(report)
         yield line
+
+
+async def listen_inbound(websocket: WebSocket, stream: str):
+    ch = AsyncRedisChannel(address=stream)
+    while True:
+        ok, data = await ch.read(timeout=None)
+        if ok:
+            await websocket.send_json(data)
+        else:
+            return

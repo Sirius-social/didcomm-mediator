@@ -125,7 +125,7 @@ According to [RFC-0211](https://github.com/hyperledger/aries-rfcs/tree/main/feat
 4. Create/Remove/Update routing keys [examples/case4_routing_keys.py](../examples/case4_routing_keys.py)
 5. Android Edge-Agent Demo [Android SDK](https://github.com/Sirius-social/DIDComm-Android-Sample)
 
-## 4. Support in SDK:
+## 4. Supported in SDK:
 1. [Python SDK](https://github.com/Sirius-social/sirius-sdk-python)
 2. [Kotlin SDK](https://github.com/Sirius-social/sirius-sdk-kotlin)
 3. [Java SDK](https://github.com/Sirius-social/sirius-sdk-java)

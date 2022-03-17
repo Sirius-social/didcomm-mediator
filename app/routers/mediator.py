@@ -17,7 +17,7 @@ from app.core.forward import forward_wired
 from app.dependencies import get_db
 from app.settings import ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX, LONG_POLLING_PATH_PREFIX
 from .mediator_scenarios import onboard as scenario_onboard, \
-    endpoint_processor as scenario_endpoint, endpoint_long_polling
+    endpoint_processor as scenario_endpoint, endpoint_long_polling, listen_inbound
 
 
 router = APIRouter(
@@ -151,12 +151,8 @@ async def events(websocket: WebSocket, db: Database = Depends(get_db)):
     logging.debug('*****************************')
     logging.debug(f'stream: {stream}')
     logging.debug('*****************************')
-    ch = AsyncRedisChannel(address=stream)
     await websocket.accept()
-    while True:
-        ok, data = await ch.read(timeout=None)
-        if ok:
-            await websocket.send_json(data)
-        else:
-            await websocket.close()
-            return
+    try:
+        await listen_inbound(websocket, stream)
+    finally:
+        await websocket.close()
