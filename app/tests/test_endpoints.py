@@ -18,8 +18,11 @@ from app.db.crud import ensure_endpoint_exists, load_endpoint, add_routing_key
 from app.settings import WS_PATH_PREFIX, WEBROOT, LONG_POLLING_PATH_PREFIX
 from app.core.redis import AsyncRedisChannel
 from app.core.forward import FORWARD
+from app.routers.mediator_scenarios import URI_QUEUE_TRANSPORT
 
-from .helpers import override_get_db
+from .helpers import override_get_db, override_sirius_sdk
+from .emulators import DIDCommRecipient as ClientEmulator
+from app.utils import build_invitation
 
 
 client = TestClient(app)
@@ -27,6 +30,7 @@ app.dependency_overrides[get_db] = override_get_db
 
 
 def test_delivery_via_websocket(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):
+
     """Check any content posted to endpoint is delivered to Client websocket connection
     """
     content = b'{"protected": "eyJlbmMiOiAieGNoYWNoYTIwcG9seTEzMDVfaWV0ZiIsICJ0eXAiOiAiSldNLzEuMCIsICJhbGciOiAiQXV0aGNyeXB0IiwgInJlY2lwaWVudHMiOiBbeyJlbmNyeXB0ZWRfa2V5IjogInBKcW1xQS1IVWR6WTNWcFFTb2dySGx4WTgyRnc3Tl84YTFCSmtHU2VMT014VUlwT0RQWTZsMVVsaVVvOXFwS0giLCAiaGVhZGVyIjogeyJraWQiOiAiM1ZxZ2ZUcDZRNFZlRjhLWTdlVHVXRFZBWmFmRDJrVmNpb0R2NzZLR0xtZ0QiLCAic2VuZGVyIjogIjRlYzhBeFRHcWtxamd5NHlVdDF2a0poeWlYZlNUUHo1bTRKQjk1cGZSMG1JVW9KajAwWmswNmUyUEVDdUxJYmRDck8xeTM5LUhGTG5NdW5YQVJZWk5rZ2pyYV8wYTBQODJpbVdNcWNHc1FqaFd0QUhOcUw1OGNkUUYwYz0iLCAiaXYiOiAiVU1PM2o1ZHZwQnFMb2Rvd3V0c244WEMzTkVqSWJLb2oifX1dfQ==", "iv": "MchkHF2M-4hneeUJ", "ciphertext": "UgcdsV-0rIkP25eJuRSROOuqiTEXp4NToKjPMmqqtJs-Ih1b5t3EEbrrHxeSfPsHtlO6J4OqA1jc5uuD3aNssUyLug==", "tag": "sQD8qgJoTrRoyQKPeCSBlQ=="}'
@@ -189,6 +193,44 @@ async def test_delivery_via_long_polling(test_database: Database, random_me: (st
     finally:
         fut.cancel()
     await asyncio.sleep(3)
+
+
+def test_delivery_with_queue_route(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):
+    """Check delivery with Queue-Route DIDComm extension
+
+        - details: https://github.com/decentralized-identity/didcomm-messaging/blob/master/extensions/return_route/main.md#queue-transport
+    """
+    content = b'{"protected": "eyJlbmMiOiAieGNoYWNoYTIwcG9seTEzMDVfaWV0ZiIsICJ0eXAiOiAiSldNLzEuMCIsICJhbGciOiAiQXV0aGNyeXB0IiwgInJlY2lwaWVudHMiOiBbeyJlbmNyeXB0ZWRfa2V5IjogInBKcW1xQS1IVWR6WTNWcFFTb2dySGx4WTgyRnc3Tl84YTFCSmtHU2VMT014VUlwT0RQWTZsMVVsaVVvOXFwS0giLCAiaGVhZGVyIjogeyJraWQiOiAiM1ZxZ2ZUcDZRNFZlRjhLWTdlVHVXRFZBWmFmRDJrVmNpb0R2NzZLR0xtZ0QiLCAic2VuZGVyIjogIjRlYzhBeFRHcWtxamd5NHlVdDF2a0poeWlYZlNUUHo1bTRKQjk1cGZSMG1JVW9KajAwWmswNmUyUEVDdUxJYmRDck8xeTM5LUhGTG5NdW5YQVJZWk5rZ2pyYV8wYTBQODJpbVdNcWNHc1FqaFd0QUhOcUw1OGNkUUYwYz0iLCAiaXYiOiAiVU1PM2o1ZHZwQnFMb2Rvd3V0c244WEMzTkVqSWJLb2oifX1dfQ==", "iv": "MchkHF2M-4hneeUJ", "ciphertext": "UgcdsV-0rIkP25eJuRSROOuqiTEXp4NToKjPMmqqtJs-Ih1b5t3EEbrrHxeSfPsHtlO6J4OqA1jc5uuD3aNssUyLug==", "tag": "sQD8qgJoTrRoyQKPeCSBlQ=="}'
+    content_type = 'application/didcomm-envelope-enc'
+
+    override_sirius_sdk()
+
+    agent_did, agent_verkey, agent_secret = random_me
+    redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
+
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
+        try:
+            sleep(3)  # give websocket timeout to accept connection
+            cli = ClientEmulator(
+                transport=websocket, mediator_invitation=build_invitation(),
+                agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret
+            )
+            # 1. Establish connection with Mediator
+            mediator_did_doc = cli.connect(endpoint=URI_QUEUE_TRANSPORT)
+            # 2. Allocate endpoint
+            mediate_grant = cli.mediate_grant()
+            # 3. Post wired via endpoint
+            response = client.post(
+                mediate_grant['endpoint'],
+                headers={"Content-Type": content_type},
+                data=content
+            )
+            assert 200 <= response.status_code < 300
+            wired_actual = websocket.receive_json()
+            wired_expected = json.loads(content.decode())
+            assert wired_expected == wired_actual
+        finally:
+            websocket.close()
 
 
 def test_delivery_when_redis_server_fail(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):

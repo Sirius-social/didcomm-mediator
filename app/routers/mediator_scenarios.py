@@ -93,7 +93,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             pass
                         else:
                             stream = build_consistent_endpoint_uid(p2p.their.did)
-                            inbound_listener = asyncio.ensure_future(listen_inbound(websocket, stream))
+                            inbound_listener = asyncio.ensure_future(endpoint_processor(websocket, stream, repo))
                 else:
                     if state_machine.problem_report:
                         await listener.response(for_event=event, message=state_machine.problem_report)
@@ -238,7 +238,7 @@ async def endpoint_long_polling(request: Request, endpoint_uid: str, repo: Repo)
         yield line
 
 
-async def listen_inbound(websocket: WebSocket, stream: str):
+async def listen_events(websocket: WebSocket, stream: str):
     ch = AsyncRedisChannel(address=stream)
     while True:
         ok, data = await ch.read(timeout=None)
