@@ -32,7 +32,7 @@ async def allocate_test_database():
         # Kill all active connections to test database
         await database.execute(f"select pg_terminate_backend(pid) from pg_stat_activity where datname='{TEST_DATABASE_NAME}';")
         # Create empty test database
-        await database.execute(f'drop database if exists {TEST_DATABASE_NAME};')
+        await database.execute(f'drop database if exists {TEST_DATABASE_NAME} WITH (FORCE);')
         await database.execute(f'create database {TEST_DATABASE_NAME};')
     finally:
         await database.disconnect()
