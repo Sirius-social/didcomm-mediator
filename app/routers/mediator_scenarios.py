@@ -116,7 +116,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         mediator_vk = KEYPAIR[0]
                         resp = MediateGrant(
                             endpoint=urljoin(webroot, settings.ROUTER_PATH),
-                            routing_keys=[f"did:key:{k['key']}" for k in keys] + [f"did:key:{mediator_vk}"]
+                            routing_keys=[f"did:key:{mediator_vk}"]
                         )
                     else:
                         resp = MediateGrant(
