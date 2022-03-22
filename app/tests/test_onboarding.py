@@ -254,7 +254,7 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         ok, grant = restore_message_instance(json.loads(payload))
         assert ok is True and isinstance(grant, MediateGrant)
         assert len(grant['routing_keys']) == 1  # mediator key
-        assert connection_key == grant['routing_keys'][0]
+        assert connection_key in grant['routing_keys'][0]
         assert ROUTER_PATH in grant['endpoint'], 'Router endpoint expected!'
 
 
