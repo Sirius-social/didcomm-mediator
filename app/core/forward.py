@@ -1,10 +1,10 @@
+import uuid
 import json
 from typing import Optional
 
 from sirius_sdk.encryption import pack_message, b58_to_bytes
-from sirius_sdk.agent.aries_rfc.base import ARIES_DOC_URI
 
-FORWARD = ARIES_DOC_URI + 'routing/1.0/forward'
+FORWARD = 'https://didcomm.org/routing/1.0/forward'
 ENCODING = 'ascii'
 
 
@@ -20,6 +20,7 @@ def forward_wired(payload: bytes, their_vk: Optional[str], routing_keys: list) -
         inner_key = keys_map[outer_key]
         outer_key_bytes = b58_to_bytes(outer_key)
         forwarded = {
+            '@id': uuid.uuid4().hex,
             '@type': FORWARD,
             'to': inner_key,
             'msg': json.loads(payload.decode(ENCODING))

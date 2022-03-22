@@ -102,6 +102,20 @@ class Repo:
                     await self._set_cache(endpoint['uid'], endpoint['verkey'], namespace=self.NAMESPACE_ENDPOINTS_VERKEYS)
             return endpoint
 
+    async def load_endpoint_via_routing_key(self, routing_key) -> Optional[dict]:
+        cached = await self._get_cache(routing_key, namespace=self.NAMESPACE_ENDPOINTS)
+        if cached:
+            return cached
+        else:
+            endpoint_uid = await app.db.crud.load_endpoint_via_routing_key(self.__db, routing_key)
+            if endpoint_uid:
+                endpoint = await self.load_endpoint(endpoint_uid)
+                if endpoint:
+                    await self._set_cache(routing_key, endpoint, namespace=self.NAMESPACE_ENDPOINTS)
+                return endpoint
+            else:
+                return None
+
     async def add_routing_key(self, endpoint_uid: str, key: str) -> dict:
         await self._delete_cache(endpoint_uid, namespace=self.NAMESPACE_ROUTING_KEYS)
         key = await app.db.crud.add_routing_key(self.__db, endpoint_uid, key)

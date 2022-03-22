@@ -17,6 +17,7 @@ from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.mess
 from sirius_sdk.messaging import restore_message_instance
 
 from app.main import app
+from app.settings import ROUTER_PATH
 from app.dependencies import get_db
 from app.settings import KEYPAIR, FCM_SERVICE_TYPE, MEDIATOR_SERVICE_TYPE, DID, \
     ENDPOINTS_PATH_PREFIX, WS_PATH_PREFIX, WEBROOT, LONG_POLLING_PATH_PREFIX
@@ -163,6 +164,7 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         assert f'/{ENDPOINTS_PATH_PREFIX}/' in grant['endpoint']
         assert ENDPOINTS_PATH_PREFIX
         assert 'routing_keys' in grant.keys()
+        assert endpoint['uid'] in grant['endpoint']
         # update keys
         key1 = 'z6MkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvktH'
         key2 = 'XXXkpTHR8VNsBxYAAWHut2Geadd9jSwuBV8xRoAnwWsdvZZZ'
@@ -251,8 +253,9 @@ def test_p2p_protocols(test_database: Database, random_me: (str, str, str), rand
         )
         ok, grant = restore_message_instance(json.loads(payload))
         assert ok is True and isinstance(grant, MediateGrant)
-        assert len(grant['routing_keys']) == 1
+        assert len(grant['routing_keys']) == 2  # self-registered route_key and mediator key
         assert key2 in str(grant['routing_keys'])
+        assert ROUTER_PATH in grant['endpoint'], 'Router endpoint expected!'
 
 
 def test_trust_ping(random_me: (str, str, str)):

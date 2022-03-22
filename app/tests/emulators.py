@@ -25,13 +25,17 @@ class DIDCommRecipient:
         self._agent_did = agent_did
         self._agent_verkey = agent_verkey
         self._agent_secret = agent_secret
+        ok, mediator_invitation = restore_message_instance(self.__mediator_invitation)
+        mediator_invitation.validate()
+        self._mediator_vk = mediator_invitation.recipient_keys[0]
+
+    @property
+    def mediator_vk(self) -> str:
+        return self._mediator_vk
 
     def connect(
             self, endpoint: str = 'ws://', firebase_device_id: str = None
     ):
-        ok, mediator_invitation = restore_message_instance(self.__mediator_invitation)
-        mediator_invitation.validate()
-        connection_key = mediator_invitation.recipient_keys[0]
         # Build connection response
         did_doc = ConnRequest.build_did_doc(self._agent_did, self._agent_verkey, endpoint)
         did_doc_extra = {'service': did_doc['service']}
@@ -54,7 +58,7 @@ class DIDCommRecipient:
         # Send signed response to Mediator
         packed = pack_message(
             message=json.dumps(request),
-            to_verkeys=[connection_key],
+            to_verkeys=[self._mediator_vk],
             from_verkey=self._agent_verkey,
             from_sigkey=self._agent_secret
         )
@@ -74,21 +78,18 @@ class DIDCommRecipient:
         ack = Ack(thread_id=response.ack_message_id, status=Status.OK)
         packed = pack_message(
             message=json.dumps(ack),
-            to_verkeys=[connection_key],
+            to_verkeys=[self._mediator_vk],
             from_verkey=self._agent_verkey,
             from_sigkey=self._agent_secret
         )
         self.__transport.send_bytes(packed)
         return mediator_did_doc
 
-    def mediate_grant(self, routing_key: str = None) -> MediateGrant:
-        ok, mediator_invitation = restore_message_instance(self.__mediator_invitation)
-        mediator_invitation.validate()
-        their_vk = mediator_invitation.recipient_keys[0]
+    def mediate_grant(self) -> MediateGrant:
         req = MediateRequest()
         packed = pack_message(
             message=json.dumps(req),
-            to_verkeys=[their_vk],
+            to_verkeys=[self._mediator_vk],
             from_verkey=self._agent_verkey,
             from_sigkey=self._agent_secret
         )
@@ -101,3 +102,45 @@ class DIDCommRecipient:
         ok, grant = restore_message_instance(json.loads(payload))
         return grant
 
+    def query_keys_list(self) -> Keylist:
+        req = KeylistQuery()
+        packed = pack_message(
+            message=json.dumps(req),
+            to_verkeys=[self._mediator_vk],
+            from_verkey=self._agent_verkey,
+            from_sigkey=self._agent_secret
+        )
+        self.__transport.send_bytes(packed)
+        # Receive answer
+        enc_msg = self.__transport.receive_bytes()
+        payload, sender_vk, recip_vk = unpack_message(
+            enc_message=enc_msg, my_verkey=self._agent_verkey, my_sigkey=self._agent_secret
+        )
+        ok, key_list = restore_message_instance(json.loads(payload))
+        return key_list
+
+    def update_keys_list(self, to_add: list = None, to_remove: list = None) -> KeylistUpdateResponce:
+        req = KeylistUpdate(endpoint='', updates=[])
+        req['updates'] = []
+
+        keys = to_add or []
+        for key in keys:
+            req['updates'].append({'action': 'add', 'recipient_key': key})
+        keys = to_remove or []
+        for key in keys:
+            req['updates'].append({'action': 'remove', 'recipient_key': key})
+
+        packed = pack_message(
+            message=json.dumps(req),
+            to_verkeys=[self._mediator_vk],
+            from_verkey=self._agent_verkey,
+            from_sigkey=self._agent_secret
+        )
+        self.__transport.send_bytes(packed)
+        # Receive answer
+        enc_msg = self.__transport.receive_bytes()
+        payload, sender_vk, recip_vk = unpack_message(
+            enc_message=enc_msg, my_verkey=self._agent_verkey, my_sigkey=self._agent_secret
+        )
+        ok, upd_list = restore_message_instance(json.loads(payload))
+        return upd_list

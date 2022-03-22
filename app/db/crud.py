@@ -165,6 +165,16 @@ async def load_endpoint_via_verkey(db: Database, verkey: str) -> Optional[dict]:
         return None
 
 
+async def load_endpoint_via_routing_key(db: Database, routing_key: str) -> Optional[str]:
+    sql = routing_keys.select().where(routing_keys.c.key == routing_key)
+    row = await db.fetch_one(query=sql)
+    if row:
+        endpoint_uid = row['endpoint_uid']
+        return endpoint_uid
+    else:
+        return None
+
+
 async def add_routing_key(db: Database, endpoint_uid: str, key: str) -> dict:
     sql = routing_keys.insert()
     values = {

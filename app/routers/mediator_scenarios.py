@@ -12,6 +12,7 @@ from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.mess
 from sirius_sdk.agent.aries_rfc.base import RegisterMessage, AriesProblemReport
 from sirius_sdk.agent.aries_rfc.feature_0095_basic_message.messages import Message as BasicMessage
 
+import settings
 from app.core.coprotocols import ClientWebSocketCoProtocol
 from app.core.repo import Repo
 from app.core.global_config import GlobalConfig
@@ -111,10 +112,17 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                     Details: https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination#mediation-request'''
                     webroot = await cfg.get_webroot()
                     keys = await repo.list_routing_key(router_endpoint['uid'])
-                    resp = MediateGrant(
-                        endpoint=urljoin(webroot, build_endpoint_url(router_endpoint['uid'])),
-                        routing_keys=[f"did:key:{k['key']}" for k in keys]
-                    )
+                    if keys:
+                        mediator_vk = KEYPAIR[0]
+                        resp = MediateGrant(
+                            endpoint=urljoin(webroot, settings.ROUTER_PATH),
+                            routing_keys=[f"did:key:{k['key']}" for k in keys] + [f"did:key:{mediator_vk}"]
+                        )
+                    else:
+                        resp = MediateGrant(
+                            endpoint=urljoin(webroot, build_endpoint_url(router_endpoint['uid'])),
+                            routing_keys=[]
+                        )
                     await listener.response(for_event=event, message=resp)
                 elif isinstance(event.message, KeylistUpdate):
                     req: KeylistUpdate = event.message

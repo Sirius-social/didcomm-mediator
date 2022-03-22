@@ -125,6 +125,10 @@ async def test_routing_keys_ops(test_database: Database, random_endpoint_uid: st
     assert added['endpoint_uid'] == random_endpoint_uid
     assert added['key'] == key2
     assert added['id']
+    # Check-3: load endpoint via routing_key
+    endpoint1 = await load_endpoint_via_routing_key(test_database, key1)
+    endpoint2 = await load_endpoint_via_routing_key(test_database, key2)
+    assert endpoint1 and endpoint2 and (endpoint1 == endpoint2)
     # Check-3: list keys
     collection = await list_routing_key(test_database, random_endpoint_uid)
     assert len(collection) == 2

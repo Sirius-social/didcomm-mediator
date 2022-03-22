@@ -8,7 +8,7 @@ import pytest
 from databases import Database
 from fastapi.testclient import TestClient
 from httpx import AsyncClient
-from sirius_sdk.encryption import unpack_message
+from sirius_sdk.encryption import unpack_message, create_keypair, bytes_to_b58, pack_message
 
 import settings
 from app.main import app
@@ -17,7 +17,7 @@ from app.utils import build_endpoint_url
 from app.db.crud import ensure_endpoint_exists, load_endpoint, add_routing_key
 from app.settings import WS_PATH_PREFIX, WEBROOT, LONG_POLLING_PATH_PREFIX
 from app.core.redis import AsyncRedisChannel
-from app.core.forward import FORWARD
+from app.core.forward import FORWARD, forward_wired
 from app.routers.mediator_scenarios import URI_QUEUE_TRANSPORT
 
 from .helpers import override_get_db, override_sirius_sdk
@@ -195,7 +195,7 @@ async def test_delivery_via_long_polling(test_database: Database, random_me: (st
     await asyncio.sleep(3)
 
 
-def test_delivery_with_queue_route(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):
+def test_delivery_with_queue_route(random_me: (str, str, str)):
     """Check delivery with Queue-Route DIDComm extension
 
         - details: https://github.com/decentralized-identity/didcomm-messaging/blob/master/extensions/return_route/main.md#queue-transport
@@ -206,7 +206,6 @@ def test_delivery_with_queue_route(test_database: Database, random_me: (str, str
     override_sirius_sdk()
 
     agent_did, agent_verkey, agent_secret = random_me
-    redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
 
     with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
         try:
@@ -260,8 +259,8 @@ def test_delivery_when_redis_server_fail(test_database: Database, random_me: (st
 
 
 def test_forward_msg(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, random_keys: (str, str)):
-    content = b'{"protected": "eyJlbmMiOiAieGNoYWNoYTIwcG9seTEzMDVfaWV0ZiIsICJ0eXAiOiAiSldNLzEuMCIsICJhbGciOiAiQXV0aGNyeXB0IiwgInJlY2lwaWVudHMiOiBbeyJlbmNyeXB0ZWRfa2V5IjogInBKcW1xQS1IVWR6WTNWcFFTb2dySGx4WTgyRnc3Tl84YTFCSmtHU2VMT014VUlwT0RQWTZsMVVsaVVvOXFwS0giLCAiaGVhZGVyIjogeyJraWQiOiAiM1ZxZ2ZUcDZRNFZlRjhLWTdlVHVXRFZBWmFmRDJrVmNpb0R2NzZLR0xtZ0QiLCAic2VuZGVyIjogIjRlYzhBeFRHcWtxamd5NHlVdDF2a0poeWlYZlNUUHo1bTRKQjk1cGZSMG1JVW9KajAwWmswNmUyUEVDdUxJYmRDck8xeTM5LUhGTG5NdW5YQVJZWk5rZ2pyYV8wYTBQODJpbVdNcWNHc1FqaFd0QUhOcUw1OGNkUUYwYz0iLCAiaXYiOiAiVU1PM2o1ZHZwQnFMb2Rvd3V0c244WEMzTkVqSWJLb2oifX1dfQ==", "iv": "MchkHF2M-4hneeUJ", "ciphertext": "UgcdsV-0rIkP25eJuRSROOuqiTEXp4NToKjPMmqqtJs-Ih1b5t3EEbrrHxeSfPsHtlO6J4OqA1jc5uuD3aNssUyLug==", "tag": "sQD8qgJoTrRoyQKPeCSBlQ=="}'
-    content_type = 'application/ssi-agent-wire'
+    expected_msg = {'message': 'Hello!'}
+    content_type = 'application/didcomm-envelope-enc'
 
     agent_did, agent_verkey, agent_secret = random_me
     redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
@@ -274,21 +273,32 @@ def test_forward_msg(test_database: Database, random_me: (str, str, str), random
     asyncio.get_event_loop().run_until_complete(add_routing_key(
         db=test_database, endpoint_uid=random_endpoint_uid, key=routing_key
     ))
+    mediator_invitation = build_invitation()
+    mediator_vk = mediator_invitation['recipientKeys'][0]
+
     with client.websocket_connect(f"/{WS_PATH_PREFIX}?endpoint={random_endpoint_uid}") as websocket:
         sleep(3)  # give websocket timeout to accept connection
+        sender_vk, sender_sk = create_keypair()
+        sender_vk, sender_sk = bytes_to_b58(sender_vk), bytes_to_b58(sender_sk)
+        wired = pack_message(json.dumps(expected_msg), to_verkeys=[agent_verkey], from_verkey=sender_vk, from_sigkey=sender_sk)
+        fwd = forward_wired(
+            payload=wired,
+            their_vk=agent_verkey,
+            routing_keys=[routing_key, mediator_vk]
+        )
         response = client.post(
-            build_endpoint_url(random_endpoint_uid),
+            settings.ROUTER_PATH,
             headers={"Content-Type": content_type},
-            data=content,
+            data=fwd,
         )
         assert response.status_code == 202
 
         enc_msg = websocket.receive_json()
-        assert enc_msg != json.loads(content.decode())
-        decoded_msg, sender_vk, recip_vk = unpack_message(enc_msg, my_verkey=routing_key, my_sigkey=routing_secret)
-        decoded_msg = json.loads(decoded_msg)
-        assert decoded_msg.get('@type') == FORWARD
-        assert decoded_msg.get('to') == agent_verkey
-        assert recip_vk == routing_key
-        forwarded_msg = decoded_msg.get('msg')
-        assert forwarded_msg == json.loads(content.decode())
+        fwd, sender_vk, recp_vk = unpack_message(enc_msg, my_verkey=routing_key, my_sigkey=routing_secret)
+        fwd = json.loads(fwd)
+        assert fwd['@type'] == FORWARD
+        assert fwd['to'] == agent_verkey
+        enc_msg = json.dumps(fwd['msg']).encode()
+        unpacked, sender_vk, recp_vk = unpack_message(enc_msg, my_verkey=agent_verkey, my_sigkey=agent_secret)
+        actual_msg = json.loads(unpacked)
+        assert expected_msg == actual_msg

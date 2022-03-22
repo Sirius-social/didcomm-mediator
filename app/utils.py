@@ -1,5 +1,7 @@
 import asyncio
+import base64
 import hashlib
+import json
 import threading
 from urllib.parse import urljoin
 from typing import Optional, Callable, Any
@@ -146,3 +148,11 @@ class LoopInThread(threading.Thread):
 async def run_in_thread(func: Callable, *args, **kwargs) -> Any:
     ret = await LoopInThread.execute(func, *args, **kwargs)
     return ret
+
+
+def extract_recipients(jwe: bytes) -> list:
+    jwe = json.loads(jwe.decode())
+    protected = jwe['protected']
+    payload = json.loads(base64.b64decode(protected))
+    recipients = payload.get('recipients', [])
+    return recipients

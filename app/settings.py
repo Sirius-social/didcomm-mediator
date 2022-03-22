@@ -23,6 +23,7 @@ templates = Jinja2Templates(directory="templates")
 PORT = int(os.getenv('PORT'))
 URL_STATIC = '/static'
 ENDPOINTS_PATH_PREFIX = 'e'
+ROUTER_PATH = 'endpoint'
 LONG_POLLING_PATH_PREFIX = 'polling'
 WS_PATH_PREFIX = 'ws'
 
