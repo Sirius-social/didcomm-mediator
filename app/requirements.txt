@@ -23,5 +23,6 @@ sendgrid==6.7.1
 sse-starlette==0.7.2
 supervisor==4.2.0
 teamcity-messages==1.28
+uhashring==2.1
 uvicorn==0.11.8
 websockets==8.1
