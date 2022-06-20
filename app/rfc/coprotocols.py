@@ -1,3 +1,4 @@
+import base64
 from dataclasses import dataclass
 from typing import Union, Optional, List, Any
 
@@ -25,12 +26,26 @@ class BusOperation(AriesProtocolMessage, metaclass=RegisterMessage):
                     return False
             return True
 
+        def as_json(self) -> dict:
+            js = {}
+            if self.thid:
+                js['thid'] = self.thid
+            if self.protocols:
+                js['protocols'] = sorted(self.protocols)
+            if self.sender_vk:
+                js['sender_vk'] = self.sender_vk if isinstance(self.sender_vk, str) else sorted(self.sender_vk)
+            if self.recipient_vk:
+                js['recipient_vk'] = self.recipient_vk if isinstance(self.recipient_vk, str) else sorted(self.recipient_vk)
+            return js
 
-class BusSubscribeOperation(BusOperation, metaclass=RegisterMessage):
+
+class BusSubscribeRequest(BusOperation, metaclass=RegisterMessage):
     NAME = 'subscribe'
 
-    def __init__(self, cast: BusOperation.Cast = None, *args, **kwargs):
+    def __init__(self, cast: Union[BusOperation.Cast, dict] = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if isinstance(cast, dict):
+            cast = BusOperation.Cast(**cast)
         self.__store_cast(cast)
 
     @property
@@ -39,50 +54,93 @@ class BusSubscribeOperation(BusOperation, metaclass=RegisterMessage):
         return self.Cast(**kwargs)
 
     def __store_cast(self, value: BusOperation.Cast = None):
-        kwargs = {}
+        js = {}
         if value is not None:
-            if value.thid:
-                kwargs['thid'] = value.thid
-            if value.protocols:
-                kwargs['protocols'] = value.thid
-            if value.sender_vk:
-                kwargs['sender_vk'] = value.sender_vk
-            if value.recipient_vk:
-                kwargs['recipient_vk'] = value.recipient_vk
-        if kwargs:
-            self['cast'] = kwargs
+            js = value.as_json()
+        if js:
+            self['cast'] = js
         elif 'cast' in self:
             del self['cast']
 
 
-class BusBindOperation(BusOperation, metaclass=RegisterMessage):
+class BusBindResponse(BusOperation, metaclass=RegisterMessage):
     NAME = 'bind'
 
-    def __init__(self, binding_id: Union[str, List[str]] = None, *args, **kwargs):
-        super().__init__(cast=None, *args, **kwargs)
+    def __init__(self, binding_id: Union[str, List[str]] = None, active: bool = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
         if binding_id:
             self['binding_id'] = binding_id
+        if active is not None:
+            self['active'] = active
+
+    @property
+    def active(self) -> Optional[bool]:
+        return self.get('active', None)
 
     @property
     def binding_id(self) -> Optional[Union[str, List[str]]]:
         return self.get('binding_id', None)
 
 
-class BusUnsubscribeOperation(BusOperation, metaclass=RegisterMessage):
+class BusUnsubscribeRequest(BusBindResponse, metaclass=RegisterMessage):
     NAME = 'unsubscribe'
 
+    def __init__(self, binding_id: Union[str, List[str]] = None, *args, **kwargs):
+        super().__init__(binding_id, *args, **kwargs)
 
-class BusPublishOperation(BusBindOperation, metaclass=RegisterMessage):
+
+class BusPublishRequest(BusBindResponse, metaclass=RegisterMessage):
     NAME = 'publish'
 
     def __init__(self, binding_id: Union[str, List[str]] = None, payload: Any = None, *args, **kwargs):
         super().__init__(binding_id, *args, **kwargs)
         if payload:
-            self['payload'] = payload
+            self.payload = payload
 
     @property
     def payload(self) -> Any:
-        return self.getr('payload', None)
+        payload = self.get('payload', {})
+        if payload:
+            typ = payload.get('type')
+            data = payload.get('data')
+            if typ == 'application/base64':
+                return base64.b64decode(data.encode('ascii'))
+            else:
+                return data
+        else:
+            return None
+
+    @payload.setter
+    def payload(self, value: Any):
+        if isinstance(value, dict):
+            self['payload'] = value
+        elif isinstance(value, bytes):
+            self['payload'] = {
+                'type': 'application/base64',
+                'data': base64.b64encode(value).decode('ascii')
+            }
+        else:
+            self['payload'] = {
+                'type': '',
+                'data': value
+            }
+
+
+class BusEvent(BusPublishRequest, metaclass=RegisterMessage):
+    NAME = 'event'
+
+
+class BusPublishResponse(BusBindResponse, metaclass=RegisterMessage):
+    NAME = 'publish-result'
+
+    def __init__(self, binding_id: Union[str, List[str]] = None, recipients_num: int = None, *args, **kwargs):
+        super().__init__(binding_id, *args, **kwargs)
+        if recipients_num is not None:
+            self['recipients_num'] = recipients_num
+
+    @property
+    def recipients_num(self) -> Optional[int]:
+        return self.get('recipients_num', None)
 
 
 class BusProblemReport(AriesProblemReport, metaclass=RegisterMessage):

@@ -142,3 +142,16 @@ async def create_static_connection(repo: Repo, label: str, their_did: str, their
     p2p = Pairwise(me=me, their=their, metadata=metadata)
     await sirius_sdk.PairwiseList.ensure_exists(p2p)
     return p2p
+
+
+def build_protocol_topic(their_did: str, binding_id: str) -> str:
+    return f'{their_did}/{binding_id}'
+
+
+def parse_protocol_topic(topic: str) -> (str, str):
+    parts = topic.split('/')
+    if len(parts) == 2:
+        their_did, binding_id = parts
+    else:
+        their_did, binding_id = None, topic
+    return their_did, binding_id

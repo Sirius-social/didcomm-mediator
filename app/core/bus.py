@@ -14,9 +14,6 @@ class Bus:
     __ctx_sub_key = 'aiobus.subscribers'
     MAX_SIZE = 1000
 
-    def __init__(self):
-        self.__queue = asyncio.Queue(maxsize=1)
-
     async def publish(self, topic: str, msg: bytes) -> int:
         typ, payload = 'application/base64', base64.b64encode(msg).decode('ascii')
         packet = {
@@ -28,7 +25,7 @@ class Bus:
         count = await redis.publish_json(topic, packet)
         return count
 
-    async def listen(self, *topics: str):
+    async def listen(self, *topics: str, on: asyncio.Event = None):
         subscriptions = {}
         for topic in topics:
             url = self.get_topic_url(topic)
@@ -42,10 +39,13 @@ class Bus:
             redis_conns.append(redis)
             readers = await redis.subscribe(*channels)
             instances.extend(readers)
-        tasks = [asyncio.create_task(self.async_reader(sub)) for sub in instances]
+        queue = asyncio.Queue(maxsize=1)
+        tasks = [asyncio.create_task(self.async_reader(sub, queue)) for sub in instances]
+        if on:
+            on.set()
         try:
             while True:
-                msg = await self.__queue.get()
+                msg = await queue.get()
                 yield msg
         finally:
             for tsk in tasks:
@@ -75,9 +75,10 @@ class Bus:
         url = f'redis://{redis_server}'
         return url
 
-    async def async_reader(self, sub: aioredis.Channel):
+    @staticmethod
+    async def async_reader(sub: aioredis.Channel, queue: asyncio.Queue):
         while sub.is_active:
             packet = await sub.get_json()
             if packet['type'] == 'application/base64':
                 value = base64.b64decode(packet['payload'].encode('ascii'))
-                await self.__queue.put(value)
+                await queue.put(value)

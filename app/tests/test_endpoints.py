@@ -232,6 +232,11 @@ def test_delivery_with_queue_route(random_me: (str, str, str)):
             websocket.close()
 
 
+def test_delivery_with_queue_route_if_reconnect(random_me: (str, str, str)):
+    """Ensure p2p vk will be implicitly loaded on next connect avoiding run RFC-0160-protcol every time"""
+    assert 0, 'TODO'
+
+
 def test_delivery_when_redis_server_fail(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):
     """Check Push service will reconfigure endpoint to new redis instance if old address is unreachable
     """

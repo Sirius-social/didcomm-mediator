@@ -1,5 +1,6 @@
 import json
 import asyncio
+import threading
 
 import sirius_sdk
 from fastapi.testclient import TestClient
@@ -8,10 +9,12 @@ from sirius_sdk.messaging import restore_message_instance
 from sirius_sdk.agent.aries_rfc.feature_0015_acks.messages import Ack, Status
 from sirius_sdk.agent.aries_rfc.feature_0160_connection_protocol.messages import Invitation, \
     ConnResponse, ConnProtocolMessage, ConnRequest
+from sirius_sdk.agent.aries_rfc.base import AriesProtocolMessage
 from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.messages import MediateRequest, \
     MediateGrant, KeylistUpdate, KeylistUpdateResponce, KeylistAddAction, KeylistRemoveAction, KeylistQuery, Keylist
 
 from app.settings import FCM_SERVICE_TYPE
+from rfc.coprotocols import *
 
 
 class DIDCommRecipient:
@@ -85,6 +88,30 @@ class DIDCommRecipient:
         self.__transport.send_bytes(packed)
         return mediator_did_doc
 
+    def receive(self, timeout: float = None) -> AriesProtocolMessage:
+        if timeout:
+            def __receive_routine(ws_: TestClient, queue_: list, ev_: threading.Event):
+                __enc_msg = ws_.receive_bytes()
+                queue_.append(__enc_msg)
+                ev_.set()
+
+            ev = threading.Event()
+            queue = list()
+            th = threading.Thread(target=__receive_routine, args=(self.__transport, queue, ev))
+            th.daemon = True
+            th.start()
+            success = ev.wait(timeout)
+            if not success:
+                raise TimeoutError
+            enc_msg = queue.pop()
+        else:
+            enc_msg = self.__transport.receive_bytes()
+        payload, sender_vk, recip_vk = unpack_message(
+            enc_message=enc_msg, my_verkey=self._agent_verkey, my_sigkey=self._agent_secret
+        )
+        ok, msg = restore_message_instance(json.loads(payload))
+        return msg
+
     def mediate_grant(self) -> MediateGrant:
         req = MediateRequest()
         packed = pack_message(
@@ -101,6 +128,40 @@ class DIDCommRecipient:
         )
         ok, grant = restore_message_instance(json.loads(payload))
         return grant
+
+    def subscribe(self, **cast) -> BusBindResponse:
+        request = BusSubscribeRequest(cast=BusOperation.Cast(**cast))
+        packed = pack_message(
+            message=json.dumps(request),
+            to_verkeys=[self._mediator_vk],
+            from_verkey=self._agent_verkey,
+            from_sigkey=self._agent_secret
+        )
+        self.__transport.send_bytes(packed)
+        # Receive answer
+        enc_msg = self.__transport.receive_bytes()
+        payload, sender_vk, recip_vk = unpack_message(
+            enc_message=enc_msg, my_verkey=self._agent_verkey, my_sigkey=self._agent_secret
+        )
+        ok, resp = restore_message_instance(json.loads(payload))
+        return resp
+
+    def unsubscribe(self, binding_id: str) -> BusBindResponse:
+        request = BusUnsubscribeRequest(binding_id=binding_id)
+        packed = pack_message(
+            message=json.dumps(request),
+            to_verkeys=[self._mediator_vk],
+            from_verkey=self._agent_verkey,
+            from_sigkey=self._agent_secret
+        )
+        self.__transport.send_bytes(packed)
+        # Receive answer
+        enc_msg = self.__transport.receive_bytes()
+        payload, sender_vk, recip_vk = unpack_message(
+            enc_message=enc_msg, my_verkey=self._agent_verkey, my_sigkey=self._agent_secret
+        )
+        ok, resp = restore_message_instance(json.loads(payload))
+        return resp
 
     def query_keys_list(self) -> Keylist:
         req = KeylistQuery()

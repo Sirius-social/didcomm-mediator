@@ -3,9 +3,10 @@ import hashlib
 import json
 import logging
 from urllib.parse import urljoin
-from typing import Optional
+from typing import Optional, Dict
 
 import sirius_sdk
+from sirius_sdk.agent.listener import Event
 from fastapi import WebSocket, Request, HTTPException, WebSocketDisconnect
 from sirius_sdk.agent.aries_rfc.feature_0160_connection_protocol.messages import ConnProtocolMessage
 from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.messages import *
@@ -19,10 +20,13 @@ from app.core.global_config import GlobalConfig
 from app.core.redis import RedisPull, AsyncRedisChannel
 from app.core.rfc import extract_key as rfc_extract_key, ensure_is_key as rfc_ensure_is_key
 from app.core.websocket_listener import WebsocketListener
+from app.core.bus import Bus
 from app.settings import KEYPAIR, DID
 from app.utils import build_endpoint_url
+from rfc.coprotocols import *
 
-from .utils import build_did_doc_extra, post_create_pairwise, build_consistent_endpoint_uid
+from .utils import build_did_doc_extra, post_create_pairwise, build_consistent_endpoint_uid, \
+    build_protocol_topic
 
 
 URI_QUEUE_TRANSPORT = 'didcomm:transport/queue'
@@ -30,6 +34,24 @@ URI_QUEUE_TRANSPORT = 'didcomm:transport/queue'
 
 class BasicMessageProblemReport(AriesProblemReport, metaclass=RegisterMessage):
     PROTOCOL = BasicMessage.PROTOCOL
+
+
+async def protocol_listener(
+        topic: str, binding_id: str, ws: WebSocket, on: asyncio.Event, p2p: sirius_sdk.Pairwise = None
+):
+    bus = Bus()
+    async for payload in bus.listen(topic, on=on):
+        event = BusEvent(payload=payload, binding_id=binding_id)
+        if p2p:
+            packed = await sirius_sdk.Crypto.pack_message(
+                message=json.dumps(event),
+                recipient_verkeys=[p2p.their.verkey],
+                sender_verkey=p2p.me.verkey
+            )
+            await ws.send_bytes(packed)
+        else:
+            payload = json.dumps(event).encode()
+            await ws.send_bytes(payload)
 
 
 async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
@@ -44,7 +66,9 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
     """
     # Wrap parsing and unpacking enc_messages in listener
     inbound_listener: Optional[asyncio.Future] = None
+    protocols_bus = Bus()
     listener = WebsocketListener(ws=websocket, my_keys=KEYPAIR)
+    protocols_listeners: Dict[str, asyncio.Task] = {}
     try:
         async for event in listener:
             try:
@@ -87,6 +111,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         # If all OK, store p2p and metadata info to database
                         await sirius_sdk.PairwiseList.ensure_exists(p2p)
                         await post_create_pairwise(repo, p2p, endpoint_uid)
+                        p2p_session = p2p
 
                         # If recipient supports Queue Transport then it can receive inbound via same websocket connection
                         their_services = p2p.their.did_doc.get('service', [])
@@ -156,6 +181,77 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         )
                         resp['keys'] = [{'recipient_key': f'did:key:{k}'} for k in paged_keys]
                         await listener.response(for_event=event, message=resp)
+                elif isinstance(event.message, BusOperation):
+                    op: BusOperation = event.message
+                    if event.pairwise:
+                        their_did = event.pairwise.their.did
+                    else:
+                        their_did = '*'
+                    if isinstance(op, BusSubscribeRequest):
+                        if op.cast.thid:
+                            binding_id = op.cast.thid
+                        else:
+                            if not op.cast.validate():
+                                await listener.response(
+                                    for_event=event,
+                                    message=BusProblemReport(
+                                        problem_code='invalid_cast',
+                                        explain='Invalid cast field, check it'
+                                    )
+                                )
+                            binding_id = json.dumps(op.cast.as_json(), sort_keys=True)
+                        if isinstance(binding_id, list):
+                            binding_id = [hashlib.md5(s.encode()).hexdigest() for s in binding_id]
+                        else:
+                            binding_id = hashlib.md5(binding_id.encode()).hexdigest()
+                        resp = BusBindResponse(binding_id=binding_id, active=True)
+                        for bid in ([binding_id] if isinstance(binding_id, str) else binding_id):
+                            topic = build_protocol_topic(their_did, bid)
+                            tsk = protocols_listeners.get(bid, None)
+                            if tsk and tsk.done():
+                                tsk = None
+                            if not tsk:
+                                on = asyncio.Event()
+                                protocols_listeners[bid] = asyncio.create_task(
+                                    protocol_listener(topic=topic, binding_id=bid, ws=websocket, on=on, p2p=event.pairwise)
+                                )
+                                await on.wait()
+                        await listener.response(for_event=event, message=resp)
+                    elif isinstance(op, BusUnsubscribeRequest):
+                        processed_binding_id = []
+                        if op.binding_id:
+                            for bid in ([op.binding_id] if isinstance(op.binding_id, str) else op.binding_id):
+                                if bid in protocols_listeners:
+                                    tsk = protocols_listeners.get(bid, None)
+                                    if tsk and not tsk.done():
+                                        tsk.cancel()
+                                    del protocols_listeners[bid]
+                                    processed_binding_id.append(bid)
+                        else:
+                            for tsk in protocols_listeners.values():
+                                if tsk and not tsk.done():
+                                    tsk.cancel()
+                            processed_binding_id = list(protocols_listeners.keys())
+                            protocols_listeners.clear()
+                        if len(processed_binding_id) == 1:
+                            processed_binding_id = processed_binding_id[0]
+                        resp = BusBindResponse(binding_id=processed_binding_id, active=False)
+                        await listener.response(for_event=event, message=resp)
+                    elif isinstance(op, BusPublishRequest):
+                        topic = build_protocol_topic(their_did, op.binding_id)
+                        payload = op.payload
+                        if payload:
+                            if isinstance(payload, bytes):
+                                recipients_num = await protocols_bus.publish(topic, payload)
+                                resp = BusPublishResponse(binding_id=op.binding_id, recipients_num=recipients_num)
+                            else:
+                                resp = BusProblemReport(
+                                    problem_code='invalid_payload',
+                                    explain='Expected "payload" is base64 encoded bytearray'
+                                )
+                        else:
+                            resp = BusProblemReport(problem_code='empty_payload', explain='Expected "payload" is filled')
+                        await listener.response(for_event=event, message=resp)
                 else:
                     typ = event.message.get('@type')
                     raise RuntimeError(f'Unknown protocl message with @type: "{typ}"')
@@ -164,8 +260,12 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                 await listener.response(for_event=event, message=report)
                 logging.exception('Onboarding...')
     finally:
+        # Clean resources
         if inbound_listener and not inbound_listener.done():
             inbound_listener.cancel()
+        for tsk in protocols_listeners.values():
+            if not tsk.done():
+                tsk.cancel()
 
 
 async def endpoint_processor(websocket: WebSocket, endpoint_uid: str, repo: Repo, exit_on_disconnect: bool = True):

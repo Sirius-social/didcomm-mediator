@@ -1,13 +1,26 @@
 import json
 import uuid
 import asyncio
+from time import sleep
 
 import pytest
+from fastapi.testclient import TestClient
 from sirius_sdk.messaging import restore_message_instance
 
-from app.settings import REDIS as REDIS_SERVERS
+from app.main import app
+from app.dependencies import get_db
+from app.settings import REDIS as REDIS_SERVERS, WS_PATH_PREFIX
 from core.bus import Bus
+from app.utils import build_invitation
+from app.routers.mediator_scenarios import URI_QUEUE_TRANSPORT, build_protocol_topic
 from rfc.coprotocols import *
+
+from .helpers import override_get_db, override_sirius_sdk
+from .emulators import DIDCommRecipient as ClientEmulator
+
+
+client = TestClient(app)
+app.dependency_overrides[get_db] = override_get_db
 
 
 @pytest.mark.asyncio
@@ -101,16 +114,16 @@ async def test_rfc_messages():
     err_cast = BusOperation.Cast(recipient_vk='VK1', sender_vk='VK2')
     assert err_cast.validate() is False
 
-    op_subscribe1 = BusSubscribeOperation(cast1)
+    op_subscribe1 = BusSubscribeRequest(cast1)
     assert op_subscribe1.cast.thid == 'some-thread-id'
     assert op_subscribe1.cast.sender_vk is None and op_subscribe1.cast.recipient_vk is None
 
-    op_subscribe2 = BusSubscribeOperation(cast2)
+    op_subscribe2 = BusSubscribeRequest(cast2)
     assert op_subscribe2.cast.thid is None
     assert op_subscribe2.cast.sender_vk == 'VK2'
     assert op_subscribe2.cast.recipient_vk == 'VK1'
 
-    bind = BusBindOperation(binding_id='some-bind-id')
+    bind = BusBindResponse(binding_id='some-bind-id')
     assert bind.binding_id == 'some-bind-id'
 
     ok, msg = restore_message_instance(
@@ -120,5 +133,133 @@ async def test_rfc_messages():
         }
     )
     assert ok is True
-    assert isinstance(msg, BusBindOperation)
+    assert isinstance(msg, BusBindResponse)
     assert msg.binding_id == 'some-binding-id2'
+
+
+def test_bus_rfc_raise_events_for_thid(random_me: (str, str, str)):
+    """Check typical Bus operations
+    """
+    content = b'Some-Message'
+
+    override_sirius_sdk()
+
+    agent_did, agent_verkey, agent_secret = random_me
+    protocols_bus = Bus()
+
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
+        try:
+            sleep(3)  # give websocket timeout to accept connection
+            cli = ClientEmulator(
+                transport=websocket, mediator_invitation=build_invitation(),
+                agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret
+            )
+            # 1. Establish connection with Mediator
+            mediator_did_doc = cli.connect(endpoint=URI_QUEUE_TRANSPORT)
+            # 2. Subscribe to thread
+            sub_thid = 'some-thread-id-' + uuid.uuid4().hex
+            bind = cli.subscribe(thid=sub_thid)
+            assert isinstance(bind, BusBindResponse)
+            assert bind.active is True
+            assert isinstance(bind.binding_id, str) and len(bind.binding_id) > 0
+            # 3. Publish payload to bus
+            topic = build_protocol_topic(agent_did, bind.binding_id)
+            recp_num = asyncio.get_event_loop().run_until_complete(protocols_bus.publish(topic, content))
+            assert recp_num == 1
+            # 4. Check delivery
+            event = cli.receive()
+            assert isinstance(event, BusEvent)
+            assert event.payload == content
+        finally:
+            websocket.close()
+
+
+def test_bus_rfc_raise_events_for_vk(random_me: (str, str, str)):
+    """Check typical Bus operations
+    """
+    content = b'Some-Message'
+
+    override_sirius_sdk()
+
+    agent_did, agent_verkey, agent_secret = random_me
+    protocols_bus = Bus()
+
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
+        try:
+            sleep(3)  # give websocket timeout to accept connection
+            cli = ClientEmulator(
+                transport=websocket, mediator_invitation=build_invitation(),
+                agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret
+            )
+            # 1. Establish connection with Mediator
+            mediator_did_doc = cli.connect(endpoint=URI_QUEUE_TRANSPORT)
+            # 2. Subscribe to VKs
+            bind = cli.subscribe(sender_vk='VK1', recipient_vk=['VK2', 'VK3'], protocols=['proto1', 'proto2'])
+            assert isinstance(bind, BusBindResponse)
+            assert bind.active is True
+            assert isinstance(bind.binding_id, str) and len(bind.binding_id) > 0
+            # 3. Publish payload to bus
+            topic = build_protocol_topic(agent_did, bind.binding_id)
+            recp_num = asyncio.get_event_loop().run_until_complete(protocols_bus.publish(topic, content))
+            assert recp_num == 1
+            # 4. Check delivery
+            event = cli.receive(timeout=5)
+            assert isinstance(event, BusEvent)
+            assert event.payload == content
+        finally:
+            websocket.close()
+
+
+def test_bus_rfc_multiple_topics(random_me: (str, str, str)):
+    """Check typical Bus operations
+    """
+    content1 = b'Some-Message-1'
+    content2 = b'Some-Message-2'
+
+    override_sirius_sdk()
+
+    agent_did, agent_verkey, agent_secret = random_me
+    protocols_bus = Bus()
+    thid1 = 'thread-1-' + uuid.uuid4().hex
+    thid2 = 'thread-2-' + uuid.uuid4().hex
+    binding_ids = {}
+
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
+        try:
+            sleep(3)  # give websocket timeout to accept connection
+            cli = ClientEmulator(
+                transport=websocket, mediator_invitation=build_invitation(),
+                agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret
+            )
+            # 1. Establish connection with Mediator
+            mediator_did_doc = cli.connect(endpoint=URI_QUEUE_TRANSPORT)
+            # 2. Subscribe to Thread-1 & Thread-2
+            for thid in [thid1, thid2]:
+                bind = cli.subscribe(thid=thid)
+                assert isinstance(bind, BusBindResponse)
+                assert bind.active is True
+                binding_ids[thid] = bind.binding_id
+            # 3. Publish to Thread-1 & Thread-2
+            for thid, content in [(thid1, content1), (thid2, content2)]:
+                topic = build_protocol_topic(agent_did, binding_ids[thid])
+                recp_num = asyncio.get_event_loop().run_until_complete(protocols_bus.publish(topic, content))
+                assert recp_num == 1
+            # 4. Read income events
+            income_events = []
+            for n in range(2):
+                event = cli.receive(timeout=5)
+                income_events.append(event.payload)
+            assert content1 in income_events
+            assert content2 in income_events
+            # 5. Unsubscribe from Thread-2
+            unbind = cli.unsubscribe(binding_id=binding_ids[thid2])
+            assert isinstance(unbind, BusBindResponse)
+            assert unbind.active is False
+            assert unbind.binding_id == binding_ids[thid2]
+            # 6. Publish again
+            for thid, expected_recip_num in [(thid1, 1), (thid2, 0)]:
+                topic = build_protocol_topic(agent_did, binding_ids[thid])
+                recp_num = asyncio.get_event_loop().run_until_complete(protocols_bus.publish(topic, content))
+                assert recp_num == expected_recip_num
+        finally:
+            websocket.close()
