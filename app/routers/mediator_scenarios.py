@@ -111,7 +111,6 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         # If all OK, store p2p and metadata info to database
                         await sirius_sdk.PairwiseList.ensure_exists(p2p)
                         await post_create_pairwise(repo, p2p, endpoint_uid)
-                        p2p_session = p2p
 
                         # If recipient supports Queue Transport then it can receive inbound via same websocket connection
                         their_services = p2p.their.did_doc.get('service', [])
