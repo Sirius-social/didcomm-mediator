@@ -6,6 +6,7 @@ import pytest
 
 from app.settings import REDIS as REDIS_SERVERS
 from core.bus import Bus
+from rfc.coprotocols import *
 
 
 @pytest.mark.asyncio
@@ -52,7 +53,7 @@ async def test_pub_sub_multiple_topics():
     bus = Bus()
     rcv_messages = []
     for n in range(10):
-        topic = f'topic-' + uuid.uuid4().hex
+        topic = f'topic-{n}-' + uuid.uuid4().hex
         topics.append(topic)
         url = bus.get_topic_url(topic)
         urls.add(url)
@@ -69,12 +70,24 @@ async def test_pub_sub_multiple_topics():
         tsk = asyncio.create_task(publisher(topic))
         tasks.append(tsk)
     try:
-        async for msg in bus.listen(*topics):
-            rcv_messages.append(msg)
-            if len(rcv_messages) == len(topics):
-                break
+
+        async def listener():
+            async for msg in bus.listen(*topics):
+                rcv_messages.append(msg)
+                if len(rcv_messages) == len(topics):
+                    break
+
+        lst = asyncio.create_task(listener())
+        tasks.append(lst)
+        await asyncio.wait_for(lst, timeout=5)
+
         extracted_topics = [json.loads(msg.decode())['topic'] for msg in rcv_messages]
         assert set(extracted_topics) == set(topics)
     finally:
         for tsk in tasks:
             tsk.cancel()
+
+
+@pytest.mark.asyncio
+async def test_rfc_messages():
+    pass
