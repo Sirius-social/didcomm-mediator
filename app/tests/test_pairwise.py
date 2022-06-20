@@ -4,6 +4,8 @@ from sirius_sdk import Pairwise
 
 from app.core.pairwise import MediatorPairwiseList, MediatorDID
 
+from rfc.coprotocols import *
+
 
 @pytest.mark.asyncio
 async def test_sane(test_database: Database, random_me: (str, str, str), random_their: (str, str, str)):

@@ -15,7 +15,7 @@ class Bus:
     MAX_SIZE = 1000
 
     def __init__(self):
-        self.__queue = asyncio.Queue()
+        self.__queue = asyncio.Queue(maxsize=1)
 
     async def publish(self, topic: str, msg: bytes) -> int:
         typ, payload = 'application/base64', base64.b64encode(msg).decode('ascii')
@@ -76,4 +76,4 @@ class Bus:
             packet = await sub.get_json()
             if packet['type'] == 'application/base64':
                 value = base64.b64decode(packet['payload'].encode('ascii'))
-                self.__queue.put_nowait(value)
+                await self.__queue.put(value)

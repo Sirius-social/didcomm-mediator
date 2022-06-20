@@ -63,7 +63,8 @@ async def test_pub_sub_multiple_topics():
     async def publisher(topic_: str, delay: float = 0.1):
         await asyncio.sleep(delay)
         msg = json.dumps({'topic': topic_}).encode()
-        await bus.publish(topic_, msg)
+        count = await bus.publish(topic_, msg)
+        assert count > 0, f'Recipient count: {count}'
 
     tasks = []
     for topic in topics:
@@ -84,10 +85,26 @@ async def test_pub_sub_multiple_topics():
         extracted_topics = [json.loads(msg.decode())['topic'] for msg in rcv_messages]
         assert set(extracted_topics) == set(topics)
     finally:
+        print('===================')
+        print(str(rcv_messages))
         for tsk in tasks:
             tsk.cancel()
 
 
 @pytest.mark.asyncio
 async def test_rfc_messages():
-    pass
+    cast1 = BusOperation.Cast(thid='some-thread-id')
+    assert cast1.validate() is True
+    cast2 = BusOperation.Cast(recipient_vk='VK1', sender_vk='VK2', protocols=['some-protocol'])
+    assert cast2.validate() is True
+    err_cast = BusOperation.Cast(recipient_vk='VK1', sender_vk='VK2')
+    assert err_cast.validate() is False
+
+    op_subscribe1 = BusSubscribeOperation(cast1)
+    assert op_subscribe1.cast.thid == 'some-thread-id'
+    assert op_subscribe1.cast.sender_vk is None and op_subscribe1.cast.recipient_vk is None
+
+    op_subscribe2 = BusSubscribeOperation(cast2)
+    assert op_subscribe2.cast.thid is None
+    assert op_subscribe2.cast.sender_vk == 'VK2'
+    assert op_subscribe2.cast.recipient_vk == 'VK1'
