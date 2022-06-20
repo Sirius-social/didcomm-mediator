@@ -3,6 +3,7 @@ import uuid
 import asyncio
 
 import pytest
+from sirius_sdk.messaging import restore_message_instance
 
 from app.settings import REDIS as REDIS_SERVERS
 from core.bus import Bus
@@ -60,7 +61,7 @@ async def test_pub_sub_multiple_topics():
 
     assert len(urls) > 1
 
-    async def publisher(topic_: str, delay: float = 0.1):
+    async def publisher(topic_: str, delay: float = 0.5):
         await asyncio.sleep(delay)
         msg = json.dumps({'topic': topic_}).encode()
         count = await bus.publish(topic_, msg)
@@ -108,3 +109,16 @@ async def test_rfc_messages():
     assert op_subscribe2.cast.thid is None
     assert op_subscribe2.cast.sender_vk == 'VK2'
     assert op_subscribe2.cast.recipient_vk == 'VK1'
+
+    bind = BusBindOperation(binding_id='some-bind-id')
+    assert bind.binding_id == 'some-bind-id'
+
+    ok, msg = restore_message_instance(
+        {
+            '@type': 'https://didcomm.org/bus/1.0/bind',
+            'binding_id': 'some-binding-id2'
+        }
+    )
+    assert ok is True
+    assert isinstance(msg, BusBindOperation)
+    assert msg.binding_id == 'some-binding-id2'

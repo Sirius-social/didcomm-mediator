@@ -36,8 +36,10 @@ class Bus:
             channels.append(topic)
             subscriptions[url] = channels
         instances = []
+        redis_conns = []
         for url, channels in subscriptions.items():
             redis = await aioredis.create_redis(url)
+            redis_conns.append(redis)
             readers = await redis.subscribe(*channels)
             instances.extend(readers)
         tasks = [asyncio.create_task(self.async_reader(sub)) for sub in instances]
@@ -48,6 +50,8 @@ class Bus:
         finally:
             for tsk in tasks:
                 tsk.cancel()
+            for redis in redis_conns:
+                redis.close()
 
     async def get_conn_pool(self, url: str) -> aioredis.ConnectionsPool:
         cur_loop_id = id(asyncio.get_event_loop())

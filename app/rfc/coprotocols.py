@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Union, Optional, List
+from typing import Union, Optional, List, Any
 
 from sirius_sdk.agent.aries_rfc.base import AriesProtocolMessage, RegisterMessage, VALID_DOC_URI, AriesProblemReport
 
@@ -25,16 +25,20 @@ class BusOperation(AriesProtocolMessage, metaclass=RegisterMessage):
                     return False
             return True
 
-    def __init__(self, cast: Cast = None, *args, **kwargs):
+
+class BusSubscribeOperation(BusOperation, metaclass=RegisterMessage):
+    NAME = 'subscribe'
+
+    def __init__(self, cast: BusOperation.Cast = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.__store_cast(cast)
 
     @property
-    def cast(self) -> Cast:
+    def cast(self) -> BusOperation.Cast:
         kwargs = self.get('cast', {})
         return self.Cast(**kwargs)
 
-    def __store_cast(self, value: Cast = None):
+    def __store_cast(self, value: BusOperation.Cast = None):
         kwargs = {}
         if value is not None:
             if value.thid:
@@ -51,15 +55,34 @@ class BusOperation(AriesProtocolMessage, metaclass=RegisterMessage):
             del self['cast']
 
 
-class BusSubscribeOperation(BusOperation, metaclass=RegisterMessage):
-    NAME = 'subscribe'
+class BusBindOperation(BusOperation, metaclass=RegisterMessage):
+    NAME = 'bind'
 
-    def __init__(self, cast: BusOperation.Cast = None, *args, **kwargs):
-        super().__init__(cast, *args, **kwargs)
+    def __init__(self, binding_id: Union[str, List[str]] = None, *args, **kwargs):
+        super().__init__(cast=None, *args, **kwargs)
+        if binding_id:
+            self['binding_id'] = binding_id
+
+    @property
+    def binding_id(self) -> Optional[Union[str, List[str]]]:
+        return self.get('binding_id', None)
 
 
 class BusUnsubscribeOperation(BusOperation, metaclass=RegisterMessage):
     NAME = 'unsubscribe'
+
+
+class BusPublishOperation(BusBindOperation, metaclass=RegisterMessage):
+    NAME = 'publish'
+
+    def __init__(self, binding_id: Union[str, List[str]] = None, payload: Any = None, *args, **kwargs):
+        super().__init__(binding_id, *args, **kwargs)
+        if payload:
+            self['payload'] = payload
+
+    @property
+    def payload(self) -> Any:
+        return self.getr('payload', None)
 
 
 class BusProblemReport(AriesProblemReport, metaclass=RegisterMessage):
