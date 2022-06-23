@@ -200,9 +200,9 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                 )
                             binding_id = json.dumps(op.cast.as_json(), sort_keys=True)
                         if isinstance(binding_id, list):
-                            binding_id = [hashlib.md5(s.encode()).hexdigest() for s in binding_id]
+                            binding_id = [s for s in binding_id]
                         else:
-                            binding_id = hashlib.md5(binding_id.encode()).hexdigest()
+                            binding_id = binding_id
                         resp = BusBindResponse(binding_id=binding_id, active=True)
                         for bid in ([binding_id] if isinstance(binding_id, str) else binding_id):
                             topic = build_protocol_topic(their_did, bid)

@@ -20,6 +20,7 @@ from .emulators import DIDCommRecipient as ClientEmulator
 
 
 client = TestClient(app)
+client2 = TestClient(app)
 app.dependency_overrides[get_db] = override_get_db
 
 
@@ -263,3 +264,42 @@ def test_bus_rfc_multiple_topics(random_me: (str, str, str)):
                 assert recp_num == expected_recip_num
         finally:
             websocket.close()
+
+
+def test_bus_rfc_publish(random_me: (str, str, str)):
+    """Check publish Bus operations
+        """
+    content = b'Some-Message-X'
+
+    override_sirius_sdk()
+
+    agent_did, agent_verkey, agent_secret = random_me
+    thid = 'thread-' + uuid.uuid4().hex
+    received_messages = []
+
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket1:
+        with client2.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket2:
+            try:
+                sleep(3)  # give websocket timeout to accept connection
+                cli1 = ClientEmulator(
+                    transport=websocket1, mediator_invitation=build_invitation(),
+                    agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret
+                )
+                cli2 = ClientEmulator(
+                    transport=websocket1, mediator_invitation=build_invitation(),
+                    agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret
+                )
+                # 1. Establish connection with Mediator
+                cli1.connect(endpoint=URI_QUEUE_TRANSPORT)
+                cli2.connect(endpoint=URI_QUEUE_TRANSPORT)
+                cli2.subscribe(thid=thid)
+                # 2. Publish to Thread
+                resp = cli1.publish(binding_id=thid, payload=content)
+                assert isinstance(resp, BusPublishResponse)
+                assert resp.recipients_num > 0
+                event = cli2.receive(timeout=5)
+                assert isinstance(event, BusEvent)
+                assert event.payload == content
+            finally:
+                websocket1.close()
+                websocket2.close()

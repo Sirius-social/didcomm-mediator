@@ -163,6 +163,23 @@ class DIDCommRecipient:
         ok, resp = restore_message_instance(json.loads(payload))
         return resp
 
+    def publish(self, binding_id: str, payload: bytes) -> BusPublishResponse:
+        request = BusPublishRequest(binding_id=binding_id, payload=payload)
+        packed = pack_message(
+            message=json.dumps(request),
+            to_verkeys=[self._mediator_vk],
+            from_verkey=self._agent_verkey,
+            from_sigkey=self._agent_secret
+        )
+        self.__transport.send_bytes(packed)
+        # Receive answer
+        enc_msg = self.__transport.receive_bytes()
+        payload, sender_vk, recip_vk = unpack_message(
+            enc_message=enc_msg, my_verkey=self._agent_verkey, my_sigkey=self._agent_secret
+        )
+        ok, resp = restore_message_instance(json.loads(payload))
+        return resp
+
     def query_keys_list(self) -> Keylist:
         req = KeylistQuery()
         packed = pack_message(
