@@ -4,6 +4,7 @@ import asyncio
 from time import sleep
 
 import pytest
+from databases import Database
 from fastapi.testclient import TestClient
 from sirius_sdk.messaging import restore_message_instance
 
@@ -137,8 +138,14 @@ async def test_rfc_messages():
     assert isinstance(msg, BusBindResponse)
     assert msg.binding_id == 'some-binding-id2'
 
+    unsub = BusUnsubscribeRequest(binding_id='some-id')
+    assert unsub.need_answer is None
+    for flag in [True, False]:
+        unsub.need_answer = flag
+        assert unsub.need_answer is flag
 
-def test_bus_rfc_raise_events_for_thid(random_me: (str, str, str)):
+
+def test_bus_rfc_raise_events_for_thid(test_database: Database, random_me: (str, str, str)):
     """Check typical Bus operations
     """
     content = b'Some-Message'
@@ -175,7 +182,7 @@ def test_bus_rfc_raise_events_for_thid(random_me: (str, str, str)):
             websocket.close()
 
 
-def test_bus_rfc_raise_events_for_vk(random_me: (str, str, str)):
+def test_bus_rfc_raise_events_for_vk(test_database: Database, random_me: (str, str, str)):
     """Check typical Bus operations
     """
     content = b'Some-Message'
@@ -211,7 +218,7 @@ def test_bus_rfc_raise_events_for_vk(random_me: (str, str, str)):
             websocket.close()
 
 
-def test_bus_rfc_multiple_topics(random_me: (str, str, str)):
+def test_bus_rfc_multiple_topics(test_database: Database, random_me: (str, str, str)):
     """Check typical Bus operations
     """
     content1 = b'Some-Message-1'
@@ -266,7 +273,7 @@ def test_bus_rfc_multiple_topics(random_me: (str, str, str)):
             websocket.close()
 
 
-def test_bus_rfc_publish(random_me: (str, str, str)):
+def test_bus_rfc_publish(test_database: Database, random_me: (str, str, str)):
     """Check publish Bus operations
         """
     content = b'Some-Message-X'

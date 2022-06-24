@@ -147,7 +147,7 @@ class DIDCommRecipient:
         return resp
 
     def unsubscribe(self, binding_id: str) -> BusBindResponse:
-        request = BusUnsubscribeRequest(binding_id=binding_id)
+        request = BusUnsubscribeRequest(binding_id=binding_id, need_answer=True)
         packed = pack_message(
             message=json.dumps(request),
             to_verkeys=[self._mediator_vk],

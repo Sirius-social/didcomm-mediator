@@ -85,8 +85,18 @@ class BusBindResponse(BusOperation, metaclass=RegisterMessage):
 class BusUnsubscribeRequest(BusBindResponse, metaclass=RegisterMessage):
     NAME = 'unsubscribe'
 
-    def __init__(self, binding_id: Union[str, List[str]] = None, *args, **kwargs):
+    def __init__(self, binding_id: Union[str, List[str]] = None, need_answer: bool = None, *args, **kwargs):
         super().__init__(binding_id, *args, **kwargs)
+        if need_answer is not None:
+            self['need_answer'] = need_answer
+
+    @property
+    def need_answer(self) -> Optional[bool]:
+        return self.get('need_answer', None)
+
+    @need_answer.setter
+    def need_answer(self, value: bool):
+        self['need_answer'] = value
 
 
 class BusPublishRequest(BusBindResponse, metaclass=RegisterMessage):

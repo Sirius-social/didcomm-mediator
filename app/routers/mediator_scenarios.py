@@ -234,8 +234,9 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             protocols_listeners.clear()
                         if len(processed_binding_id) == 1:
                             processed_binding_id = processed_binding_id[0]
-                        resp = BusBindResponse(binding_id=processed_binding_id, active=False)
-                        await listener.response(for_event=event, message=resp)
+                        if op.need_answer is True:
+                            resp = BusBindResponse(binding_id=processed_binding_id, active=False)
+                            await listener.response(for_event=event, message=resp)
                     elif isinstance(op, BusPublishRequest):
                         topic = build_protocol_topic(their_did, op.binding_id)
                         payload = op.payload
