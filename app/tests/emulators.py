@@ -130,7 +130,7 @@ class DIDCommRecipient:
         return grant
 
     def subscribe(self, **cast) -> BusBindResponse:
-        request = BusSubscribeRequest(cast=BusOperation.Cast(**cast))
+        request = BusSubscribeRequest(cast=BusOperation.Cast(**cast), client_id=str(id(self)))
         packed = pack_message(
             message=json.dumps(request),
             to_verkeys=[self._mediator_vk],
@@ -148,6 +148,23 @@ class DIDCommRecipient:
 
     def unsubscribe(self, binding_id: str) -> BusBindResponse:
         request = BusUnsubscribeRequest(binding_id=binding_id, need_answer=True)
+        packed = pack_message(
+            message=json.dumps(request),
+            to_verkeys=[self._mediator_vk],
+            from_verkey=self._agent_verkey,
+            from_sigkey=self._agent_secret
+        )
+        self.__transport.send_bytes(packed)
+        # Receive answer
+        enc_msg = self.__transport.receive_bytes()
+        payload, sender_vk, recip_vk = unpack_message(
+            enc_message=enc_msg, my_verkey=self._agent_verkey, my_sigkey=self._agent_secret
+        )
+        ok, resp = restore_message_instance(json.loads(payload))
+        return resp
+
+    def abort(self) -> BusBindResponse:
+        request = BusUnsubscribeRequest(client_id=str(id(self)), need_answer=True, aborted=True)
         packed = pack_message(
             message=json.dumps(request),
             to_verkeys=[self._mediator_vk],

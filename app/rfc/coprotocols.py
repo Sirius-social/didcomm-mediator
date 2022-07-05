@@ -42,16 +42,22 @@ class BusOperation(AriesProtocolMessage, metaclass=RegisterMessage):
 class BusSubscribeRequest(BusOperation, metaclass=RegisterMessage):
     NAME = 'subscribe'
 
-    def __init__(self, cast: Union[BusOperation.Cast, dict] = None, *args, **kwargs):
+    def __init__(self, cast: Union[BusOperation.Cast, dict] = None, client_id: str = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if isinstance(cast, dict):
             cast = BusOperation.Cast(**cast)
         self.__store_cast(cast)
+        if client_id:
+            self['client_id'] = client_id
 
     @property
     def cast(self) -> BusOperation.Cast:
         kwargs = self.get('cast', {})
         return self.Cast(**kwargs)
+
+    @property
+    def client_id(self) -> Optional[str]:
+        return self.get('client_id', None)
 
     def __store_cast(self, value: BusOperation.Cast = None):
         js = {}
@@ -66,29 +72,51 @@ class BusSubscribeRequest(BusOperation, metaclass=RegisterMessage):
 class BusBindResponse(BusOperation, metaclass=RegisterMessage):
     NAME = 'bind'
 
-    def __init__(self, binding_id: Union[str, List[str]] = None, active: bool = None, *args, **kwargs):
+    def __init__(
+            self, binding_id: Union[str, List[str]] = None,
+            active: bool = None, client_id: str = None, aborted: bool = None, *args, **kwargs
+    ):
         super().__init__(*args, **kwargs)
         if binding_id:
             self['binding_id'] = binding_id
         if active is not None:
             self['active'] = active
+        if client_id:
+            self['client_id'] = client_id
+        if aborted is not None:
+            self['aborted'] = aborted
 
     @property
     def active(self) -> Optional[bool]:
         return self.get('active', None)
 
     @property
+    def aborted(self) -> Optional[bool]:
+        return self.get('aborted', None)
+
+    @property
     def binding_id(self) -> Optional[Union[str, List[str]]]:
         return self.get('binding_id', None)
+
+    @property
+    def client_id(self) -> Optional[str]:
+        return self.get('client_id', None)
 
 
 class BusUnsubscribeRequest(BusBindResponse, metaclass=RegisterMessage):
     NAME = 'unsubscribe'
 
-    def __init__(self, binding_id: Union[str, List[str]] = None, need_answer: bool = None, *args, **kwargs):
+    def __init__(
+            self, binding_id: Union[str, List[str]] = None,
+            need_answer: bool = None, client_id: str = None, aborted: bool = None, *args, **kwargs
+    ):
         super().__init__(binding_id, *args, **kwargs)
         if need_answer is not None:
             self['need_answer'] = need_answer
+        if client_id:
+            self['client_id'] = client_id
+        if aborted is not None:
+            self['aborted'] = aborted
 
     @property
     def need_answer(self) -> Optional[bool]:
@@ -97,6 +125,14 @@ class BusUnsubscribeRequest(BusBindResponse, metaclass=RegisterMessage):
     @need_answer.setter
     def need_answer(self, value: bool):
         self['need_answer'] = value
+
+    @property
+    def aborted(self) -> Optional[bool]:
+        return self.get('aborted', None)
+
+    @property
+    def client_id(self) -> Optional[str]:
+        return self.get('client_id', None)
 
 
 class BusPublishRequest(BusBindResponse, metaclass=RegisterMessage):

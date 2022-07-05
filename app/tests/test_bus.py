@@ -310,3 +310,34 @@ def test_bus_rfc_publish(test_database: Database, random_me: (str, str, str)):
             finally:
                 websocket1.close()
                 websocket2.close()
+
+
+def test_bus_rfc_aborting(test_database: Database, random_me: (str, str, str)):
+    """Check typical Bus operations
+    """
+
+    override_sirius_sdk()
+
+    agent_did, agent_verkey, agent_secret = random_me
+    protocols_bus = Bus()
+
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
+        try:
+            sleep(3)  # give websocket timeout to accept connection
+            cli = ClientEmulator(
+                transport=websocket, mediator_invitation=build_invitation(),
+                agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret
+            )
+            # 1. Establish connection with Mediator
+            mediator_did_doc = cli.connect(endpoint=URI_QUEUE_TRANSPORT)
+            # 2. Subscribe to thread
+            sub_thid = 'some-thread-id-' + uuid.uuid4().hex
+            bind = cli.subscribe(thid=sub_thid)
+            assert bind.client_id is not None
+            unbind = cli.abort()
+            assert unbind.aborted is True
+            assert unbind.active is False
+            assert unbind.client_id is not None
+            
+        finally:
+            websocket.close()

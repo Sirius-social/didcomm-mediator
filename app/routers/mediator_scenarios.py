@@ -203,7 +203,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             binding_id = [s for s in binding_id]
                         else:
                             binding_id = binding_id
-                        resp = BusBindResponse(binding_id=binding_id, active=True)
+                        resp = BusBindResponse(binding_id=binding_id, active=True, client_id=op.client_id)
                         for bid in ([binding_id] if isinstance(binding_id, str) else binding_id):
                             topic = build_protocol_topic(their_did, bid)
                             tsk = protocols_listeners.get(bid, None)
@@ -211,15 +211,22 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                 tsk = None
                             if not tsk:
                                 on = asyncio.Event()
-                                protocols_listeners[bid] = asyncio.create_task(
+                                tsk = asyncio.create_task(
                                     protocol_listener(topic=topic, binding_id=bid, ws=websocket, on=on, p2p=event.pairwise)
                                 )
+                                tsk.client_id = op.client_id
+                                protocols_listeners[bid] = tsk
                                 await on.wait()
                         await listener.response(for_event=event, message=resp)
                     elif isinstance(op, BusUnsubscribeRequest):
                         processed_binding_id = []
-                        if op.binding_id:
-                            for bid in ([op.binding_id] if isinstance(op.binding_id, str) else op.binding_id):
+                        binding_ids = [op.binding_id] if isinstance(op.binding_id, str) else op.binding_id
+                        if binding_ids is None:
+                            binding_ids = []
+                        if op.client_id:
+                            binding_ids.extend([bid for bid, tsk in protocols_listeners.items() if tsk.client_id == op.client_id])
+                        if binding_ids:
+                            for bid in binding_ids:
                                 if bid in protocols_listeners:
                                     tsk = protocols_listeners.get(bid, None)
                                     if tsk and not tsk.done():
@@ -234,8 +241,11 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             protocols_listeners.clear()
                         if len(processed_binding_id) == 1:
                             processed_binding_id = processed_binding_id[0]
-                        if op.need_answer is True:
-                            resp = BusBindResponse(binding_id=processed_binding_id, active=False)
+                        if op.need_answer is True or op.aborted is True:
+                            resp = BusBindResponse(
+                                binding_id=processed_binding_id, active=False,
+                                aborted=op.aborted, client_id=op.client_id
+                            )
                             await listener.response(for_event=event, message=resp)
                     elif isinstance(op, BusPublishRequest):
                         topic = build_protocol_topic(their_did, op.binding_id)
