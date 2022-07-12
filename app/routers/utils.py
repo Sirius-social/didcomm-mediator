@@ -16,7 +16,7 @@ def build_consistent_endpoint_uid(did: str) -> str:
     return hashlib.sha256(did.encode('utf-8')).hexdigest()
 
 
-async def build_did_doc_extra(repo: Repo, their_did: str, their_verkey: str) -> (str, str, dict):
+async def build_did_doc_extra(repo: Repo, their_did: str, their_verkey: str, group_id: str = None) -> (str, str, dict):
     """
     :return: endpoint addr, endpoint-uid, extra did_doc
     """
@@ -27,6 +27,8 @@ async def build_did_doc_extra(repo: Repo, their_did: str, their_verkey: str) -> 
     did_doc_extra = {'service': did_doc['service']}
     mediator_service_endpoint = await async_build_ws_endpoint_addr(repo.db)
     mediator_service_endpoint = urljoin(mediator_service_endpoint, f'?endpoint={endpoint_uid}')
+    if group_id is not None:
+        mediator_service_endpoint += f'&group_id={group_id}'
     did_doc_extra['service'].append({
         "id": 'did:peer:' + DID + ";indy",
         "type": MEDIATOR_SERVICE_TYPE,
@@ -36,6 +38,8 @@ async def build_did_doc_extra(repo: Repo, their_did: str, their_verkey: str) -> 
     })
     long_polling_mediator_service_endpoint = await async_build_long_polling_addr(repo.db)
     long_polling_mediator_service_endpoint = urljoin(long_polling_mediator_service_endpoint, f'?endpoint={endpoint_uid}')
+    if group_id is not None:
+        long_polling_mediator_service_endpoint += f'&group_id={group_id}'
     did_doc_extra['service'].append({
         "id": 'did:peer:' + DID + ";indy",
         "type": MEDIATOR_SERVICE_TYPE,

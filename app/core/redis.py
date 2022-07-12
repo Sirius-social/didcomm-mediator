@@ -462,6 +462,8 @@ class RedisPush:
 
 class RedisPull:
 
+    DEFAULT_GROUP_ID = 'default_group_id'
+
     class Request:
 
         def __init__(
@@ -542,7 +544,9 @@ class RedisPull:
             while True:
                 return (yield from self.get_one())
 
-    def listen(self, address: str, group_id: str = 'default') -> Listener:
+    def listen(self, address: str, group_id: str = DEFAULT_GROUP_ID) -> Listener:
+        if not group_id:
+            group_id = self.DEFAULT_GROUP_ID
         channel = AsyncRedisGroup(address, group_id=group_id)
         listener = self.Listener(channel, self.__channels)
         return listener

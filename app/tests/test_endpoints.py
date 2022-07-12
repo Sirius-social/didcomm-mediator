@@ -302,3 +302,28 @@ def test_forward_msg(test_database: Database, random_me: (str, str, str), random
         unpacked, sender_vk, recp_vk = unpack_message(enc_msg, my_verkey=agent_verkey, my_sigkey=agent_secret)
         actual_msg = json.loads(unpacked)
         assert expected_msg == actual_msg
+
+
+def test_pass_group_id_via_diddoc(random_me: (str, str, str), random_endpoint_uid: str, random_keys: (str, str)):
+
+    override_sirius_sdk()
+    agent_did, agent_verkey, agent_secret = random_me
+    group_id = 'group-id-' + uuid.uuid4().hex
+
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
+        try:
+            sleep(3)  # give websocket timeout to accept connection
+            cli = ClientEmulator(
+                transport=websocket, mediator_invitation=build_invitation(),
+                agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret, group_id=group_id
+            )
+            # 1. Establish connection with Mediator
+            mediator_did_doc = cli.connect(endpoint=URI_QUEUE_TRANSPORT)
+            # 2. Allocate endpoint
+            mediator_services = [service for service in mediator_did_doc['service'] if service['type'] == settings.MEDIATOR_SERVICE_TYPE]
+            for service in mediator_services:
+                assert 'endpoint' in service['serviceEndpoint']
+                assert 'group_id' in service['serviceEndpoint']
+                assert group_id in service['serviceEndpoint']
+        finally:
+            websocket.close()

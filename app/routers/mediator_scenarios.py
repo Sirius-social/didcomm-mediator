@@ -67,6 +67,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
     # Wrap parsing and unpacking enc_messages in listener
     inbound_listener: Optional[asyncio.Future] = None
     protocols_bus = Bus()
+    group_id = None
     listener = WebsocketListener(ws=websocket, my_keys=KEYPAIR)
     protocols_listeners: Dict[str, asyncio.Task] = {}
     try:
@@ -89,10 +90,17 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                     # Agent was start p2p establish
                     request: sirius_sdk.aries_rfc.ConnRequest = event.message
                     request.validate()
+
+                    their_services = request.did_doc.get('service', [])
+                    services_with_group_id = [service for service in their_services if 'group_id' in service]
+                    if services_with_group_id:
+                        group_id = services_with_group_id[0]['group_id']
+
                     ws_endpoint, endpoint_uid, did_doc_extra = await build_did_doc_extra(
                         repo=repo,
                         their_did=request.did_doc['id'],
-                        their_verkey=event.sender_verkey
+                        their_verkey=event.sender_verkey,
+                        group_id=group_id
                     )
                     # Configure AriesRFC 0160 state machine
                     state_machine = sirius_sdk.aries_rfc.Inviter(
@@ -112,14 +120,17 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         await sirius_sdk.PairwiseList.ensure_exists(p2p)
                         await post_create_pairwise(repo, p2p, endpoint_uid)
 
-                        # If recipient supports Queue Transport then it can receive inbound via same websocket connection
+                        # If recipient supports Queue Transport then it can receive inbound
+                        # via same websocket connection
                         their_services = p2p.their.did_doc.get('service', [])
                         if any([service['serviceEndpoint'] == URI_QUEUE_TRANSPORT for service in their_services]):
                             if inbound_listener and not inbound_listener.done():
                                 pass
                             else:
                                 stream = build_consistent_endpoint_uid(p2p.their.did)
-                                inbound_listener = asyncio.ensure_future(endpoint_processor(websocket, stream, repo, False))
+                                inbound_listener = asyncio.ensure_future(
+                                    endpoint_processor(websocket, stream, repo, False, group_id=group_id)
+                                )
                     else:
                         if state_machine.problem_report:
                             await listener.response(for_event=event, message=state_machine.problem_report)
@@ -281,13 +292,15 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                 tsk.cancel()
 
 
-async def endpoint_processor(websocket: WebSocket, endpoint_uid: str, repo: Repo, exit_on_disconnect: bool = True):
+async def endpoint_processor(
+        websocket: WebSocket, endpoint_uid: str, repo: Repo, exit_on_disconnect: bool = True, group_id: str = None
+):
 
     async def redis_listener(redis_pub_sub: str):
         # Read from redis channel in infinite loop
         pulls = RedisPull()
 
-        listener = pulls.listen(address=redis_pub_sub)
+        listener = pulls.listen(address=redis_pub_sub, group_id=group_id)
         async for not_closed, request in listener:
             logging.debug(f'++++++++++++ not_closed: {not_closed}')
             if not_closed:
@@ -327,7 +340,7 @@ async def endpoint_processor(websocket: WebSocket, endpoint_uid: str, repo: Repo
         await websocket.close()
 
 
-async def endpoint_long_polling(request: Request, endpoint_uid: str, repo: Repo):
+async def endpoint_long_polling(request: Request, endpoint_uid: str, repo: Repo, group_id: str = None):
     logging.debug('')
     logging.debug('++++++++++++++++++++++++++++++++++++++++++++++++++')
     logging.debug(f'+++ Redis listener for endpoint_uid: {endpoint_uid}')
@@ -337,7 +350,7 @@ async def endpoint_long_polling(request: Request, endpoint_uid: str, repo: Repo)
     if data and data.get('redis_pub_sub'):
         # Read from redis channel in infinite loop
         pulls = RedisPull()
-        listener = pulls.listen(address=data['redis_pub_sub'])
+        listener = pulls.listen(address=data['redis_pub_sub'], group_id=group_id)
 
         async def wait_for_close_conn():
             while True:

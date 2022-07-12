@@ -21,13 +21,14 @@ class DIDCommRecipient:
 
     def __init__(
             self, transport: TestClient, mediator_invitation: dict,
-            agent_did: str, agent_verkey: str, agent_secret: str
+            agent_did: str, agent_verkey: str, agent_secret: str, group_id: str = None
     ):
         self.__transport = transport
         self.__mediator_invitation = mediator_invitation
         self._agent_did = agent_did
         self._agent_verkey = agent_verkey
         self._agent_secret = agent_secret
+        self._group_id = group_id
         ok, mediator_invitation = restore_message_instance(self.__mediator_invitation)
         mediator_invitation.validate()
         self._mediator_vk = mediator_invitation.recipient_keys[0]
@@ -41,6 +42,10 @@ class DIDCommRecipient:
     ):
         # Build connection response
         did_doc = ConnRequest.build_did_doc(self._agent_did, self._agent_verkey, endpoint)
+        if self._group_id is not None:
+            services_num = len(did_doc['service'])
+            for n in range(services_num):
+                did_doc['service'][n]['group_id'] = self._group_id
         did_doc_extra = {'service': did_doc['service']}
         if firebase_device_id:
             did_doc_extra['service'].append({

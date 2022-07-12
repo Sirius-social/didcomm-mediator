@@ -44,12 +44,13 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
     cfg = GlobalConfig(db, memcached=GlobalMemcachedClient.get())
     # Parse query params
     endpoint_uid = websocket.query_params.get('endpoint')
+    group_id = websocket.query_params.get('group_id')
     logging.debug(f'endpoint_uid: {endpoint_uid}')
 
     if endpoint_uid is None:
         await scenario_onboard(websocket, repo, cfg)
     else:
-        await scenario_endpoint(websocket, endpoint_uid, repo)
+        await scenario_endpoint(websocket, endpoint_uid, repo, group_id=group_id)
     logging.debug('\n**************************')
     logging.debug('*****************************')
 
@@ -57,12 +58,13 @@ async def onboard(websocket: WebSocket, db: Database = Depends(get_db)):
 @router.get(f"/{LONG_POLLING_PATH_PREFIX}")
 async def long_polling(request: Request, db: Database = Depends(get_db)):
     endpoint_uid = request.query_params.get('endpoint')
+    group_id = request.query_params.get('group_id')
     logging.debug(f'endpoint_uid: {endpoint_uid}')
     if endpoint_uid is None:
         raise HTTPException(status_code=404, detail='Empty endpoint id')
     else:
         repo = Repo(db, memcached=GlobalMemcachedClient.get())
-        event_generator = endpoint_long_polling(request, endpoint_uid, repo)
+        event_generator = endpoint_long_polling(request, endpoint_uid, repo, group_id=group_id)
         return EventSourceResponse(event_generator)
 
 
