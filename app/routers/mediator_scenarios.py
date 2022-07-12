@@ -131,6 +131,9 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                 inbound_listener = asyncio.ensure_future(
                                     endpoint_processor(websocket, stream, repo, False, group_id=group_id)
                                 )
+                        else:
+                            if inbound_listener and not inbound_listener.done():
+                                inbound_listener.cancel()
                     else:
                         if state_machine.problem_report:
                             await listener.response(for_event=event, message=state_machine.problem_report)
