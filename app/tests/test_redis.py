@@ -67,7 +67,7 @@ async def test_errors():
 
 
 @pytest.mark.asyncio
-async def test_load_balancing():
+async def test_load_balancing_redis_group():
 
     reads1 = list()
     reads2 = list()
@@ -110,10 +110,10 @@ async def test_load_balancing():
     fut2 = asyncio.ensure_future(reader2(address, True, group_id))
     await asyncio.sleep(1)
     await writer(address, writes_count)
-    await asyncio.sleep(10)
+    await asyncio.sleep(5)
     assert len(reads1) < writes_count
     assert len(reads2) < writes_count
-    assert len(reads1) == len(reads2)
+    assert len(reads1) + len(reads2) == writes_count
     assert writes == [True] * writes_count
     for n in range(writes_count):
         msg = {'key': f'value{n}'}

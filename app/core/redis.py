@@ -6,7 +6,7 @@ import datetime
 import hashlib
 import logging
 import threading
-from typing import Any, Optional
+from typing import Any, Optional, Dict
 from contextlib import asynccontextmanager
 
 import aioredis
@@ -181,8 +181,6 @@ class AsyncRedisGroup:
 
     TIMEOUT = 5
 
-    __thread_local = threading.local()
-
     def __init__(self, address: str, loop: asyncio.AbstractEventLoop = None, group_id: str = None):
         """
         param: address (str) for example 'redis://redis1/xxx'
@@ -194,7 +192,7 @@ class AsyncRedisGroup:
         self.__address = address.replace(f'/{self.__name}', '')
         self.__aio_redis = None
         self.__queue = asyncio.Queue()
-        self.__channel = None
+        self.__mkstream = False
         self.__self_id = str(id(self))
         self.__loop = loop or asyncio.get_event_loop()
 
@@ -219,27 +217,11 @@ class AsyncRedisGroup:
         else:
             create_connection = False
         if create_connection:
-            self.__channel = None
             try:
                 self.__aio_redis = await aioredis.create_redis(self.__address, timeout=self.TIMEOUT)
-            except Exception:
+            except Exception as e:
                 raise RedisConnectionError(f'Error connection for {self.__address}')
         yield self.__aio_redis
-
-    @asynccontextmanager
-    async def channel(self):
-        try:
-            async with self.connection() as conn:
-                if self.__channel is None:
-                    try:
-                        res = await conn.subscribe(self.__name)
-                    except Exception:
-                        raise RedisConnectionError(f'Error subscribe to {self.__name}')
-                    self.__channel = res[0]
-                yield self.__channel
-        except RedisConnectionError:
-            await self.__terminate()
-            raise
 
     async def read(self, timeout) -> (bool, Any):
         if not self.__queue.empty():
@@ -248,8 +230,8 @@ class AsyncRedisGroup:
         else:
             async with self.connection() as redis:
                 try:
-                    if self.__group_id:
-                        await self.__ensure_group_exists(redis)
+                    if self.__group_id:  # and not self.__mkstream:
+                        self.__mkstream = await self.__ensure_group_exists(redis)
                     while True:
                         await asyncio.wait_for(self.__async_reader(redis), timeout=timeout)
                         data = self.__queue.get_nowait()
@@ -265,7 +247,10 @@ class AsyncRedisGroup:
         async with self.connection() as redis:
             try:
                 payload = {b'payload': json.dumps(data).encode()}
-                msg_id = await redis.xadd(stream=self.__name, fields=payload)
+                try:
+                    msg_id = await redis.xadd(stream=self.__name, fields=payload)
+                except Exception as e:
+                    raise
             except aioredis.errors.RedisError:
                 raise RedisConnectionError()
             return True
@@ -320,21 +305,9 @@ class AsyncRedisGroup:
     async def __terminate(self):
         if self.__aio_redis:
             self.__aio_redis.close()
-            self.__channel = None
             self.__aio_redis = None
 
     async def __ensure_group_exists(self, redis: aioredis.Redis) -> bool:
-
-        try:
-            group_exists = self.__thread_local.group_exists
-        except AttributeError:
-            group_exists = None
-        if group_exists is None:
-            group_exists = {}
-            self.__thread_local.group_exists = group_exists
-
-        if redis and group_exists.get(self.address, False):
-            return True
         if redis:
             try:
                 success = await redis.xgroup_create(stream=self.__name, group_name=self.__group_id, mkstream=True)
@@ -345,7 +318,6 @@ class AsyncRedisGroup:
                     pass
                 else:
                     return False
-            group_exists[self.address] = True
             return True
         else:
             return False
