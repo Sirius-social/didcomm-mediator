@@ -341,3 +341,41 @@ def test_bus_rfc_aborting(test_database: Database, random_me: (str, str, str)):
             
         finally:
             websocket.close()
+
+
+def test_bus_listener_no_intersections(
+        test_database: Database, random_me: (str, str, str), didcomm_envelope_enc_content: bytes
+):
+    """Check delivery with Queue-Route DIDComm extension will not intersect with streams of bus messages
+    """
+
+    override_sirius_sdk()
+
+    agent_did, agent_verkey, agent_secret = random_me
+    content_type = 'application/didcomm-envelope-enc'
+
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
+        try:
+            sleep(3)  # give websocket timeout to accept connection
+            cli = ClientEmulator(
+                transport=websocket, mediator_invitation=build_invitation(),
+                agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret
+            )
+            # 1. Establish connection with Mediator VIA "didcomm:transport/queue" mechanism
+            mediator_did_doc = cli.connect(endpoint=URI_QUEUE_TRANSPORT)
+            # 2. Allocate endpoint
+            mediate_grant = cli.mediate_grant()
+            # 2. Subscribe to thread
+            thid = 'some-thread-id-' + uuid.uuid4().hex
+            cli.subscribe(thid=thid)
+
+            # 3. Post wired via endpoint
+            response = client.post(
+                mediate_grant['endpoint'],
+                headers={"Content-Type": content_type},
+                data=didcomm_envelope_enc_content
+            )
+            # 4. No-one active recipient
+            assert response.status_code == 410
+        finally:
+            websocket.close()
