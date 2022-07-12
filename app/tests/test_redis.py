@@ -67,6 +67,63 @@ async def test_errors():
 
 
 @pytest.mark.asyncio
+async def test_load_balancing():
+
+    reads1 = list()
+    reads2 = list()
+    writes = list()
+
+    async def reader1(address: str, infinite: bool = False, group: str = None):
+        nonlocal reads1
+        ch = AsyncRedisGroup(address, group_id=group)
+        while True:
+            ok, data = await ch.read(DEF_TIMEOUT)
+            reads1.append(tuple([ok, data]))
+            if not ok:
+                return
+            if not infinite:
+                break
+
+    async def reader2(address: str, infinite: bool = False, group: str = None):
+        nonlocal reads2
+        ch = AsyncRedisGroup(address, group_id=group)
+        while True:
+            ok, data = await ch.read(DEF_TIMEOUT)
+            reads2.append(tuple([ok, data]))
+            if not ok:
+                return
+            if not infinite:
+                break
+
+    async def writer(address: str, count: int = 100):
+        nonlocal writes
+        ch = AsyncRedisGroup(address)
+        for n in range(count):
+            res = await ch.write({'key': f'value{n}'})
+            writes.append(res)
+            await ch.close()
+
+    writes_count = 100
+    group_id = 'group-id-' + uuid.uuid4().hex
+    address = 'redis://redis1/%s' % uuid.uuid4().hex
+    fut1 = asyncio.ensure_future(reader1(address, True, group_id))
+    fut2 = asyncio.ensure_future(reader2(address, True, group_id))
+    await asyncio.sleep(1)
+    await writer(address, writes_count)
+    await asyncio.sleep(10)
+    assert len(reads1) < writes_count
+    assert len(reads2) < writes_count
+    assert len(reads1) == len(reads2)
+    assert writes == [True] * writes_count
+    for n in range(writes_count):
+        msg = {'key': f'value{n}'}
+        if msg in reads1:
+            assert msg not in reads2
+        elif msg in reads2:
+            assert msg not in reads1
+
+
+@pytest.mark.asyncio
 async def test_push(test_database: Database, ):
 
     forward_channel_addr = 'redis://redis1/%s' % uuid.uuid4().hex

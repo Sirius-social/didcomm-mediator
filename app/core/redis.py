@@ -1,9 +1,11 @@
 import uuid
+import json
 import random
 import asyncio
 import datetime
 import hashlib
 import logging
+import threading
 from typing import Any, Optional
 from contextlib import asynccontextmanager
 
@@ -28,8 +30,8 @@ class NoOneReachableRedisServer(Exception):
     pass
 
 
-PUSH_MSG_TYPE = 'https://didcomm.org/indilynx/1.0/push'
-ACK_MSG_TYPE = 'https://didcomm.org/indilynx/1.0/ack'
+PUSH_MSG_TYPE = 'https://didcomm.org/redis/1.0/push'
+ACK_MSG_TYPE = 'https://didcomm.org/redis/1.0/ack'
 
 
 async def choice_server_address(unwanted: str = None) -> str:
@@ -51,18 +53,19 @@ async def choice_server_address(unwanted: str = None) -> str:
 
 class AsyncRedisChannel:
 
-    TIMEOUT = 3
+    TIMEOUT = 5
 
-    def __init__(self, address: str, loop: asyncio.AbstractEventLoop = None):
+    def __init__(self, address: str, loop: asyncio.AbstractEventLoop = None, group_id: str = None):
         """
         param: address (str) for example 'redis://redis1/xxx'
         """
 
         self.__orig_address = address
         self.__name = address.split('/')[-1]
+        self.__group_id = group_id
         self.__address = address.replace(f'/{self.__name}', '')
         self.__aio_redis = None
-        self.__queue = list()
+        self.__queue = asyncio.Queue()
         self.__channel = None
         self.__loop = loop or asyncio.get_event_loop()
 
@@ -73,6 +76,10 @@ class AsyncRedisChannel:
     @property
     def address(self) -> str:
         return self.__orig_address
+
+    @property
+    def group_id(self) -> Optional[str]:
+        return self.__group_id
 
     @asynccontextmanager
     async def connection(self):
@@ -110,7 +117,7 @@ class AsyncRedisChannel:
             try:
                 while True:
                     await asyncio.wait_for(self.__async_reader(), timeout=timeout)
-                    packet = self.__queue.pop(0)
+                    packet = self.__queue.get_nowait()
                     if packet['kind'] == 'data':
                         break
                     elif packet['kind'] == 'close':
@@ -161,13 +168,188 @@ class AsyncRedisChannel:
             msg = await self.__channel.get_json()
         except aioredis.errors.RedisError:
             raise RedisConnectionError()
-        self.__queue.append(msg)
+        self.__queue.put_nowait(msg)
 
     async def __terminate(self):
         if self.__aio_redis:
             self.__aio_redis.close()
             self.__channel = None
             self.__aio_redis = None
+
+
+class AsyncRedisGroup:
+
+    TIMEOUT = 5
+    STREAM_ID = 'stream'
+
+    __thread_local = threading.local()
+
+    def __init__(self, address: str, loop: asyncio.AbstractEventLoop = None, group_id: str = None):
+        """
+        param: address (str) for example 'redis://redis1/xxx'
+        """
+
+        self.__orig_address = address
+        self.__name = address.split('/')[-1]
+        self.__group_id = group_id or '*'
+        self.__address = address.replace(f'/{self.__name}', '')
+        self.__aio_redis = None
+        self.__queue = asyncio.Queue()
+        self.__channel = None
+        self.__self_id = str(id(self))
+        self.__loop = loop or asyncio.get_event_loop()
+
+    def __del__(self):
+        if self.__aio_redis and self.__loop.is_running():
+            asyncio.ensure_future(self.__terminate(), loop=self.__loop)
+
+    @property
+    def address(self) -> str:
+        return self.__orig_address
+
+    @property
+    def group_id(self) -> Optional[str]:
+        return self.__group_id
+
+    @asynccontextmanager
+    async def connection(self):
+        if self.__aio_redis and self.__aio_redis.closed:
+            create_connection = True
+        elif self.__aio_redis is None:
+            create_connection = True
+        else:
+            create_connection = False
+        if create_connection:
+            self.__channel = None
+            try:
+                self.__aio_redis = await aioredis.create_redis(self.__address, timeout=self.TIMEOUT)
+            except Exception:
+                raise RedisConnectionError(f'Error connection for {self.__address}')
+        yield self.__aio_redis
+
+    @asynccontextmanager
+    async def channel(self):
+        try:
+            async with self.connection() as conn:
+                if self.__channel is None:
+                    try:
+                        res = await conn.subscribe(self.__name)
+                    except Exception:
+                        raise RedisConnectionError(f'Error subscribe to {self.__name}')
+                    self.__channel = res[0]
+                yield self.__channel
+        except RedisConnectionError:
+            await self.__terminate()
+            raise
+
+    async def read(self, timeout) -> (bool, Any):
+        if not self.__queue.empty():
+            data = self.__queue.get_nowait()
+            return True, data
+        else:
+            async with self.connection() as redis:
+                try:
+                    if self.__group_id:
+                        await self.__ensure_group_exists(redis)
+                    while True:
+                        await asyncio.wait_for(self.__async_reader(redis), timeout=timeout)
+                        data = self.__queue.get_nowait()
+                        return True, data
+                except asyncio.TimeoutError:
+                    raise ReadWriteTimeoutError
+        return False, None
+
+    async def write(self, data) -> bool:
+        """Send data to recipients
+        Return: True if almost one recipient received packet
+        """
+        async with self.connection() as redis:
+            try:
+                payload = {b'payload': json.dumps(data).encode()}
+                msg_id = await redis.xadd(stream=self.STREAM_ID, fields=payload)
+            except aioredis.errors.RedisError:
+                raise RedisConnectionError()
+            return True
+
+    async def close(self):
+        async with self.connection() as redis:
+            try:
+                if self.group_id:
+                    redis.xgroup_delconsumer(
+                        stream=self.STREAM_ID,
+                        group_name=self.group_id,
+                        consumer_name=self.__self_id
+                    )
+            except aioredis.errors.RedisError:
+                raise RedisConnectionError()
+
+    @staticmethod
+    async def check_address(address: str) -> bool:
+        """
+        Example: address = redis://redis
+        """
+        try:
+            conn = await aioredis.create_redis(address, timeout=3)
+            ok = await conn.ping()
+            conn.close()
+            return ok == b'PONG'
+        except Exception as e:
+            return False
+
+    async def __async_reader(self, redis: aioredis.Redis):
+        latest_ids = ['>']
+        try:
+            messages = await redis.xread_group(
+                group_name=self.__group_id,
+                consumer_name=self.__self_id,
+                streams=[self.STREAM_ID],
+                latest_ids=latest_ids,
+            )
+            for partition, msg_id, fields in messages:
+                payload = fields.get(b'payload')
+                if payload:
+                    msg = json.loads(payload.decode())
+                    self.__queue.put_nowait(msg)
+        except Exception as e:
+            if isinstance(e, aioredis.errors.RedisError):
+                raise RedisConnectionError()
+            if isinstance(e, asyncio.CancelledError):
+                return
+            else:
+                raise
+
+    async def __terminate(self):
+        if self.__aio_redis:
+            self.__aio_redis.close()
+            self.__channel = None
+            self.__aio_redis = None
+
+    async def __ensure_group_exists(self, redis: aioredis.Redis) -> bool:
+
+        try:
+            group_exists = self.__thread_local.group_exists
+        except AttributeError:
+            group_exists = None
+        if group_exists is None:
+            group_exists = {}
+            self.__thread_local.group_exists = group_exists
+
+        if redis and group_exists.get(self.address, False):
+            return True
+        if redis:
+            try:
+                success = await redis.xgroup_create(stream=self.STREAM_ID, group_name=self.__group_id, mkstream=True)
+                if not success:
+                    return False
+            except Exception as e:
+                if isinstance(e, aioredis.errors.BusyGroupError):
+                    pass
+                else:
+                    return False
+            group_exists[self.address] = True
+            return True
+        else:
+            return False
 
 
 class RedisPush:
@@ -226,14 +408,14 @@ class RedisPush:
                     return False
         return False
 
-    async def __get_channel(self, endpoint_id: str, ignore_cache: bool = False) -> (Optional[AsyncRedisChannel], Optional[AsyncRedisChannel]):
+    async def __get_channel(self, endpoint_id: str, ignore_cache: bool = False) -> (Optional[AsyncRedisGroup], Optional[AsyncRedisChannel]):
         address = await self.__get_session_channel_address(endpoint_id, ignore_cache)
         if address:
             cached = self.__channels_cache.get(address)
             if cached is None:
-                forward_ch = AsyncRedisChannel(address)
+                forward_ch = AsyncRedisGroup(address)
                 if self.REVERSE_FORWARD_CH_EQUAL:
-                    reverse_ch = forward_ch
+                    reverse_ch = AsyncRedisChannel(address=address)
                 else:
                     reverse_name = hashlib.sha256(address.encode('utf-8')).hexdigest()
                     random_redis_addr = await self.__choice_server_address()
@@ -323,7 +505,7 @@ class RedisPull:
 
     class Listener:
 
-        def __init__(self, channel: AsyncRedisChannel, reverse_channels_cache: ExpiringDict):
+        def __init__(self, channel: AsyncRedisGroup, reverse_channels_cache: ExpiringDict):
             self.__channel = channel
             self.__reverse_channels_cache = reverse_channels_cache
 
@@ -359,7 +541,7 @@ class RedisPull:
             while True:
                 return (yield from self.get_one())
 
-    def listen(self, address: str) -> Listener:
-        channel = AsyncRedisChannel(address)
+    def listen(self, address: str, group_id: str = 'default') -> Listener:
+        channel = AsyncRedisGroup(address, group_id=group_id)
         listener = self.Listener(channel, self.__channels)
         return listener
