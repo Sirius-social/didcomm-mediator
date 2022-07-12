@@ -304,7 +304,7 @@ def test_forward_msg(test_database: Database, random_me: (str, str, str), random
         assert expected_msg == actual_msg
 
 
-def test_pass_group_id_via_diddoc(random_me: (str, str, str), random_endpoint_uid: str, random_keys: (str, str)):
+def test_pass_group_id_via_diddoc(random_me: (str, str, str)):
 
     override_sirius_sdk()
     agent_did, agent_verkey, agent_secret = random_me
@@ -327,3 +327,31 @@ def test_pass_group_id_via_diddoc(random_me: (str, str, str), random_endpoint_ui
                 assert group_id in service['serviceEndpoint']
         finally:
             websocket.close()
+
+
+def test_load_balancing_with_group_id(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):
+    content_json = {'key1': 'value', 'key2': 123}
+    content = json.dumps(content_json).encode()
+    content_type = 'application/json'
+
+    agent_did, agent_verkey, agent_secret = random_me
+    redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
+
+    asyncio.get_event_loop().run_until_complete(ensure_endpoint_exists(
+        db=test_database, uid=random_endpoint_uid, redis_pub_sub=redis_pub_sub,
+        agent_id=agent_did, verkey=agent_verkey
+    ))
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}?endpoint={random_endpoint_uid}&group_id=group1") as websocket1:
+        with client.websocket_connect(f"/{WS_PATH_PREFIX}?endpoint={random_endpoint_uid}&group_id=group2") as websocket2:
+            sleep(3)  # give websocket timeout to accept connection
+            response = client.post(
+                build_endpoint_url(random_endpoint_uid),
+                headers={"Content-Type": content_type},
+                data=content,
+            )
+            assert response.status_code == 202
+
+            enc_msg = websocket1.receive_json()
+            assert enc_msg == content_json
+            enc_msg = websocket2.receive_json()
+            assert enc_msg == content_json
