@@ -389,7 +389,9 @@ class RedisPush:
                     'message': message
                 }
                 async with self.__clean_on_disconnect(endpoint_id, forward_channel):
-                    success = await forward_channel.write(request)
+                    # Bootstrap reverse-channel
+                    async with reverse_channel.channel():
+                        success = await forward_channel.write(request)
                 if success:
                     # Wait for answer
                     while datetime.datetime.utcnow() <= expire_at:
