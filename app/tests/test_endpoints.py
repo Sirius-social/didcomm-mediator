@@ -180,7 +180,7 @@ async def test_delivery_via_long_polling(test_database: Database, random_me: (st
 
     send_count = 2
     fut = asyncio.ensure_future(read_lines())
-    await asyncio.sleep(3)
+    await asyncio.sleep(5)
     try:
         async with AsyncClient(app=app, base_url=WEBROOT) as cli:
             for n in range(send_count):

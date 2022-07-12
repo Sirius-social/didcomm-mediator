@@ -180,7 +180,6 @@ class AsyncRedisChannel:
 class AsyncRedisGroup:
 
     TIMEOUT = 5
-    STREAM_ID = 'stream'
 
     __thread_local = threading.local()
 
@@ -266,7 +265,7 @@ class AsyncRedisGroup:
         async with self.connection() as redis:
             try:
                 payload = {b'payload': json.dumps(data).encode()}
-                msg_id = await redis.xadd(stream=self.STREAM_ID, fields=payload)
+                msg_id = await redis.xadd(stream=self.__name, fields=payload)
             except aioredis.errors.RedisError:
                 raise RedisConnectionError()
             return True
@@ -276,7 +275,7 @@ class AsyncRedisGroup:
             try:
                 if self.group_id:
                     redis.xgroup_delconsumer(
-                        stream=self.STREAM_ID,
+                        stream=self.__name,
                         group_name=self.group_id,
                         consumer_name=self.__self_id
                     )
@@ -302,7 +301,7 @@ class AsyncRedisGroup:
             messages = await redis.xread_group(
                 group_name=self.__group_id,
                 consumer_name=self.__self_id,
-                streams=[self.STREAM_ID],
+                streams=[self.__name],
                 latest_ids=latest_ids,
             )
             for partition, msg_id, fields in messages:
@@ -338,7 +337,7 @@ class AsyncRedisGroup:
             return True
         if redis:
             try:
-                success = await redis.xgroup_create(stream=self.STREAM_ID, group_name=self.__group_id, mkstream=True)
+                success = await redis.xgroup_create(stream=self.__name, group_name=self.__group_id, mkstream=True)
                 if not success:
                     return False
             except Exception as e:
