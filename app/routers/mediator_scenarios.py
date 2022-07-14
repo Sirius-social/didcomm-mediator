@@ -266,19 +266,29 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             )
                             await listener.response(for_event=event, message=resp)
                     elif isinstance(op, BusPublishRequest):
-                        topic = build_protocol_topic(their_did, op.binding_id)
-                        payload = op.payload
-                        if payload:
-                            if isinstance(payload, bytes):
-                                recipients_num = await protocols_bus.publish(topic, payload)
-                                resp = BusPublishResponse(binding_id=op.binding_id, recipients_num=recipients_num)
-                            else:
-                                resp = BusProblemReport(
-                                    problem_code='invalid_payload',
-                                    explain='Expected "payload" is base64 encoded bytearray'
-                                )
+                        topics = []
+                        if isinstance(op.binding_id, str):
+                            topic = build_protocol_topic(their_did, op.binding_id)
+                            topics.append(topic)
                         else:
-                            resp = BusProblemReport(problem_code='empty_payload', explain='Expected "payload" is filled')
+                            for bid in op.binding_id:
+                                topic = build_protocol_topic(their_did, bid)
+                                topics.append(topic)
+                        if topics:
+                            payload = op.payload
+                            if payload:
+                                if isinstance(payload, bytes):
+                                    recipients_num = await protocols_bus.publish(topic, payload)
+                                    resp = BusPublishResponse(binding_id=op.binding_id, recipients_num=recipients_num)
+                                else:
+                                    resp = BusProblemReport(
+                                        problem_code='invalid_payload',
+                                        explain='Expected "payload" is base64 encoded bytearray'
+                                    )
+                            else:
+                                resp = BusProblemReport(problem_code='empty_payload', explain='Expected "payload" is filled')
+                        else:
+                            resp = BusProblemReport(problem_code='empty_binding_id', explain='Binding id is empty')
                         await listener.response(for_event=event, message=resp)
                 else:
                     typ = event.message.get('@type')
