@@ -125,12 +125,13 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         their_services = p2p.their.did_doc.get('service', [])
                         if any([service['serviceEndpoint'] == URI_QUEUE_TRANSPORT for service in their_services]):
                             if inbound_listener and not inbound_listener.done():
-                                pass
-                            else:
-                                stream = build_consistent_endpoint_uid(p2p.their.did)
-                                inbound_listener = asyncio.ensure_future(
-                                    endpoint_processor(websocket, stream, repo, False, group_id=group_id)
-                                )
+                                # terminate all task
+                                inbound_listener.cancel()
+                                
+                            stream = build_consistent_endpoint_uid(p2p.their.did)
+                            inbound_listener = asyncio.ensure_future(
+                                endpoint_processor(websocket, stream, repo, False, group_id=group_id)
+                            )
                         else:
                             if inbound_listener and not inbound_listener.done():
                                 inbound_listener.cancel()
