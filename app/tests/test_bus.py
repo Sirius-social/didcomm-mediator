@@ -376,7 +376,7 @@ def test_bus_listener_no_intersections_if_group_id_set(
                 data=didcomm_envelope_enc_content
             )
             # 4. No-one active recipient
-            assert response.status_code == 410
+            assert response.status_code == 202
         finally:
             websocket.close()
 
@@ -414,6 +414,6 @@ def test_bus_listener_no_intersections_if_group_id_notset(
                 data=didcomm_envelope_enc_content
             )
             # 4. No-one active recipient
-            assert response.status_code == 202
+            assert response.status_code == 410
         finally:
             websocket.close()

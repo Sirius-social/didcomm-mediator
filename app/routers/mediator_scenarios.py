@@ -127,7 +127,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             if inbound_listener and not inbound_listener.done():
                                 # terminate all task
                                 inbound_listener.cancel()
-                                
+
                             stream = build_consistent_endpoint_uid(p2p.their.did)
                             inbound_listener = asyncio.ensure_future(
                                 endpoint_processor(websocket, stream, repo, False, group_id=group_id)
@@ -232,7 +232,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                 tsk.client_id = op.client_id
                                 protocols_listeners[bid] = tsk
                                 await on.wait()
-                        if protocols_listeners and group_id is not None:
+                        if protocols_listeners and group_id is None:
                             if inbound_listener and not inbound_listener.done():
                                 inbound_listener.cancel()
                         await listener.response(for_event=event, message=resp)
