@@ -127,11 +127,13 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             if inbound_listener and not inbound_listener.done():
                                 # terminate all task
                                 inbound_listener.cancel()
-
-                            stream = build_consistent_endpoint_uid(p2p.their.did)
-                            inbound_listener = asyncio.ensure_future(
-                                endpoint_processor(websocket, stream, repo, False, group_id=group_id)
-                            )
+                            if group_id is not None:
+                                stream = build_consistent_endpoint_uid(p2p.their.did)
+                                inbound_listener = asyncio.ensure_future(
+                                    endpoint_processor(websocket, stream, repo, False, group_id=group_id)
+                                )
+                            else:
+                                inbound_listener = None
                         else:
                             if inbound_listener and not inbound_listener.done():
                                 inbound_listener.cancel()
@@ -320,6 +322,7 @@ async def endpoint_processor(
         pulls = RedisPull()
 
         listener = pulls.listen(address=redis_pub_sub, group_id=group_id)
+        logging.debug(f'++++++++++++ listen: {redis_pub_sub}')
         async for not_closed, request in listener:
             logging.debug(f'++++++++++++ not_closed: {not_closed}')
             if not_closed:

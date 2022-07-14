@@ -259,13 +259,13 @@ class AsyncRedisGroup:
         async with self.connection() as redis:
             try:
                 if self.group_id:
-                    redis.xgroup_delconsumer(
+                    await redis.xgroup_delconsumer(
                         stream=self.__name,
                         group_name=self.group_id,
                         consumer_name=self.__self_id
                     )
-            except aioredis.errors.RedisError:
-                raise RedisConnectionError()
+            except aioredis.errors.RedisError as e:
+                logging.exception(f'Exception on close: {self.address}')
 
     @staticmethod
     async def check_address(address: str) -> bool:
@@ -288,6 +288,8 @@ class AsyncRedisGroup:
                 consumer_name=self.__self_id,
                 streams=[self.__name],
                 latest_ids=latest_ids,
+                no_ack=True,
+                count=1
             )
             for partition, msg_id, fields in messages:
                 payload = fields.get(b'payload')
@@ -295,6 +297,7 @@ class AsyncRedisGroup:
                     msg = json.loads(payload.decode())
                     self.__queue.put_nowait(msg)
         except Exception as e:
+            logging.exception(f'Exception [{self.__address}]')
             if isinstance(e, aioredis.errors.RedisError):
                 raise RedisConnectionError()
             if isinstance(e, asyncio.CancelledError):
@@ -314,6 +317,7 @@ class AsyncRedisGroup:
                 if not success:
                     return False
             except Exception as e:
+                logging.exception(f'Exception [{self.__address}]')
                 if isinstance(e, aioredis.errors.BusyGroupError):
                     pass
                 else:

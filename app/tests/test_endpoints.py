@@ -195,7 +195,7 @@ async def test_delivery_via_long_polling(test_database: Database, random_me: (st
     await asyncio.sleep(3)
 
 
-def test_delivery_with_queue_route(random_me: (str, str, str)):
+def test_delivery_with_queue_route_if_group_empty(random_me: (str, str, str)):
     """Check delivery with Queue-Route DIDComm extension
 
         - details: https://github.com/decentralized-identity/didcomm-messaging/blob/master/extensions/return_route/main.md#queue-transport
@@ -212,7 +212,10 @@ def test_delivery_with_queue_route(random_me: (str, str, str)):
             sleep(3)  # give websocket timeout to accept connection
             cli = ClientEmulator(
                 transport=websocket, mediator_invitation=build_invitation(),
-                agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret
+                agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret,
+                ####################
+                group_id=None
+                ###################
             )
             # 1. Establish connection with Mediator
             mediator_did_doc = cli.connect(endpoint=URI_QUEUE_TRANSPORT)
@@ -224,10 +227,10 @@ def test_delivery_with_queue_route(random_me: (str, str, str)):
                 headers={"Content-Type": content_type},
                 data=content
             )
-            assert 200 <= response.status_code < 300
-            wired_actual = websocket.receive_json()
-            wired_expected = json.loads(content.decode())
-            assert wired_expected == wired_actual
+            assert response.status_code == 410
+            # wired_actual = websocket.receive_json()
+            # wired_expected = json.loads(content.decode())
+            # assert wired_expected == wired_actual
         finally:
             websocket.close()
 

@@ -52,6 +52,8 @@ for item in MSG_DELIVERY_SERVICES.split(','):
 
 WEBROOT = os.environ.get('WEBROOT')
 
+DEVICE_ACK_TIMEOUT = 5
+
 # Postgres
 DATABASE_HOST = os.getenv('DATABASE_HOST')
 assert DATABASE_HOST is not None, 'You must set DATABASE_HOST env variable'

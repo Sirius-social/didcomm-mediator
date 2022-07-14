@@ -76,7 +76,7 @@ async def post_to_device(payload, endpoint_fields: dict, db: Database):
     message = json.loads(payload.decode())
     try:
         logging.debug('push message to websocket connection')
-        success = await pushes.push(endpoint_fields['uid'], message, ttl=15)
+        success = await pushes.push(endpoint_fields['uid'], message, ttl=settings.DEVICE_ACK_TIMEOUT)
         logging.debug(f'push operation returned success: {success}')
     except RedisConnectionError as e:
         success = False
