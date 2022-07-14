@@ -278,7 +278,10 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             payload = op.payload
                             if payload:
                                 if isinstance(payload, bytes):
-                                    recipients_num = await protocols_bus.publish(topic, payload)
+                                    recipients_num = 0
+                                    for topic in topics:
+                                        num = await protocols_bus.publish(topic, payload)
+                                        recipients_num += num
                                     resp = BusPublishResponse(binding_id=op.binding_id, recipients_num=recipients_num)
                                 else:
                                     resp = BusProblemReport(
