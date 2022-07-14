@@ -322,18 +322,21 @@ async def endpoint_processor(
         pulls = RedisPull()
 
         listener = pulls.listen(address=redis_pub_sub, group_id=group_id)
-        logging.debug(f'++++++++++++ listen: {redis_pub_sub}')
-        async for not_closed, request in listener:
-            logging.debug(f'++++++++++++ not_closed: {not_closed}')
-            if not_closed:
-                req: RedisPull.Request = request
-                logging.debug('++++++++++++ send message via websocket ')
-                await websocket.send_json(request.message)
-                logging.debug('+++++++++++ message was sent via websocket ')
-                await req.ack()
-                logging.debug('++++++++++ message acked ')
-            else:
-                break
+        try:
+            logging.debug(f'++++++++++++ listen: {redis_pub_sub}')
+            async for not_closed, request in listener:
+                logging.debug(f'++++++++++++ not_closed: {not_closed}')
+                if not_closed:
+                    req: RedisPull.Request = request
+                    logging.debug('++++++++++++ send message via websocket ')
+                    await websocket.send_json(request.message)
+                    logging.debug('+++++++++++ message was sent via websocket ')
+                    await req.ack()
+                    logging.debug('++++++++++ message acked ')
+                else:
+                    break
+        finally:
+            await listener.close()
 
     logging.debug('')
     logging.debug('++++++++++++++++++++++++++++++++++++++++++++++++++')
