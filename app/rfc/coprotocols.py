@@ -138,10 +138,16 @@ class BusUnsubscribeRequest(BusBindResponse, metaclass=RegisterMessage):
 class BusPublishRequest(BusBindResponse, metaclass=RegisterMessage):
     NAME = 'publish'
 
-    def __init__(self, binding_id: Union[str, List[str]] = None, payload: Any = None, *args, **kwargs):
+    def __init__(self, binding_id: Union[str, List[str]] = None, payload: Any = None, need_answer: bool = None, *args, **kwargs):
         super().__init__(binding_id, *args, **kwargs)
         if payload:
             self.payload = payload
+        if need_answer is not None:
+            self['need_answer'] = need_answer
+
+    @property
+    def need_answer(self) -> Optional[bool]:
+        return self.get('need_answer', None)
 
     @property
     def payload(self) -> Any:

@@ -292,7 +292,9 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                 resp = BusProblemReport(problem_code='empty_payload', explain='Expected "payload" is filled')
                         else:
                             resp = BusProblemReport(problem_code='empty_binding_id', explain='Binding id is empty')
-                        await listener.response(for_event=event, message=resp)
+                        assert isinstance(op, BusPublishRequest)
+                        if op.need_answer is not False:
+                            await listener.response(for_event=event, message=resp)
                 else:
                     typ = event.message.get('@type')
                     raise RuntimeError(f'Unknown protocl message with @type: "{typ}"')
