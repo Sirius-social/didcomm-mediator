@@ -231,7 +231,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                 tsk.client_id = op.client_id
                                 protocols_listeners[bid] = tsk
                                 await on.wait()
-                        if protocols_listeners:
+                        if protocols_listeners and group_id is not None:
                             if inbound_listener and not inbound_listener.done():
                                 inbound_listener.cancel()
                         await listener.response(for_event=event, message=resp)
