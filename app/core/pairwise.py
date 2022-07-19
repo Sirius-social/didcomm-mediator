@@ -1,5 +1,5 @@
 from contextlib import asynccontextmanager
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from sirius_sdk import Pairwise
 from databases import Database
@@ -14,6 +14,7 @@ class MediatorPairwiseList(AbstractPairwiseList):
     def __init__(self, db: Database):
         self._db: Database = db
         self._did = MediatorDID(db)
+        self._cached_metadata: Dict[str, dict] = {}
 
     async def create(self, pairwise: Pairwise):
         async with self.get_db_connection_lazy() as db:
@@ -30,11 +31,15 @@ class MediatorPairwiseList(AbstractPairwiseList):
                 'their_label': pairwise.their.label
             }
             await db.execute(query=sql, values=values)
+            self._cached_metadata[pairwise.their.did] = metadata
 
     async def update(self, pairwise: Pairwise):
+        metadata = pairwise.metadata or {}
+        metadata.update(self._build_metadata(pairwise))
+        metadata_cached = self._cached_metadata.get(pairwise.their.did, None)
+        if metadata_cached == metadata:
+            return
         async with self.get_db_connection_lazy() as db:
-            metadata = pairwise.metadata or {}
-            metadata.update(self._build_metadata(pairwise))
             sql = pairwises.update().where(pairwises.c.their_did == pairwise.their.did)
             values = {
                 "their_verkey": pairwise.their.verkey,
@@ -44,6 +49,7 @@ class MediatorPairwiseList(AbstractPairwiseList):
                 'their_label': pairwise.their.label
             }
             await db.execute(query=sql, values=values)
+            self._cached_metadata[pairwise.their.did] = metadata
 
     async def is_exists(self, their_did: str) -> bool:
         async with self.get_db_connection_lazy() as db:

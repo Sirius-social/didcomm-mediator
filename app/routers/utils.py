@@ -1,4 +1,6 @@
 import hashlib
+import json
+import logging
 from urllib.parse import urljoin
 
 import sirius_sdk
@@ -47,13 +49,32 @@ async def build_did_doc_extra(repo: Repo, their_did: str, their_verkey: str, gro
         "recipientKeys": [],
         "serviceEndpoint": long_polling_mediator_service_endpoint,
     })
+
     # configure redis pubsub infrastructure for endpoint
-    redis_server = await choice_redis_server_address()
-    await repo.ensure_endpoint_exists(
-        uid=endpoint_uid,
-        redis_pub_sub=f'{redis_server}/{endpoint_uid}',
-        verkey=their_verkey
-    )
+    data = await repo.load_endpoint(endpoint_uid)
+    need_to_update = False
+
+    if data is not None:
+        stored_verkey = data.get('verkey', None)
+        if their_verkey != stored_verkey:
+            need_to_update = True
+        redis_pub_sub_to_store = data.get('redis_pub_sub', None)
+    else:
+        need_to_update = True
+        redis_pub_sub_to_store = None
+
+    if need_to_update:
+        if redis_pub_sub_to_store is None:
+            redis_server = await choice_redis_server_address()
+            redis_pub_sub = f'{redis_server}/{endpoint_uid}'
+        else:
+            # don't update
+            redis_pub_sub = None
+        await repo.ensure_endpoint_exists(
+            uid=endpoint_uid,
+            redis_pub_sub=redis_pub_sub,
+            verkey=their_verkey
+        )
     return ws_endpoint, endpoint_uid, did_doc_extra
 
 
@@ -69,16 +90,35 @@ async def post_create_pairwise(repo: Repo, p2p: Pairwise, endpoint_uid: str):
             if service['type'] == FCM_SERVICE_TYPE:
                 fcm_device_id = service['serviceEndpoint']
                 break
-    await repo.ensure_agent_exists(
-        did=p2p.their.did, verkey=p2p.their.verkey, metadata=p2p.metadata, fcm_device_id=fcm_device_id
-    )
-    agent = await repo.load_agent(did=p2p.their.did)
-    await repo.ensure_endpoint_exists(
-        uid=endpoint_uid,
-        agent_id=agent['id'],
-        verkey=p2p.their.verkey,
-        fcm_device_id=fcm_device_id
-    )
+    exists_data = await repo.load_agent(p2p.their.did)
+    if exists_data:
+        stored_did = exists_data.get('did', None)
+        stored_verkey = exists_data.get('verkey', None)
+        stored_metadata = exists_data.get('metadata', None)
+        stored_fcm_device_id = exists_data.get('fcm_device_id', None)
+        need_update = (stored_did != p2p.their.did) or (stored_verkey != p2p.their.verkey) or (stored_fcm_device_id != fcm_device_id)
+        if need_update:
+            logging.debug('----------- Update Agent info ------------')
+            logging.debug('Old data:')
+            logging.debug(json.dumps(exists_data, indent=2, sort_keys=True))
+            logging.debug('New data:')
+            logging.debug(json.dumps(
+                dict(did=p2p.their.did, verkey=p2p.their.verkey, metadata=p2p.metadata, fcm_device_id=fcm_device_id),
+                indent=2, sort_keys=True))
+            logging.debug('------------------------------------------')
+    else:
+        need_update = True
+    if need_update:
+        await repo.ensure_agent_exists(
+            did=p2p.their.did, verkey=p2p.their.verkey, metadata=p2p.metadata, fcm_device_id=fcm_device_id
+        )
+        agent = await repo.load_agent(did=p2p.their.did)
+        await repo.ensure_endpoint_exists(
+            uid=endpoint_uid,
+            agent_id=agent['id'],
+            verkey=p2p.their.verkey,
+            fcm_device_id=fcm_device_id
+        )
 
 
 def validate_verkey(verkey: str) -> bool:

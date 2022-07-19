@@ -224,21 +224,30 @@ class AsyncRedisGroup:
         yield self.__aio_redis
 
     async def read(self, timeout) -> (bool, Any):
-        if not self.__queue.empty():
-            data = self.__queue.get_nowait()
-            return True, data
-        else:
-            async with self.connection() as redis:
-                try:
-                    if self.__group_id:  # and not self.__mkstream:
-                        self.__mkstream = await self.__ensure_group_exists(redis)
-                    while True:
-                        await asyncio.wait_for(self.__async_reader(redis), timeout=timeout)
-                        data = self.__queue.get_nowait()
-                        return True, data
-                except asyncio.TimeoutError:
-                    raise ReadWriteTimeoutError
-        return False, None
+        logging.debug(f'.... AsyncRedisGroup.read(timeout: "{timeout}")')
+        try:
+            if not self.__queue.empty():
+                data = self.__queue.get_nowait()
+                return True, data
+            else:
+                logging.debug(f'.... #1')
+                async with self.connection() as redis:
+                    try:
+                        logging.debug(f'.... #2')
+                        if self.__group_id and not self.__mkstream:
+                            self.__mkstream = await self.__ensure_group_exists(redis)
+                        logging.debug(f'.... #3')
+                        while True:
+                            logging.debug(f'.... #4')
+                            await asyncio.wait_for(self.__async_reader(redis), timeout=timeout)
+                            logging.debug(f'.... #5')
+                            data = await self.__queue.get()
+                            return True, data
+                    except asyncio.TimeoutError:
+                        raise ReadWriteTimeoutError
+            return False, None
+        except Exception as e:
+            logging.exception(f'.... Exception in AsyncRedisGroup.read address: {self.__address}')
 
     async def write(self, data) -> bool:
         """Send data to recipients
@@ -248,22 +257,30 @@ class AsyncRedisGroup:
             try:
                 payload = {b'payload': json.dumps(data).encode()}
                 try:
+                    logging.debug(f'.... start to redis.xadd stream: {self.__name}')
                     msg_id = await redis.xadd(stream=self.__name, fields=payload)
+                    logging.debug(f'.... stop to redis.xadd msg_id: {msg_id}')
                 except Exception as e:
+                    logging.exception(f'Exception in write operation for {self.__address}')
                     raise
             except aioredis.errors.RedisError:
                 raise RedisConnectionError()
             return True
 
     async def close(self):
-        async with self.connection() as redis:
+        if self.__aio_redis is not None:
             try:
-                if self.group_id:
-                    await redis.xgroup_delconsumer(
-                        stream=self.__name,
-                        group_name=self.group_id,
-                        consumer_name=self.__self_id
-                    )
+                try:
+                    redis = self.__aio_redis
+                    if self.group_id:
+                        redis.xgroup_delconsumer(
+                            stream=self.__name,
+                            group_name=self.group_id,
+                            consumer_name=self.__self_id
+                        )
+                    self.__aio_redis.close()
+                finally:
+                    self.__aio_redis = None
             except aioredis.errors.RedisError as e:
                 logging.exception(f'Exception on close: {self.address}')
 
@@ -283,19 +300,21 @@ class AsyncRedisGroup:
     async def __async_reader(self, redis: aioredis.Redis):
         latest_ids = ['>']
         try:
+            logging.debug(f'.... start to redis.xread_group group_name: {self.__group_id} consumer_name: {self.__self_id} streams: {[self.__name]}')
             messages = await redis.xread_group(
                 group_name=self.__group_id,
                 consumer_name=self.__self_id,
                 streams=[self.__name],
                 latest_ids=latest_ids,
-                no_ack=True,
+                # no_ack=True,
                 count=1
             )
+            logging.debug(f'.... stop to redis.xread_group  len(messages) = {len(messages)} group_name: {self.__group_id} consumer_name: {self.__self_id} streams: {[self.__name]}')
             for partition, msg_id, fields in messages:
                 payload = fields.get(b'payload')
                 if payload:
                     msg = json.loads(payload.decode())
-                    self.__queue.put_nowait(msg)
+                    await self.__queue.put(msg)
         except Exception as e:
             logging.exception(f'Exception [{self.__address}]')
             if isinstance(e, aioredis.errors.RedisError):
