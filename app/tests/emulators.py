@@ -14,7 +14,7 @@ from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.mess
     MediateGrant, KeylistUpdate, KeylistUpdateResponce, KeylistAddAction, KeylistRemoveAction, KeylistQuery, Keylist
 
 from app.settings import FCM_SERVICE_TYPE
-from rfc.coprotocols import *
+from rfc.bus import *
 
 
 class DIDCommRecipient:

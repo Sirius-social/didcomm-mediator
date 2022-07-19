@@ -23,7 +23,7 @@ from app.core.websocket_listener import WebsocketListener
 from app.core.bus import Bus
 from app.settings import KEYPAIR, DID
 from app.utils import build_endpoint_url
-from rfc.coprotocols import *
+from rfc.bus import *
 
 from .utils import build_did_doc_extra, post_create_pairwise, build_consistent_endpoint_uid, \
     build_protocol_topic
@@ -294,9 +294,8 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                 resp = BusProblemReport(problem_code='empty_payload', explain='Expected "payload" is filled')
                         else:
                             resp = BusProblemReport(problem_code='empty_binding_id', explain='Binding id is empty')
-                        assert isinstance(op, BusPublishRequest)
-                        if op.need_answer is not False:
-                            await listener.response(for_event=event, message=resp)
+
+                        await listener.response(for_event=event, message=resp)
                 else:
                     typ = event.message.get('@type')
                     raise RuntimeError(f'Unknown protocl message with @type: "{typ}"')

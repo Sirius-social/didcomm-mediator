@@ -4,7 +4,7 @@ from sirius_sdk import Pairwise
 
 from app.core.pairwise import MediatorPairwiseList, MediatorDID
 
-from rfc.coprotocols import *
+from rfc.bus import *
 
 
 @pytest.mark.asyncio

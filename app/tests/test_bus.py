@@ -14,7 +14,7 @@ from app.settings import REDIS as REDIS_SERVERS, WS_PATH_PREFIX
 from core.bus import Bus
 from app.utils import build_invitation
 from app.routers.mediator_scenarios import URI_QUEUE_TRANSPORT, build_protocol_topic
-from rfc.coprotocols import *
+from rfc.bus import *
 
 from .helpers import override_get_db, override_sirius_sdk
 from .emulators import DIDCommRecipient as ClientEmulator
