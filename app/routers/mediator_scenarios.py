@@ -316,11 +316,11 @@ async def endpoint_processor(
         websocket: WebSocket, endpoint_uid: str, repo: Repo, exit_on_disconnect: bool = True, group_id: str = None
 ):
 
-    async def redis_listener(redis_pub_sub: str):
+    async def redis_listener(redis_pub_sub: str, agent_id_: str):
         # Read from redis channel in infinite loop
         pulls = RedisPull()
-
-        listener = pulls.listen(address=redis_pub_sub, group_id=group_id)
+        mangled_group_id = f'{agent_id_}/{group_id}'
+        listener = pulls.listen(address=redis_pub_sub, group_id=mangled_group_id)
         try:
             logging.debug(f'++++++++++++ listen: {redis_pub_sub}')
             async for not_closed, request in listener:
@@ -344,7 +344,8 @@ async def endpoint_processor(
     data = await repo.load_endpoint(endpoint_uid)
     logging.debug('websocket endpoint data: ' + repr(data))
     if data and data.get('redis_pub_sub'):
-        coro = redis_listener(data['redis_pub_sub'])
+        agent_id = data.get('agent_id', None)
+        coro = redis_listener(data['redis_pub_sub'], agent_id)
         if exit_on_disconnect:
             fut = asyncio.ensure_future(coro)
             try:

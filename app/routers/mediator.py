@@ -64,7 +64,10 @@ async def long_polling(request: Request, db: Database = Depends(get_db)):
         raise HTTPException(status_code=404, detail='Empty endpoint id')
     else:
         repo = Repo(db, memcached=GlobalMemcachedClient.get())
-        event_generator = endpoint_long_polling(request, endpoint_uid, repo, group_id=group_id)
+        e = await repo.load_endpoint(endpoint_uid)
+        agent_id = e.get('agent_id', None)
+        mangled_group_id = f'{agent_id}/{group_id}'
+        event_generator = endpoint_long_polling(request, endpoint_uid, repo, group_id=mangled_group_id)
         return EventSourceResponse(event_generator)
 
 
