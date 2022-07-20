@@ -8,7 +8,7 @@ from sirius_sdk.agent.aries_rfc.base import AriesProtocolMessage, RegisterMessag
 class BusOperation(AriesProtocolMessage, metaclass=RegisterMessage):
     """Aries concept 0478 Messages implementation
 
-    hhttps://github.com/hyperledger/aries-rfcs/tree/main/concepts/0478-coprotocols
+    https://github.com/hyperledger/aries-rfcs/tree/main/concepts/0478-coprotocols
     """
     DOC_URI = VALID_DOC_URI[0]
     PROTOCOL = 'bus'
@@ -49,6 +49,16 @@ class BusSubscribeRequest(BusOperation, metaclass=RegisterMessage):
         self.__store_cast(cast)
         if client_id:
             self['client_id'] = client_id
+
+    @property
+    def return_route(self) -> Optional[str]:
+        return self.get('~transport', {}).get('return_route', None)
+
+    @return_route.setter
+    def return_route(self, value: str):
+        transport = self.get('~transport', {})
+        transport['return_route'] = value
+        self['~transport'] = transport
 
     @property
     def cast(self) -> BusOperation.Cast:

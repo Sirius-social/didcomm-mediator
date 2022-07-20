@@ -11,3 +11,4 @@ pytest tests/test_pairwise.py
 pytest tests/test_redis.py
 pytest tests/test_repo.py
 pytest tests/test_bus.py
+pytest tests/test_pickup.py

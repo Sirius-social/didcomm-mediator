@@ -181,7 +181,7 @@ class AsyncRedisGroup:
 
     TIMEOUT = 5
 
-    def __init__(self, address: str, loop: asyncio.AbstractEventLoop = None, group_id: str = None):
+    def __init__(self, address: str, loop: asyncio.AbstractEventLoop = None, group_id: str = None, read_count: int = 1):
         """
         param: address (str) for example 'redis://redis1/xxx'
         """
@@ -195,6 +195,7 @@ class AsyncRedisGroup:
         self.__mkstream = False
         self.__self_id = str(id(self))
         self.__loop = loop or asyncio.get_event_loop()
+        self.__read_count = read_count or 1
 
     def __del__(self):
         if self.__aio_redis and self.__loop.is_running():
@@ -307,7 +308,7 @@ class AsyncRedisGroup:
                 streams=[self.__name],
                 latest_ids=latest_ids,
                 # no_ack=True,
-                count=1
+                count=self.__read_count
             )
             logging.debug(f'.... stop to redis.xread_group  len(messages) = {len(messages)} group_name: {self.__group_id} consumer_name: {self.__self_id} streams: {[self.__name]}')
             for partition, msg_id, fields in messages:
@@ -539,9 +540,9 @@ class RedisPull:
             while True:
                 return (yield from self.get_one())
 
-    def listen(self, address: str, group_id: str = DEFAULT_GROUP_ID) -> Listener:
+    def listen(self, address: str, group_id: str = DEFAULT_GROUP_ID, read_count: int = 1) -> Listener:
         if not group_id:
             group_id = self.DEFAULT_GROUP_ID
-        channel = AsyncRedisGroup(address, group_id=group_id)
+        channel = AsyncRedisGroup(address, group_id=group_id, read_count=read_count)
         listener = self.Listener(channel, self.__channels)
         return listener

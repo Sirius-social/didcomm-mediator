@@ -17,19 +17,21 @@ import settings
 from app.core.coprotocols import ClientWebSocketCoProtocol
 from app.core.repo import Repo
 from app.core.global_config import GlobalConfig
-from app.core.redis import RedisPull, AsyncRedisChannel
+from app.core.redis import RedisPull, AsyncRedisChannel, AsyncRedisGroup
 from app.core.rfc import extract_key as rfc_extract_key, ensure_is_key as rfc_ensure_is_key
 from app.core.websocket_listener import WebsocketListener
 from app.core.bus import Bus
 from app.settings import KEYPAIR, DID
-from app.utils import build_endpoint_url
+from app.utils import build_endpoint_url, make_group_id_mangled
 from rfc.bus import *
+from rfc.pickup import *
 
 from .utils import build_did_doc_extra, post_create_pairwise, build_consistent_endpoint_uid, \
     build_protocol_topic
 
 
 URI_QUEUE_TRANSPORT = 'didcomm:transport/queue'
+DEFAULT_QUEUE_GROUP_ID = 'default_group_id_for_inbound_queue'
 
 
 class BasicMessageProblemReport(AriesProblemReport, metaclass=RegisterMessage):
@@ -37,7 +39,8 @@ class BasicMessageProblemReport(AriesProblemReport, metaclass=RegisterMessage):
 
 
 async def protocol_listener(
-        topic: str, binding_id: str, ws: WebSocket, on: asyncio.Event, p2p: sirius_sdk.Pairwise = None
+        topic: str, binding_id: str, ws: WebSocket, on: asyncio.Event,
+        p2p: sirius_sdk.Pairwise = None, pickup: PickUpStateMachine = None
 ):
     bus = Bus()
     async for payload in bus.listen(topic, on=on):
@@ -48,10 +51,16 @@ async def protocol_listener(
                 recipient_verkeys=[p2p.their.verkey],
                 sender_verkey=p2p.me.verkey
             )
-            await ws.send_bytes(packed)
+            if pickup:
+                await pickup.put(event, msg_id=event.id)
+            else:
+                await ws.send_bytes(packed)
         else:
-            payload = json.dumps(event).encode()
-            await ws.send_bytes(payload)
+            if pickup:
+                await pickup.put(event, msg_id=event.id)
+            else:
+                payload = json.dumps(event).encode()
+                await ws.send_bytes(payload)
 
 
 async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
@@ -70,6 +79,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
     group_id = None
     listener = WebsocketListener(ws=websocket, my_keys=KEYPAIR)
     protocols_listeners: Dict[str, asyncio.Task] = {}
+    pickup = PickUpStateMachine()
     try:
         async for event in listener:
             try:
@@ -127,13 +137,12 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             if inbound_listener and not inbound_listener.done():
                                 # terminate all task
                                 inbound_listener.cancel()
-                            if group_id is not None:
-                                stream = build_consistent_endpoint_uid(p2p.their.did)
-                                inbound_listener = asyncio.ensure_future(
-                                    endpoint_processor(websocket, stream, repo, False, group_id=group_id)
+                            group_id_ = DEFAULT_QUEUE_GROUP_ID if group_id is None else group_id
+                            inbound_listener = asyncio.ensure_future(
+                                endpoint_processor(
+                                    websocket, endpoint_uid, repo, False, group_id=group_id_, pickup=pickup
                                 )
-                            else:
-                                inbound_listener = None
+                            )
                         else:
                             if inbound_listener and not inbound_listener.done():
                                 inbound_listener.cancel()
@@ -204,6 +213,9 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                     else:
                         their_did = '*'
                     if isinstance(op, BusSubscribeRequest):
+                        listener_kwargs = {}
+                        if op.return_route != 'all':
+                            listener_kwargs['pickup'] = pickup
                         if op.cast.thid:
                             binding_id = op.cast.thid
                         else:
@@ -229,7 +241,10 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             if not tsk:
                                 on = asyncio.Event()
                                 tsk = asyncio.create_task(
-                                    protocol_listener(topic=topic, binding_id=bid, ws=websocket, on=on, p2p=event.pairwise)
+                                    protocol_listener(
+                                        topic=topic, binding_id=bid, ws=websocket,
+                                        on=on, p2p=event.pairwise, **listener_kwargs
+                                    )
                                 )
                                 tsk.client_id = op.client_id
                                 protocols_listeners[bid] = tsk
@@ -296,9 +311,13 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             resp = BusProblemReport(problem_code='empty_binding_id', explain='Binding id is empty')
 
                         await listener.response(for_event=event, message=resp)
+                elif isinstance(event.message, BasePickUpMessage):
+                    request: BasePickUpMessage = event.message
+                    resp = await pickup.process(request)
+                    await listener.response(for_event=event, message=resp)
                 else:
                     typ = event.message.get('@type')
-                    raise RuntimeError(f'Unknown protocl message with @type: "{typ}"')
+                    raise RuntimeError(f'Unknown protocol message with @type: "{typ}"')
             except Exception as e:
                 report = BasicMessageProblemReport(problem_code='1', explain=str(e))
                 await listener.response(for_event=event, message=report)
@@ -313,14 +332,15 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
 
 
 async def endpoint_processor(
-        websocket: WebSocket, endpoint_uid: str, repo: Repo, exit_on_disconnect: bool = True, group_id: str = None
+        websocket: WebSocket, endpoint_uid: str, repo: Repo,
+        exit_on_disconnect: bool = True, group_id: str = None, pickup: PickUpStateMachine = None
 ):
 
-    async def redis_listener(redis_pub_sub: str, agent_id_: str):
+    async def redis_listener(redis_pub_sub: str):
         # Read from redis channel in infinite loop
         pulls = RedisPull()
-        mangled_group_id = f'{agent_id_}/{group_id}'
-        listener = pulls.listen(address=redis_pub_sub, group_id=mangled_group_id)
+        mangled_group_id = make_group_id_mangled(group_id, endpoint_uid)
+        listener = pulls.listen(address=redis_pub_sub, group_id=mangled_group_id, read_count=1)
         try:
             logging.debug(f'++++++++++++ listen: {redis_pub_sub}')
             async for not_closed, request in listener:
@@ -328,7 +348,10 @@ async def endpoint_processor(
                 if not_closed:
                     req: RedisPull.Request = request
                     logging.debug('++++++++++++ send message via websocket ')
-                    await websocket.send_json(request.message)
+                    if pickup:
+                        await pickup.put(request.message)
+                    else:
+                        await websocket.send_json(request.message)
                     logging.debug('+++++++++++ message was sent via websocket ')
                     await req.ack()
                     logging.debug('++++++++++ message acked ')
@@ -344,8 +367,7 @@ async def endpoint_processor(
     data = await repo.load_endpoint(endpoint_uid)
     logging.debug('websocket endpoint data: ' + repr(data))
     if data and data.get('redis_pub_sub'):
-        agent_id = data.get('agent_id', None)
-        coro = redis_listener(data['redis_pub_sub'], agent_id)
+        coro = redis_listener(data['redis_pub_sub'])
         if exit_on_disconnect:
             fut = asyncio.ensure_future(coro)
             try:

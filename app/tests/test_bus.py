@@ -175,7 +175,7 @@ def test_bus_rfc_raise_events_for_thid(test_database: Database, random_me: (str,
             recp_num = asyncio.get_event_loop().run_until_complete(protocols_bus.publish(topic, content))
             assert recp_num == 1
             # 4. Check delivery
-            event = cli.receive()
+            event = cli.pickup_batch(timeout=5)
             assert isinstance(event, BusEvent)
             assert event.payload == content
         finally:
@@ -211,7 +211,7 @@ def test_bus_rfc_raise_events_for_vk(test_database: Database, random_me: (str, s
             recp_num = asyncio.get_event_loop().run_until_complete(protocols_bus.publish(topic, content))
             assert recp_num == 1
             # 4. Check delivery
-            event = cli.receive(timeout=5)
+            event = cli.pickup_batch(timeout=5)
             assert isinstance(event, BusEvent)
             assert event.payload == content
         finally:
@@ -255,7 +255,7 @@ def test_bus_rfc_multiple_topics(test_database: Database, random_me: (str, str, 
             # 4. Read income events
             income_events = []
             for n in range(2):
-                event = cli.receive(timeout=5)
+                event = cli.pickup_batch(timeout=5)
                 income_events.append(event.payload)
             assert content1 in income_events
             assert content2 in income_events
@@ -304,7 +304,7 @@ def test_bus_rfc_publish(test_database: Database, random_me: (str, str, str)):
                 resp = cli1.publish(binding_id=thid, payload=content)
                 assert isinstance(resp, BusPublishResponse)
                 assert resp.recipients_num > 0
-                event = cli2.receive(timeout=5)
+                event = cli2.pickup_batch(timeout=5)
                 assert isinstance(event, BusEvent)
                 assert event.payload == content
             finally:

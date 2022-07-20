@@ -1,5 +1,4 @@
 import json
-import urllib.parse
 import uuid
 import asyncio
 from time import sleep
@@ -29,11 +28,10 @@ client = TestClient(app)
 app.dependency_overrides[get_db] = override_get_db
 
 
-def test_delivery_via_websocket(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):
+def test_delivery_via_websocket(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, didcomm_envelope_enc_content: bytes):
 
     """Check any content posted to endpoint is delivered to Client websocket connection
     """
-    content = b'{"protected": "eyJlbmMiOiAieGNoYWNoYTIwcG9seTEzMDVfaWV0ZiIsICJ0eXAiOiAiSldNLzEuMCIsICJhbGciOiAiQXV0aGNyeXB0IiwgInJlY2lwaWVudHMiOiBbeyJlbmNyeXB0ZWRfa2V5IjogInBKcW1xQS1IVWR6WTNWcFFTb2dySGx4WTgyRnc3Tl84YTFCSmtHU2VMT014VUlwT0RQWTZsMVVsaVVvOXFwS0giLCAiaGVhZGVyIjogeyJraWQiOiAiM1ZxZ2ZUcDZRNFZlRjhLWTdlVHVXRFZBWmFmRDJrVmNpb0R2NzZLR0xtZ0QiLCAic2VuZGVyIjogIjRlYzhBeFRHcWtxamd5NHlVdDF2a0poeWlYZlNUUHo1bTRKQjk1cGZSMG1JVW9KajAwWmswNmUyUEVDdUxJYmRDck8xeTM5LUhGTG5NdW5YQVJZWk5rZ2pyYV8wYTBQODJpbVdNcWNHc1FqaFd0QUhOcUw1OGNkUUYwYz0iLCAiaXYiOiAiVU1PM2o1ZHZwQnFMb2Rvd3V0c244WEMzTkVqSWJLb2oifX1dfQ==", "iv": "MchkHF2M-4hneeUJ", "ciphertext": "UgcdsV-0rIkP25eJuRSROOuqiTEXp4NToKjPMmqqtJs-Ih1b5t3EEbrrHxeSfPsHtlO6J4OqA1jc5uuD3aNssUyLug==", "tag": "sQD8qgJoTrRoyQKPeCSBlQ=="}'
     content_type = 'application/ssi-agent-wire'
 
     agent_did, agent_verkey, agent_secret = random_me
@@ -48,12 +46,12 @@ def test_delivery_via_websocket(test_database: Database, random_me: (str, str, s
         response = client.post(
             build_endpoint_url(random_endpoint_uid),
             headers={"Content-Type": content_type},
-            data=content,
+            data=didcomm_envelope_enc_content,
         )
         assert response.status_code == 202
 
         enc_msg = websocket.receive_json()
-        assert enc_msg == json.loads(content.decode())
+        assert enc_msg == json.loads(didcomm_envelope_enc_content.decode())
 
         # Close websocket
         websocket.close()
@@ -62,7 +60,7 @@ def test_delivery_via_websocket(test_database: Database, random_me: (str, str, s
         response = client.post(
             url,
             headers={"Content-Type": content_type},
-            data=content,
+            data=didcomm_envelope_enc_content,
         )
         assert response.status_code == 410
 
@@ -94,9 +92,8 @@ def test_delivery_json_via_websocket(test_database: Database, random_me: (str, s
         assert enc_msg == content_json
 
 
-def test_unsupported_content_type(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):
+def test_unsupported_content_type(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, didcomm_envelope_enc_content: bytes):
     """Check unsupported content-type will raise http error status"""
-    content = b'{"protected": "eyJlbmMiOiAieGNoYWNoYTIwcG9seTEzMDVfaWV0ZiIsICJ0eXAiOiAiSldNLzEuMCIsICJhbGciOiAiQXV0aGNyeXB0IiwgInJlY2lwaWVudHMiOiBbeyJlbmNyeXB0ZWRfa2V5IjogInBKcW1xQS1IVWR6WTNWcFFTb2dySGx4WTgyRnc3Tl84YTFCSmtHU2VMT014VUlwT0RQWTZsMVVsaVVvOXFwS0giLCAiaGVhZGVyIjogeyJraWQiOiAiM1ZxZ2ZUcDZRNFZlRjhLWTdlVHVXRFZBWmFmRDJrVmNpb0R2NzZLR0xtZ0QiLCAic2VuZGVyIjogIjRlYzhBeFRHcWtxamd5NHlVdDF2a0poeWlYZlNUUHo1bTRKQjk1cGZSMG1JVW9KajAwWmswNmUyUEVDdUxJYmRDck8xeTM5LUhGTG5NdW5YQVJZWk5rZ2pyYV8wYTBQODJpbVdNcWNHc1FqaFd0QUhOcUw1OGNkUUYwYz0iLCAiaXYiOiAiVU1PM2o1ZHZwQnFMb2Rvd3V0c244WEMzTkVqSWJLb2oifX1dfQ==", "iv": "MchkHF2M-4hneeUJ", "ciphertext": "UgcdsV-0rIkP25eJuRSROOuqiTEXp4NToKjPMmqqtJs-Ih1b5t3EEbrrHxeSfPsHtlO6J4OqA1jc5uuD3aNssUyLug==", "tag": "sQD8qgJoTrRoyQKPeCSBlQ=="}'
     content_type = 'application/invalid-type'
 
     agent_did, agent_verkey, agent_secret = random_me
@@ -109,15 +106,14 @@ def test_unsupported_content_type(test_database: Database, random_me: (str, str,
     response = client.post(
         build_endpoint_url(random_endpoint_uid),
         headers={"Content-Type": content_type},
-        data=content,
+        data=didcomm_envelope_enc_content,
     )
     assert response.status_code == 415
 
 
 @pytest.mark.asyncio
-async def test_delivery_via_fcm(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):
+async def test_delivery_via_fcm(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, didcomm_envelope_enc_content: bytes):
     """Check unsupported content-type will raise http error status"""
-    content = b'{"protected": "eyJlbmMiOiAieGNoYWNoYTIwcG9seTEzMDVfaWV0ZiIsICJ0eXAiOiAiSldNLzEuMCIsICJhbGciOiAiQXV0aGNyeXB0IiwgInJlY2lwaWVudHMiOiBbeyJlbmNyeXB0ZWRfa2V5IjogInBKcW1xQS1IVWR6WTNWcFFTb2dySGx4WTgyRnc3Tl84YTFCSmtHU2VMT014VUlwT0RQWTZsMVVsaVVvOXFwS0giLCAiaGVhZGVyIjogeyJraWQiOiAiM1ZxZ2ZUcDZRNFZlRjhLWTdlVHVXRFZBWmFmRDJrVmNpb0R2NzZLR0xtZ0QiLCAic2VuZGVyIjogIjRlYzhBeFRHcWtxamd5NHlVdDF2a0poeWlYZlNUUHo1bTRKQjk1cGZSMG1JVW9KajAwWmswNmUyUEVDdUxJYmRDck8xeTM5LUhGTG5NdW5YQVJZWk5rZ2pyYV8wYTBQODJpbVdNcWNHc1FqaFd0QUhOcUw1OGNkUUYwYz0iLCAiaXYiOiAiVU1PM2o1ZHZwQnFMb2Rvd3V0c244WEMzTkVqSWJLb2oifX1dfQ==", "iv": "MchkHF2M-4hneeUJ", "ciphertext": "UgcdsV-0rIkP25eJuRSROOuqiTEXp4NToKjPMmqqtJs-Ih1b5t3EEbrrHxeSfPsHtlO6J4OqA1jc5uuD3aNssUyLug==", "tag": "sQD8qgJoTrRoyQKPeCSBlQ=="}'
     content_type = 'application/ssi-agent-wire'
 
     agent_did, agent_verkey, agent_secret = random_me
@@ -146,20 +142,19 @@ async def test_delivery_via_fcm(test_database: Database, random_me: (str, str, s
         response = await cli.post(
             build_endpoint_url(random_endpoint_uid),
             headers={"Content-Type": content_type},
-            data=content,
+            data=didcomm_envelope_enc_content,
         )
         assert response.status_code == 202
 
     fut.cancel()
     assert len(received_fcm_msgs) == 1
     fcm_msg = received_fcm_msgs[0]
-    assert fcm_msg == json.loads(content.decode())
+    assert fcm_msg == json.loads(didcomm_envelope_enc_content.decode())
 
 
 @pytest.mark.asyncio
-async def test_delivery_via_long_polling(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):
+async def test_delivery_via_long_polling(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, didcomm_envelope_enc_content: bytes):
     """Check long polling delivery mechanism"""
-    content = b'{"protected": "eyJlbmMiOiAieGNoYWNoYTIwcG9seTEzMDVfaWV0ZiIsICJ0eXAiOiAiSldNLzEuMCIsICJhbGciOiAiQXV0aGNyeXB0IiwgInJlY2lwaWVudHMiOiBbeyJlbmNyeXB0ZWRfa2V5IjogInBKcW1xQS1IVWR6WTNWcFFTb2dySGx4WTgyRnc3Tl84YTFCSmtHU2VMT014VUlwT0RQWTZsMVVsaVVvOXFwS0giLCAiaGVhZGVyIjogeyJraWQiOiAiM1ZxZ2ZUcDZRNFZlRjhLWTdlVHVXRFZBWmFmRDJrVmNpb0R2NzZLR0xtZ0QiLCAic2VuZGVyIjogIjRlYzhBeFRHcWtxamd5NHlVdDF2a0poeWlYZlNUUHo1bTRKQjk1cGZSMG1JVW9KajAwWmswNmUyUEVDdUxJYmRDck8xeTM5LUhGTG5NdW5YQVJZWk5rZ2pyYV8wYTBQODJpbVdNcWNHc1FqaFd0QUhOcUw1OGNkUUYwYz0iLCAiaXYiOiAiVU1PM2o1ZHZwQnFMb2Rvd3V0c244WEMzTkVqSWJLb2oifX1dfQ==", "iv": "MchkHF2M-4hneeUJ", "ciphertext": "UgcdsV-0rIkP25eJuRSROOuqiTEXp4NToKjPMmqqtJs-Ih1b5t3EEbrrHxeSfPsHtlO6J4OqA1jc5uuD3aNssUyLug==", "tag": "sQD8qgJoTrRoyQKPeCSBlQ=="}'
     content_type = 'application/ssi-agent-wire'
 
     agent_did, agent_verkey, agent_secret = random_me
@@ -187,7 +182,7 @@ async def test_delivery_via_long_polling(test_database: Database, random_me: (st
                 response = await cli.post(
                     build_endpoint_url(random_endpoint_uid),
                     headers={"Content-Type": content_type},
-                    data=content,
+                    data=didcomm_envelope_enc_content,
                 )
                 assert response.status_code == 202
     finally:
@@ -195,12 +190,55 @@ async def test_delivery_via_long_polling(test_database: Database, random_me: (st
     await asyncio.sleep(3)
 
 
-def test_delivery_with_queue_route_if_group_empty(random_me: (str, str, str)):
+def test_delivery_with_pickup(random_me: (str, str, str), didcomm_envelope_enc_content: bytes):
+    """Check delivery with Queue-Route DIDComm extension via PickUp protocol
+
+        - details: https://github.com/decentralized-identity/didcomm-messaging/blob/master/extensions/return_route/main.md#queue-transport
+        - details: https://github.com/hyperledger/aries-rfcs/tree/main/features/0212-pickup
+    """
+    content_type = 'application/didcomm-envelope-enc'
+
+    override_sirius_sdk()
+
+    agent_did, agent_verkey, agent_secret = random_me
+
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
+        try:
+            sleep(3)  # give websocket timeout to accept connection
+            cli = ClientEmulator(
+                transport=websocket, mediator_invitation=build_invitation(),
+                agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret,
+                ####################
+                group_id='some-group-id-' + uuid.uuid4().hex
+                ###################
+            )
+            # 1. Establish connection with Mediator
+            mediator_did_doc = cli.connect(endpoint=URI_QUEUE_TRANSPORT)
+            # 2. Allocate endpoint
+            mediate_grant = cli.mediate_grant()
+            # 3. Run async in thread
+            # thread = threading.Thread(target=__async_pull__, args=(cli, 30))
+            # thread.daemon = True
+            # thread.start()
+            # sleep(1)
+            # 4. Post wired via endpoint
+            response = client.post(
+                mediate_grant['endpoint'],
+                headers={"Content-Type": content_type},
+                data=didcomm_envelope_enc_content
+            )
+            assert response.status_code == 202
+            envelope = cli.pickup_batch(5)
+            assert envelope == json.loads(didcomm_envelope_enc_content.decode())
+        finally:
+            websocket.close()
+
+
+def test_delivery_with_queue_route_if_group_empty(random_me: (str, str, str), didcomm_envelope_enc_content: bytes):
     """Check delivery with Queue-Route DIDComm extension
 
         - details: https://github.com/decentralized-identity/didcomm-messaging/blob/master/extensions/return_route/main.md#queue-transport
     """
-    content = b'{"protected": "eyJlbmMiOiAieGNoYWNoYTIwcG9seTEzMDVfaWV0ZiIsICJ0eXAiOiAiSldNLzEuMCIsICJhbGciOiAiQXV0aGNyeXB0IiwgInJlY2lwaWVudHMiOiBbeyJlbmNyeXB0ZWRfa2V5IjogInBKcW1xQS1IVWR6WTNWcFFTb2dySGx4WTgyRnc3Tl84YTFCSmtHU2VMT014VUlwT0RQWTZsMVVsaVVvOXFwS0giLCAiaGVhZGVyIjogeyJraWQiOiAiM1ZxZ2ZUcDZRNFZlRjhLWTdlVHVXRFZBWmFmRDJrVmNpb0R2NzZLR0xtZ0QiLCAic2VuZGVyIjogIjRlYzhBeFRHcWtxamd5NHlVdDF2a0poeWlYZlNUUHo1bTRKQjk1cGZSMG1JVW9KajAwWmswNmUyUEVDdUxJYmRDck8xeTM5LUhGTG5NdW5YQVJZWk5rZ2pyYV8wYTBQODJpbVdNcWNHc1FqaFd0QUhOcUw1OGNkUUYwYz0iLCAiaXYiOiAiVU1PM2o1ZHZwQnFMb2Rvd3V0c244WEMzTkVqSWJLb2oifX1dfQ==", "iv": "MchkHF2M-4hneeUJ", "ciphertext": "UgcdsV-0rIkP25eJuRSROOuqiTEXp4NToKjPMmqqtJs-Ih1b5t3EEbrrHxeSfPsHtlO6J4OqA1jc5uuD3aNssUyLug==", "tag": "sQD8qgJoTrRoyQKPeCSBlQ=="}'
     content_type = 'application/didcomm-envelope-enc'
 
     override_sirius_sdk()
@@ -225,20 +263,18 @@ def test_delivery_with_queue_route_if_group_empty(random_me: (str, str, str)):
             response = client.post(
                 mediate_grant['endpoint'],
                 headers={"Content-Type": content_type},
-                data=content
+                data=didcomm_envelope_enc_content
             )
-            assert response.status_code == 410
-            # wired_actual = websocket.receive_json()
-            # wired_expected = json.loads(content.decode())
-            # assert wired_expected == wired_actual
+            assert response.status_code == 202
+            event = cli.pickup_batch(5)
+            assert event
         finally:
             websocket.close()
 
 
-def test_delivery_when_redis_server_fail(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):
+def test_delivery_when_redis_server_fail(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, didcomm_envelope_enc_content: bytes):
     """Check Push service will reconfigure endpoint to new redis instance if old address is unreachable
     """
-    content = b'{"protected": "eyJlbmMiOiAieGNoYWNoYTIwcG9seTEzMDVfaWV0ZiIsICJ0eXAiOiAiSldNLzEuMCIsICJhbGciOiAiQXV0aGNyeXB0IiwgInJlY2lwaWVudHMiOiBbeyJlbmNyeXB0ZWRfa2V5IjogInBKcW1xQS1IVWR6WTNWcFFTb2dySGx4WTgyRnc3Tl84YTFCSmtHU2VMT014VUlwT0RQWTZsMVVsaVVvOXFwS0giLCAiaGVhZGVyIjogeyJraWQiOiAiM1ZxZ2ZUcDZRNFZlRjhLWTdlVHVXRFZBWmFmRDJrVmNpb0R2NzZLR0xtZ0QiLCAic2VuZGVyIjogIjRlYzhBeFRHcWtxamd5NHlVdDF2a0poeWlYZlNUUHo1bTRKQjk1cGZSMG1JVW9KajAwWmswNmUyUEVDdUxJYmRDck8xeTM5LUhGTG5NdW5YQVJZWk5rZ2pyYV8wYTBQODJpbVdNcWNHc1FqaFd0QUhOcUw1OGNkUUYwYz0iLCAiaXYiOiAiVU1PM2o1ZHZwQnFMb2Rvd3V0c244WEMzTkVqSWJLb2oifX1dfQ==", "iv": "MchkHF2M-4hneeUJ", "ciphertext": "UgcdsV-0rIkP25eJuRSROOuqiTEXp4NToKjPMmqqtJs-Ih1b5t3EEbrrHxeSfPsHtlO6J4OqA1jc5uuD3aNssUyLug==", "tag": "sQD8qgJoTrRoyQKPeCSBlQ=="}'
     content_type = 'application/ssi-agent-wire'
 
     agent_did, agent_verkey, agent_secret = random_me
@@ -251,7 +287,7 @@ def test_delivery_when_redis_server_fail(test_database: Database, random_me: (st
     response = client.post(
         build_endpoint_url(random_endpoint_uid),
         headers={"Content-Type": content_type},
-        data=content,
+        data=didcomm_envelope_enc_content,
     )
     assert response.status_code == 410
 

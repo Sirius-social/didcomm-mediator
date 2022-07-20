@@ -1,0 +1,266 @@
+import json
+import uuid
+import asyncio
+import datetime
+from collections import OrderedDict
+from dataclasses import dataclass
+from typing import Union, Optional, List, OrderedDict as OrderedDictAlias
+
+from sirius_sdk.agent.aries_rfc.base import AriesProtocolMessage, RegisterMessage, VALID_DOC_URI, AriesProblemReport
+
+
+class BasePickUpMessage(AriesProtocolMessage, metaclass=RegisterMessage):
+    """Aries 0212 Pickup Protocol
+
+    https://github.com/hyperledger/aries-rfcs/tree/main/features/0212-pickup
+
+    Draft: https://hackmd.io/@andrewwhitehead/SJw9Ead2N
+    """
+    DOC_URI = VALID_DOC_URI[0]
+    PROTOCOL = 'messagepickup'
+
+    @dataclass
+    class BatchedMessage:
+        msg_id: str = None
+        message: Union[dict, str] = None
+
+    @property
+    def return_route(self) -> Optional[str]:
+        return self.get('~transport', {}).get('return_route', None)
+
+    @return_route.setter
+    def return_route(self, value: str):
+        transport = self.get('~transport', {})
+        transport['return_route'] = value
+        self['~transport'] = transport
+
+
+class PickUpStatusRequest(BasePickUpMessage):
+    NAME = 'status-request'
+
+
+class PickUpStatusResponse(BasePickUpMessage):
+    NAME = 'status'
+
+    def __init__(
+            self,
+            message_count: int = None,
+            duration_limit: int = None, last_added_time: str = None,
+            last_delivered_time: str = None, last_removed_time: str = None,
+            *args, **kwargs
+    ):
+        super().__init__(*args, **kwargs)
+        if message_count is not None:
+            self['message_count'] = message_count
+        if duration_limit is not None:
+            self['duration_limit'] = duration_limit
+        if last_added_time is not None:
+            self['last_added_time'] = last_added_time
+        if last_delivered_time is not None:
+            self['last_delivered_time'] = last_delivered_time
+        if last_removed_time is not None:
+            self['last_removed_time'] = last_removed_time
+
+    """Required Status Properties:"""
+    @property
+    def message_count(self) -> Optional[int]:
+        # The number of messages in the queue
+        return self.get('message_count', None)
+
+    """Optional Status Properties"""
+    @property
+    def duration_limit(self) -> Optional[int]:
+        # The maximum duration in seconds that a message may stay in the queue
+        # without being delivered (may be zero for no limit)
+        return self.get('duration_limit', None)
+
+    def last_added_time(self) -> Optional[str]:
+        # A timestamp representing the last time a message was added to the queue
+        return self.get('last_added_time', None)
+
+    @property
+    def last_removed_time(self) -> Optional[str]:
+        # A timestamp representing the last time one or more messages was removed from the queue
+        return self.get('last_removed_time', None)
+
+
+class PickUpBatchRequest(BasePickUpMessage):
+    NAME = 'batch-pickup'
+
+    def __init__(self, batch_size: int = None, pending_timeout: int = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if batch_size is not None:
+            self['batch_size'] = batch_size
+        if pending_timeout is not None:
+            self['pending_timeout'] = pending_timeout
+
+    @property
+    def batch_size(self) -> Optional[str]:
+        return self.get('batch_size', None)
+
+    @property
+    def pending_timeout(self) -> Optional[int]:
+        return self.get('pending_timeout', None)
+
+
+class PickUpBatchResponse(BasePickUpMessage):
+
+    NAME = 'batch'
+
+    @property
+    def filled(self) -> bool:
+        return (self.msg_id is not None) and (self.message is not None)
+
+    def __init__(self, messages: List[BasePickUpMessage.BatchedMessage] = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if messages is not None:
+            attach = []
+            for msg in messages:
+                attach.append({
+                    '@id': msg.msg_id,
+                    'message': msg.message
+                })
+            self['messages~attach'] = attach
+
+    @property
+    def messages(self) -> List[BasePickUpMessage.BatchedMessage]:
+        messages = []
+        for attach in self.get('messages~attach', []):
+            message = BasePickUpMessage.BatchedMessage(
+                msg_id=attach.get('@id', None),
+                message=attach.get('message', None)
+            )
+            messages.append(message)
+        return messages
+
+
+class PickUpListRequest(BasePickUpMessage):
+    NAME = 'list-pickup'
+
+    def __init__(self, message_ids: List[str] = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if message_ids is not None:
+            self['message_ids'] = message_ids
+
+    @property
+    def message_ids(self) -> List[str]:
+        return self.get('message_ids', [])
+
+
+class PickUpListResponse(BasePickUpMessage):
+    NAME = 'list-response'
+
+    def __init__(self, messages: List[BasePickUpMessage.BatchedMessage] = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if messages is not None:
+            attach = []
+            for msg in messages:
+                attach.append({
+                    '@id': msg.msg_id,
+                    'message': msg.message
+                })
+            self['messages~attach'] = attach
+
+    @property
+    def messages(self) -> List[BasePickUpMessage.BatchedMessage]:
+        messages = []
+        for attach in self.get('messages~attach', []):
+            message = BasePickUpMessage.BatchedMessage(
+                msg_id=attach.get('@id', None),
+                message=attach.get('message', None)
+            )
+            messages.append(message)
+        return messages
+
+
+class PickUpNoop(BasePickUpMessage):
+    NAME = 'noop'
+
+
+class PickUpProblemReport(AriesProblemReport, metaclass=RegisterMessage):
+    PROTOCOL = BasePickUpMessage.PROTOCOL
+
+
+class PickUpStateMachine:
+
+    @dataclass
+    class QueuedItem:
+        item: BasePickUpMessage.BatchedMessage
+        stamp: datetime.datetime = None
+
+    def __init__(self):
+        self.__messages: OrderedDictAlias[str, PickUpStateMachine.QueuedItem] = OrderedDict()
+        self.__filled = asyncio.Event()
+        self.__last_added_time = None
+        self.__message_count = 0
+
+    async def put(self, message: Union[dict, str], msg_id: str = None):
+        if isinstance(message, dict):
+            msg_id = message.get('@id', None)
+        elif isinstance(message, str):
+            try:
+                js = json.loads(message)
+                msg_id = js.get('@id', None)
+            except json.JSONDecodeError:
+                msg_id = None
+        msg_id = msg_id or uuid.uuid4().hex
+        item = BasePickUpMessage.BatchedMessage(msg_id=msg_id, message=message)
+        self.__messages[msg_id] = PickUpStateMachine.QueuedItem(item=item, stamp=datetime.datetime.utcnow())
+        self.__messages.move_to_end(msg_id, last=True)
+        self.__last_added_time = datetime.datetime.utcnow()
+        self.__message_count += 1
+        self.__filled.set()
+
+    async def process(self, msg: BasePickUpMessage) -> BasePickUpMessage:
+        if isinstance(msg, PickUpStatusRequest):
+            response = PickUpStatusResponse(
+                message_count=self.__message_count,
+                duration_limit=0,
+                last_added_time=str(self.__last_added_time) if self.__last_added_time else None
+            )
+            self.__prepare_response(request=msg, response=response)
+            return response
+        elif isinstance(msg, PickUpBatchRequest):
+            until_stamp = None
+            if msg.pending_timeout and msg.pending_timeout > 0:
+                until_stamp = datetime.datetime.now() + datetime.timedelta(seconds=msg.pending_timeout)
+            while msg.batch_size > self.__message_count:
+                if until_stamp is not None:
+                    delta = until_stamp - datetime.datetime.now()
+                    wait_timeout = max(0.0, delta.total_seconds())
+                else:
+                    wait_timeout = None
+                try:
+                    await asyncio.wait_for(self.__filled.wait(), timeout=wait_timeout)
+                except asyncio.TimeoutError:
+                    break
+
+            messages = []
+            size_to_retrieve = min(msg.batch_size, self.__message_count)
+            msg_ids = list(self.__messages.keys())[:size_to_retrieve]
+            for msg_id in msg_ids:
+                queued = self.__messages[msg_id]
+                messages.append(queued.item)
+                del self.__messages[msg_id]
+                self.__message_count -= 1
+            response = PickUpBatchResponse(messages=messages)
+            self.__prepare_response(request=msg, response=response)
+            return response
+        elif isinstance(msg, PickUpListRequest):
+            messages = []
+            for msg_id in msg.message_ids:
+                if msg_id in self.__messages.keys():
+                    queued = self.__messages[msg_id]
+                    messages.append(queued.item)
+            response = PickUpListResponse(messages=messages)
+            self.__prepare_response(request=msg, response=response)
+            return response
+        else:
+            response = PickUpProblemReport(problem_code='unknown_request', explain='Unknown request type')
+            self.__prepare_response(request=msg, response=response)
+            return response
+
+    @staticmethod
+    def __prepare_response(request: BasePickUpMessage, response: BasePickUpMessage):
+        if request.return_route == 'thread':
+            response['~thread'] = {'thid': request.id}

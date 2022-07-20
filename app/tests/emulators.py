@@ -15,6 +15,7 @@ from sirius_sdk.agent.aries_rfc.feature_0211_mediator_coordination_protocol.mess
 
 from app.settings import FCM_SERVICE_TYPE
 from rfc.bus import *
+from rfc.pickup import *
 
 
 class DIDCommRecipient:
@@ -167,6 +168,34 @@ class DIDCommRecipient:
         )
         ok, resp = restore_message_instance(json.loads(payload))
         return resp
+
+    def pickup_batch(self, timeout: int = None, batch_size: int = 1) -> Any:
+        request = PickUpBatchRequest(batch_size=batch_size, pending_timeout=timeout)
+        packed = pack_message(
+            message=json.dumps(request),
+            to_verkeys=[self._mediator_vk],
+            from_verkey=self._agent_verkey,
+            from_sigkey=self._agent_secret
+        )
+        self.__transport.send_bytes(packed)
+        # Receive answer
+        enc_msg = self.__transport.receive_bytes()
+        payload, sender_vk, recip_vk = unpack_message(
+            enc_message=enc_msg, my_verkey=self._agent_verkey, my_sigkey=self._agent_secret
+        )
+        ok, resp = restore_message_instance(json.loads(payload))
+        if isinstance(resp, PickUpBatchResponse):
+            if len(resp.messages) == 0:
+                raise TimeoutError
+            assert len(resp.messages) > 0
+            msg = resp.messages[0].message
+            ok, restored_msg = restore_message_instance(msg)
+            if ok:
+                return restored_msg
+            else:
+                return msg
+        else:
+            return resp
 
     def abort(self) -> BusBindResponse:
         request = BusUnsubscribeRequest(client_id=str(id(self)), need_answer=True, aborted=True)

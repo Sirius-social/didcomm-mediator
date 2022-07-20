@@ -52,7 +52,7 @@ for item in MSG_DELIVERY_SERVICES.split(','):
 
 WEBROOT = os.environ.get('WEBROOT')
 
-DEVICE_ACK_TIMEOUT = 5
+DEVICE_ACK_TIMEOUT = 15
 
 # Postgres
 DATABASE_HOST = os.getenv('DATABASE_HOST')
