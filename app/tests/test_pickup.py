@@ -100,3 +100,30 @@ async def test_noop():
     assert response1 == messages[0]
     response2 = await state_machine.process(request)
     assert response2 == messages[1]
+
+
+@pytest.mark.asyncio
+async def test_max_queue_size():
+    state_machine = PickUpStateMachine(max_queue_size=1)
+    msg_count = 2
+    messages = []
+    for n in range(msg_count):
+        msg = {'@id': uuid.uuid4().hex, 'content': 'Content'}
+        messages.append(msg)
+
+    async def async_writer(delay=0):
+        await asyncio.sleep(delay)
+        for m in messages:
+            await state_machine.put(m)
+
+    fut = asyncio.ensure_future(async_writer(3))
+    try:
+        for expected_msg in messages:
+            print('')
+            rcv_msg = await state_machine.process(request=PickUpNoop(pending_timeout=3))
+            assert expected_msg == rcv_msg
+    finally:
+        fut.cancel()
+
+    rcv_msg = await state_machine.process(request=PickUpNoop(pending_timeout=1))
+    assert isinstance(rcv_msg, PickUpProblemReport)

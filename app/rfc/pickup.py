@@ -187,6 +187,7 @@ class PickUpNoop(BasePickUpMessage):
 
 
 class PickUpProblemReport(AriesProblemReport, metaclass=RegisterMessage):
+    DOC_URI = VALID_DOC_URI[0]
     PROTOCOL = BasePickUpMessage.PROTOCOL
 
 

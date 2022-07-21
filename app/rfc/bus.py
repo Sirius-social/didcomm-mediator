@@ -210,4 +210,5 @@ class BusPublishResponse(BusBindResponse, metaclass=RegisterMessage):
 
 
 class BusProblemReport(AriesProblemReport, metaclass=RegisterMessage):
+    DOC_URI = VALID_DOC_URI[0]
     PROTOCOL = BusOperation.PROTOCOL
