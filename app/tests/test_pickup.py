@@ -74,9 +74,14 @@ async def test_batch_request():
     assert list([item.msg_id for item in response.messages]) == list([msg['@id'] for msg in chunk2])
     # Step-3
     request = PickUpBatchRequest(batch_size=1, pending_timeout=1)
-    response = await state_machine.process(request)
-    assert isinstance(response, PickUpBatchResponse)
-    assert len(response.messages) == 0
+    for n in range(2):
+        stamp1 = datetime.datetime.now()
+        response = await state_machine.process(request)
+        stamp2 = datetime.datetime.now()
+        assert isinstance(response, PickUpBatchResponse)
+        assert len(response.messages) == 0
+        stamp_delta = stamp2 - stamp1
+        assert 0.9 < stamp_delta.total_seconds() <= 1.1
 
 
 @pytest.mark.asyncio

@@ -200,8 +200,9 @@ class PickUpStateMachine:
         item: BasePickUpMessage.BatchedMessage
         stamp: datetime.datetime = None
 
-    def __init__(self):
+    def __init__(self, max_queue_size: int = None):
         self.__messages: OrderedDictAlias[str, PickUpStateMachine.QueuedItem] = OrderedDict()
+        self.__max_queue_size = max_queue_size
         self.__filled = asyncio.Event()
         self.__last_added_time = None
         self.__message_count = 0
