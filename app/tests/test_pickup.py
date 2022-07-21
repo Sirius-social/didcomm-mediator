@@ -77,3 +77,21 @@ async def test_batch_request():
     response = await state_machine.process(request)
     assert isinstance(response, PickUpBatchResponse)
     assert len(response.messages) == 0
+
+
+@pytest.mark.asyncio
+async def test_noop():
+    state_machine = PickUpStateMachine()
+    msg_count = 2
+    messages = []
+    for n in range(msg_count):
+        msg = {'@id': uuid.uuid4().hex, 'content': 'Content'}
+        messages.append(msg)
+    for msg in messages:
+        await state_machine.put(msg)
+
+    request = PickUpNoop()
+    response1 = await state_machine.process(request)
+    assert response1 == messages[0]
+    response2 = await state_machine.process(request)
+    assert response2 == messages[1]

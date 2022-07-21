@@ -100,7 +100,7 @@ class PickUpBatchRequest(BasePickUpMessage):
 
     @property
     def pending_timeout(self) -> Optional[int]:
-        return self.get('pending_timeout', None)
+        return self.get('pending_timeout', 0)
 
 
 class PickUpBatchResponse(BasePickUpMessage):
@@ -176,12 +176,24 @@ class PickUpListResponse(BasePickUpMessage):
 class PickUpNoop(BasePickUpMessage):
     NAME = 'noop'
 
+    def __init__(self, pending_timeout: int = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if pending_timeout is not None:
+            self['pending_timeout'] = pending_timeout
+
+    @property
+    def pending_timeout(self) -> Optional[int]:
+        return self.get('pending_timeout', 0)
+
 
 class PickUpProblemReport(AriesProblemReport, metaclass=RegisterMessage):
     PROTOCOL = BasePickUpMessage.PROTOCOL
 
 
 class PickUpStateMachine:
+
+    PROBLEM_CODE_EMPTY = 'empty_queue'
+    PROBLEM_CODE_INVALID_REQ = 'invalid_request'
 
     @dataclass
     class QueuedItem:
@@ -211,20 +223,20 @@ class PickUpStateMachine:
         self.__message_count += 1
         self.__filled.set()
 
-    async def process(self, msg: BasePickUpMessage) -> BasePickUpMessage:
-        if isinstance(msg, PickUpStatusRequest):
+    async def process(self, request: BasePickUpMessage) -> BasePickUpMessage:
+        if isinstance(request, PickUpStatusRequest):
             response = PickUpStatusResponse(
                 message_count=self.__message_count,
                 duration_limit=0,
                 last_added_time=str(self.__last_added_time) if self.__last_added_time else None
             )
-            self.__prepare_response(request=msg, response=response)
+            self.__prepare_response(request=request, response=response)
             return response
-        elif isinstance(msg, PickUpBatchRequest):
+        elif isinstance(request, PickUpBatchRequest):
             until_stamp = None
-            if msg.pending_timeout and msg.pending_timeout > 0:
-                until_stamp = datetime.datetime.now() + datetime.timedelta(seconds=msg.pending_timeout)
-            while msg.batch_size > self.__message_count:
+            if request.pending_timeout is not None and request.pending_timeout >= 0:
+                until_stamp = datetime.datetime.now() + datetime.timedelta(seconds=request.pending_timeout)
+            while request.batch_size > self.__message_count:
                 if until_stamp is not None:
                     delta = until_stamp - datetime.datetime.now()
                     wait_timeout = max(0.0, delta.total_seconds())
@@ -236,7 +248,7 @@ class PickUpStateMachine:
                     break
 
             messages = []
-            size_to_retrieve = min(msg.batch_size, self.__message_count)
+            size_to_retrieve = min(request.batch_size, self.__message_count)
             msg_ids = list(self.__messages.keys())[:size_to_retrieve]
             for msg_id in msg_ids:
                 queued = self.__messages[msg_id]
@@ -244,20 +256,32 @@ class PickUpStateMachine:
                 del self.__messages[msg_id]
                 self.__message_count -= 1
             response = PickUpBatchResponse(messages=messages)
-            self.__prepare_response(request=msg, response=response)
+            self.__prepare_response(request=request, response=response)
             return response
-        elif isinstance(msg, PickUpListRequest):
+        elif isinstance(request, PickUpListRequest):
             messages = []
-            for msg_id in msg.message_ids:
+            for msg_id in request.message_ids:
                 if msg_id in self.__messages.keys():
                     queued = self.__messages[msg_id]
                     messages.append(queued.item)
             response = PickUpListResponse(messages=messages)
-            self.__prepare_response(request=msg, response=response)
+            self.__prepare_response(request=request, response=response)
+            return response
+        elif isinstance(request, PickUpNoop):
+            batch = PickUpBatchRequest(batch_size=1, pending_timeout=request.pending_timeout)
+            batched = await self.process(batch)
+            assert isinstance(batched, PickUpBatchResponse)
+            if batched.messages:
+                response = batched.messages[0].message
+            else:
+                response = PickUpProblemReport(
+                    problem_code=self.PROBLEM_CODE_EMPTY, explain='Message queue is empty, pending_timeout occured'
+                )
+            self.__prepare_response(request=request, response=response)
             return response
         else:
-            response = PickUpProblemReport(problem_code='unknown_request', explain='Unknown request type')
-            self.__prepare_response(request=msg, response=response)
+            response = PickUpProblemReport(problem_code=self.PROBLEM_CODE_INVALID_REQ, explain='Unknown request type')
+            self.__prepare_response(request=request, response=response)
             return response
 
     @staticmethod
