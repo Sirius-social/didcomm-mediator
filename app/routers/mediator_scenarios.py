@@ -80,6 +80,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
     listener = WebsocketListener(ws=websocket, my_keys=KEYPAIR)
     protocols_listeners: Dict[str, asyncio.Task] = {}
     pickup = PickUpStateMachine()
+    use_queue_transport = False
     try:
         async for event in listener:
             try:
@@ -134,6 +135,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         # via same websocket connection
                         their_services = p2p.their.did_doc.get('service', [])
                         if any([service['serviceEndpoint'] == URI_QUEUE_TRANSPORT for service in their_services]):
+                            use_queue_transport = True
                             if inbound_listener and not inbound_listener.done():
                                 # terminate all task
                                 inbound_listener.cancel()
@@ -214,7 +216,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         their_did = '*'
                     if isinstance(op, BusSubscribeRequest):
                         listener_kwargs = {}
-                        if op.return_route != 'all':
+                        if op.return_route != 'all' and use_queue_transport:
                             listener_kwargs['pickup'] = pickup
                         if op.cast.thid:
                             binding_id = op.cast.thid
@@ -281,7 +283,10 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                 binding_id=processed_binding_id, active=False,
                                 aborted=op.aborted, client_id=op.client_id
                             )
-                            await listener.response(for_event=event, message=resp)
+                            if op.return_route != 'all' and use_queue_transport and op.aborted is True:
+                                await pickup.put(resp, msg_id=resp.id)
+                            else:
+                                await listener.response(for_event=event, message=resp)
                     elif isinstance(op, BusPublishRequest):
                         topics = []
                         if isinstance(op.binding_id, str):

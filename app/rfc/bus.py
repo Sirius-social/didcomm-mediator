@@ -38,6 +38,16 @@ class BusOperation(AriesProtocolMessage, metaclass=RegisterMessage):
                 js['recipient_vk'] = self.recipient_vk if isinstance(self.recipient_vk, str) else sorted(self.recipient_vk)
             return js
 
+    @property
+    def return_route(self) -> Optional[str]:
+        return self.get('~transport', {}).get('return_route', None)
+
+    @return_route.setter
+    def return_route(self, value: str):
+        transport = self.get('~transport', {})
+        transport['return_route'] = value
+        self['~transport'] = transport
+
 
 class BusSubscribeRequest(BusOperation, metaclass=RegisterMessage):
     NAME = 'subscribe'

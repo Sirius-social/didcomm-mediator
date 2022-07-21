@@ -197,7 +197,7 @@ class DIDCommRecipient:
         else:
             return resp
 
-    def abort(self) -> BusBindResponse:
+    def abort(self, wait_answer: bool = True) -> Optional[BusBindResponse]:
         request = BusUnsubscribeRequest(client_id=str(id(self)), need_answer=True, aborted=True)
         packed = pack_message(
             message=json.dumps(request),
@@ -206,13 +206,16 @@ class DIDCommRecipient:
             from_sigkey=self._agent_secret
         )
         self.__transport.send_bytes(packed)
-        # Receive answer
-        enc_msg = self.__transport.receive_bytes()
-        payload, sender_vk, recip_vk = unpack_message(
-            enc_message=enc_msg, my_verkey=self._agent_verkey, my_sigkey=self._agent_secret
-        )
-        ok, resp = restore_message_instance(json.loads(payload))
-        return resp
+        if wait_answer:
+            # Receive answer
+            enc_msg = self.__transport.receive_bytes()
+            payload, sender_vk, recip_vk = unpack_message(
+                enc_message=enc_msg, my_verkey=self._agent_verkey, my_sigkey=self._agent_secret
+            )
+            ok, resp = restore_message_instance(json.loads(payload))
+            return resp
+        else:
+            return None
 
     def publish(self, binding_id: str, payload: bytes) -> BusPublishResponse:
         request = BusPublishRequest(binding_id=binding_id, payload=payload)
