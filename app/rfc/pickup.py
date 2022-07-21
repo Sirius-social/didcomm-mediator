@@ -91,7 +91,7 @@ class PickUpBatchRequest(BasePickUpMessage):
         super().__init__(*args, **kwargs)
         if batch_size is not None:
             self['batch_size'] = batch_size
-        if pending_timeout is not None:
+        if pending_timeout != 0:
             self['pending_timeout'] = pending_timeout
 
     @property
@@ -178,7 +178,7 @@ class PickUpNoop(BasePickUpMessage):
 
     def __init__(self, pending_timeout: int = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if pending_timeout is not None:
+        if pending_timeout != 0:
             self['pending_timeout'] = pending_timeout
 
     @property
