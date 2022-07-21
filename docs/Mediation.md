@@ -19,6 +19,7 @@ There are two variants to pull inbound messages from mediator:
   by recipient via [pickup](https://github.com/hyperledger/aries-rfcs/tree/main/features/0212-pickup) protocol.
 
 ## Mediator Message Flow Overview
+See sample code of establish connection with mediator [here](/examples/case1_starting.py)
+
 ![Mediator Message Flow](_static/mediation-message-flow.png)
 
-See sample code of establish connection with mediator [here](/examples/case1_starting.py)
