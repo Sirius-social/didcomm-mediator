@@ -79,7 +79,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
     group_id = None
     listener = WebsocketListener(ws=websocket, my_keys=KEYPAIR)
     protocols_listeners: Dict[str, asyncio.Task] = {}
-    pickup = PickUpStateMachine()
+    pickup = PickUpStateMachine(max_queue_size=1)
     use_queue_transport = False
     try:
         async for event in listener:
@@ -279,13 +279,23 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         if len(processed_binding_id) == 1:
                             processed_binding_id = processed_binding_id[0]
                         if op.need_answer is True or op.aborted is True:
+                            logging.debug('Unsubscribe operation')
+                            logging.debug(json.dumps(op, indent=True, sort_keys=True))
                             resp = BusBindResponse(
                                 binding_id=processed_binding_id, active=False,
                                 aborted=op.aborted, client_id=op.client_id
                             )
-                            if op.return_route != 'all' and use_queue_transport and op.aborted is True:
-                                await pickup.put(resp, msg_id=resp.id)
-                            else:
+                            was_sent_with_websocket = False
+                            if op.aborted is True:
+                                if op.return_route != 'all' and use_queue_transport:
+                                    logging.debug('#1 unsubscribing: put to pickup state-machine')
+                                    await pickup.put(resp, msg_id=resp.id)
+                                else:
+                                    logging.debug('#2 unsubscribing: send to websocket')
+                                    await listener.response(for_event=event, message=resp)
+                                    was_sent_with_websocket = True
+                            if op.need_answer is True and not was_sent_with_websocket:
+                                logging.debug('#3 unsubscribing: send to websocket')
                                 await listener.response(for_event=event, message=resp)
                     elif isinstance(op, BusPublishRequest):
                         topics = []

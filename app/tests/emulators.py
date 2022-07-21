@@ -198,7 +198,7 @@ class DIDCommRecipient:
             return resp
 
     def abort(self, wait_answer: bool = True) -> Optional[BusBindResponse]:
-        request = BusUnsubscribeRequest(client_id=str(id(self)), need_answer=True, aborted=True)
+        request = BusUnsubscribeRequest(client_id=str(id(self)), need_answer=wait_answer, aborted=True)
         packed = pack_message(
             message=json.dumps(request),
             to_verkeys=[self._mediator_vk],

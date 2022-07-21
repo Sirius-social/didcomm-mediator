@@ -204,10 +204,13 @@ class PickUpStateMachine:
         self.__messages: OrderedDictAlias[str, PickUpStateMachine.QueuedItem] = OrderedDict()
         self.__max_queue_size = max_queue_size
         self.__filled = asyncio.Event()
+        self.__ready_to_put = asyncio.Event()
+        self.__ready_to_put.set()
         self.__last_added_time = None
         self.__message_count = 0
 
     async def put(self, message: Union[dict, str], msg_id: str = None):
+        await self.__ready_to_put.wait()
         if isinstance(message, dict):
             msg_id = message.get('@id', None)
         elif isinstance(message, str):
@@ -223,6 +226,11 @@ class PickUpStateMachine:
         self.__last_added_time = datetime.datetime.utcnow()
         self.__message_count += 1
         self.__filled.set()
+        if self.__max_queue_size is not None:
+            if self.__message_count < self.__max_queue_size:
+                self.__ready_to_put.set()
+            else:
+                self.__ready_to_put.clear()
 
     async def process(self, request: BasePickUpMessage) -> BasePickUpMessage:
         if isinstance(request, PickUpStatusRequest):
@@ -285,7 +293,11 @@ class PickUpStateMachine:
             self.__prepare_response(request=request, response=response)
             return response
 
-    @staticmethod
-    def __prepare_response(request: BasePickUpMessage, response: BasePickUpMessage):
+    def __prepare_response(self, request: BasePickUpMessage, response: BasePickUpMessage):
         if request.return_route == 'thread':
             response['~thread'] = {'thid': request.id}
+        if self.__max_queue_size is not None:
+            if self.__message_count < self.__max_queue_size:
+                self.__ready_to_put.set()
+            else:
+                self.__ready_to_put.clear()
