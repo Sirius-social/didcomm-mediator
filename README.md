@@ -71,12 +71,23 @@ infrastructure to solve **DIDComm** challenges in **Mobile Apps development**:
      authenticate in mediator services (see below)
      - protocol [Aries-RFC 0211](https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination)
      to allocate Http endpoint, accessible from internet.
+     - protocol [Aries-RFC 0212](https://github.com/Purik/aries-rfcs/tree/main/features/0212-pickup)
+     to pull queued messages
+     - DIDComm extension [queue transport extension](https://github.com/decentralized-identity/didcomm-messaging/blob/main/extensions/return_route/main.md)
+     to indicate duplex channel (via websocket) between edge-agent and mediator. See usage details [here](docs/Mediation.md#using-a-mediator)
   - **efficient**
      - This server app is packed to docker image to rapidly deploy, maintain, [scale with microservices approach](docs/AdminGuide.md#scaling) 
      - Fast to start: appliccation, presented in the repo, has user-friendly admin page and dashboards.
-    
+
+## Mediation Flow
+
+See details here [Mediation.md](docs/Mediation.md)
 
 ## Quick Start
+
+You may quickly start with cloud-mediator, check [samples](docs/Developer.md#3-samples) for it
+
+or set-up self-maintained one
 
   1. Navigate to [docs](docs/) directory and pull all docker images: ```docker-compose pull```
   2. You should generate Mediator public and private keys: ```docker-compose run --rm app manage generate_seed```,

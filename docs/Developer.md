@@ -2,7 +2,7 @@
 
 ## INTRO
 This document describes how to start develop mobile applications that acts as 
-Edge Agent in DIDComm decentralized environment with self-service.
+Edge Agent in DIDComm decentralized environment with self-service. Details on mediate flow you may find in the [Mediation.md](/docs/Mediation.md) doc.
 
  - **Q**: Why communication with Mediator is running self-service?
    
@@ -48,7 +48,7 @@ Take a look at Two cases.
               "recipientKeys": [
                  "JHiaU6HisgxjyRMdPfcGtE#1"
               ],
-              "serviceEndpoint": "ws://",
+              "serviceEndpoint": "ws://",  # or "serviceEndpoint": "didcomm:transport/queue" to pull forwarded messages with pickup protocol 
               "type": "IndyAgent"
             },
          ...
@@ -91,6 +91,8 @@ Take a look at Two cases.
          }
          ...
          ```
+     - If recipient have set self endpoint to ```didcomm:transport/queue``` value, then mediator will queue all
+      forwarded messages to internal queue, so recipient should retrieve them according [P=pickup](https://github.com/Purik/aries-rfcs/tree/main/features/0212-pickup) protocol.
          
   - **Case 2**: Mediator admin created P2P connection. ![Static connection](_static/create_static_connection.png?raw=true).
     Then recipient should have: **mediator endpoint** and **mediator verkey**.
