@@ -4,7 +4,7 @@ from typing import Union, Optional, List, Any
 
 from sirius_sdk.agent.aries_rfc.base import AriesProtocolMessage, RegisterMessage, VALID_DOC_URI, AriesProblemReport
 
-from rfc.decorators import get_parent_thread_id, set_parent_thread_id
+from rfc.decorators import *
 
 
 class BusOperation(AriesProtocolMessage, metaclass=RegisterMessage):
@@ -95,12 +95,12 @@ class BusBindResponse(BusOperation, metaclass=RegisterMessage):
     NAME = 'bind'
 
     def __init__(
-            self, binding_id: Union[str, List[str]] = None,
+            self, thread_id: Union[str, List[str]] = None,
             active: bool = None, parent_thread_id: str = None, aborted: bool = None, *args, **kwargs
     ):
         super().__init__(*args, **kwargs)
-        if binding_id:
-            self['binding_id'] = binding_id
+        if thread_id:
+            set_thread_id(self, thread_id)
         if active is not None:
             self['active'] = active
         if parent_thread_id:
@@ -117,8 +117,8 @@ class BusBindResponse(BusOperation, metaclass=RegisterMessage):
         return self.get('aborted', None)
 
     @property
-    def binding_id(self) -> Optional[Union[str, List[str]]]:
-        return self.get('binding_id', None)
+    def thread_id(self) -> Optional[Union[str, List[str]]]:
+        return get_thread_id(self)
 
     @property
     def parent_thread_id(self) -> Optional[str]:
@@ -129,10 +129,10 @@ class BusUnsubscribeRequest(BusBindResponse, metaclass=RegisterMessage):
     NAME = 'unsubscribe'
 
     def __init__(
-            self, binding_id: Union[str, List[str]] = None,
+            self, thread_id: Union[str, List[str]] = None,
             need_answer: bool = None, parent_thread_id: str = None, aborted: bool = None, *args, **kwargs
     ):
-        super().__init__(binding_id, *args, **kwargs)
+        super().__init__(thread_id, *args, **kwargs)
         if need_answer is not None:
             self['need_answer'] = need_answer
         if parent_thread_id:
@@ -160,8 +160,8 @@ class BusUnsubscribeRequest(BusBindResponse, metaclass=RegisterMessage):
 class BusPublishRequest(BusBindResponse, metaclass=RegisterMessage):
     NAME = 'publish'
 
-    def __init__(self, binding_id: Union[str, List[str]] = None, payload: Any = None, *args, **kwargs):
-        super().__init__(binding_id, *args, **kwargs)
+    def __init__(self, thread_id: Union[str, List[str]] = None, payload: Any = None, *args, **kwargs):
+        super().__init__(thread_id, *args, **kwargs)
         if payload:
             self.payload = payload
 
@@ -201,8 +201,8 @@ class BusEvent(BusPublishRequest, metaclass=RegisterMessage):
 class BusPublishResponse(BusBindResponse, metaclass=RegisterMessage):
     NAME = 'publish-result'
 
-    def __init__(self, binding_id: Union[str, List[str]] = None, recipients_num: int = None, *args, **kwargs):
-        super().__init__(binding_id, *args, **kwargs)
+    def __init__(self, thread_id: Union[str, List[str]] = None, recipients_num: int = None, *args, **kwargs):
+        super().__init__(thread_id, *args, **kwargs)
         if recipients_num is not None:
             self['recipients_num'] = recipients_num
 

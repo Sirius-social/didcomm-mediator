@@ -21,12 +21,13 @@ class WebsocketListener:
     async def response(self, for_event: Event, message: dict):
         if for_event.message is not None:
             income_msg: Message = for_event.message
-            return_route = get_return_route(income_msg)
-            thread_id = get_thread_id(income_msg) or get_ack_message_id(income_msg)
-            if thread_id:
-                set_thread_id(message, thread_id)
-            elif return_route == 'thread':
-                set_thread_id(message, income_msg.id)
+            if get_thread_id(message) is None:
+                income_return_route = get_return_route(income_msg)
+                income_thread_id = get_thread_id(income_msg) or get_ack_message_id(income_msg)
+                if income_thread_id:
+                    set_thread_id(message, income_thread_id)
+                elif income_return_route == 'thread':
+                    set_thread_id(message, income_msg.id)
         if for_event.sender_verkey:
             packed = pack_message(
                 message=json.dumps(message),

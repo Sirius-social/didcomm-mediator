@@ -125,20 +125,20 @@ async def test_rfc_messages():
     assert op_subscribe2.cast.sender_vk == 'VK2'
     assert op_subscribe2.cast.recipient_vk == 'VK1'
 
-    bind = BusBindResponse(binding_id='some-bind-id')
-    assert bind.binding_id == 'some-bind-id'
+    bind = BusBindResponse(thread_id='some-bind-id')
+    assert bind.thread_id == 'some-bind-id'
 
     ok, msg = restore_message_instance(
         {
             '@type': 'https://didcomm.org/bus/1.0/bind',
-            'binding_id': 'some-binding-id2'
+            '~thread': {'thid': 'some-binding-id2'}
         }
     )
     assert ok is True
     assert isinstance(msg, BusBindResponse)
-    assert msg.binding_id == 'some-binding-id2'
+    assert msg.thread_id == 'some-binding-id2'
 
-    unsub = BusUnsubscribeRequest(binding_id='some-id')
+    unsub = BusUnsubscribeRequest(thread_id='some-id')
     assert unsub.need_answer is None
     for flag in [True, False]:
         unsub.need_answer = flag
@@ -169,9 +169,9 @@ def test_bus_rfc_raise_events_for_thid(test_database: Database, random_me: (str,
             bind = cli.subscribe(thid=sub_thid)
             assert isinstance(bind, BusBindResponse)
             assert bind.active is True
-            assert isinstance(bind.binding_id, str) and len(bind.binding_id) > 0
+            assert isinstance(bind.thread_id, str) and len(bind.thread_id) > 0
             # 3. Publish payload to bus
-            topic = build_protocol_topic(agent_did, bind.binding_id)
+            topic = build_protocol_topic(agent_did, bind.thread_id)
             recp_num = asyncio.get_event_loop().run_until_complete(protocols_bus.publish(topic, content))
             assert recp_num == 1
             # 4. Check delivery
@@ -205,9 +205,9 @@ def test_bus_rfc_raise_events_for_vk(test_database: Database, random_me: (str, s
             bind = cli.subscribe(sender_vk='VK1', recipient_vk=['VK2', 'VK3'], protocols=['proto1', 'proto2'])
             assert isinstance(bind, BusBindResponse)
             assert bind.active is True
-            assert isinstance(bind.binding_id, str) and len(bind.binding_id) > 0
+            assert isinstance(bind.thread_id, str) and len(bind.thread_id) > 0
             # 3. Publish payload to bus
-            topic = build_protocol_topic(agent_did, bind.binding_id)
+            topic = build_protocol_topic(agent_did, bind.thread_id)
             recp_num = asyncio.get_event_loop().run_until_complete(protocols_bus.publish(topic, content))
             assert recp_num == 1
             # 4. Check delivery
@@ -230,7 +230,7 @@ def test_bus_rfc_multiple_topics(test_database: Database, random_me: (str, str, 
     protocols_bus = Bus()
     thid1 = 'thread-1-' + uuid.uuid4().hex
     thid2 = 'thread-2-' + uuid.uuid4().hex
-    binding_ids = {}
+    thread_ids = {}
 
     with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
         try:
@@ -246,10 +246,10 @@ def test_bus_rfc_multiple_topics(test_database: Database, random_me: (str, str, 
                 bind = cli.subscribe(thid=thid)
                 assert isinstance(bind, BusBindResponse)
                 assert bind.active is True
-                binding_ids[thid] = bind.binding_id
+                thread_ids[thid] = bind.thread_id
             # 3. Publish to Thread-1 & Thread-2
             for thid, content in [(thid1, content1), (thid2, content2)]:
-                topic = build_protocol_topic(agent_did, binding_ids[thid])
+                topic = build_protocol_topic(agent_did, thread_ids[thid])
                 recp_num = asyncio.get_event_loop().run_until_complete(protocols_bus.publish(topic, content))
                 assert recp_num == 1
             # 4. Read income events
@@ -260,13 +260,13 @@ def test_bus_rfc_multiple_topics(test_database: Database, random_me: (str, str, 
             assert content1 in income_events
             assert content2 in income_events
             # 5. Unsubscribe from Thread-2
-            unbind = cli.unsubscribe(binding_id=binding_ids[thid2])
+            unbind = cli.unsubscribe(thread_id=thread_ids[thid2])
             assert isinstance(unbind, BusBindResponse)
             assert unbind.active is False
-            assert unbind.binding_id == binding_ids[thid2]
+            assert unbind.thread_id == thread_ids[thid2]
             # 6. Publish again
             for thid, expected_recip_num in [(thid1, 1), (thid2, 0)]:
-                topic = build_protocol_topic(agent_did, binding_ids[thid])
+                topic = build_protocol_topic(agent_did, thread_ids[thid])
                 recp_num = asyncio.get_event_loop().run_until_complete(protocols_bus.publish(topic, content))
                 assert recp_num == expected_recip_num
         finally:
@@ -301,12 +301,15 @@ def test_bus_rfc_publish(test_database: Database, random_me: (str, str, str)):
                 cli2.connect(endpoint=URI_QUEUE_TRANSPORT)
                 cli2.subscribe(thid=thid)
                 # 2. Publish to Thread
-                resp = cli1.publish(binding_id=thid, payload=content)
+                resp = cli1.publish(thread_id=thid, payload=content)
                 assert isinstance(resp, BusPublishResponse)
                 assert resp.recipients_num > 0
                 event = cli2.pickup_batch(timeout=5)
                 assert isinstance(event, BusEvent)
                 assert event.payload == content
+                assert event.thread_id == thid
+                assert event.parent_thread_id is not None
+                print(json.dumps(event, sort_keys=True, indent=2))
             finally:
                 websocket1.close()
                 websocket2.close()

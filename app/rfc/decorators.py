@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Union, List
 
 
 THREAD_DECORATOR = '~thread'
@@ -17,7 +17,7 @@ def set_ack_message_id(message: dict, msg_id: str = None):
         message[PLEASE_ACK_DECORATOR] = {'message_id': msg_id}
 
 
-def get_thread_id(message: dict) -> Optional[str]:
+def get_thread_id(message: dict) -> Optional[Union[str, List[str]]]:
     return message.get(THREAD_DECORATOR, {}).get('thid', None)
 
 
@@ -25,7 +25,7 @@ def get_parent_thread_id(message: dict) -> Optional[str]:
     return message.get(THREAD_DECORATOR, {}).get('pthid', None)
 
 
-def set_thread_id(message: dict, thid: str):
+def set_thread_id(message: dict, thid: Union[str, List[str]]):
     thread_decorator = message.get(THREAD_DECORATOR, {})
     thread_decorator['thid'] = thid
     message[THREAD_DECORATOR] = thread_decorator

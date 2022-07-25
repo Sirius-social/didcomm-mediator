@@ -152,8 +152,8 @@ class DIDCommRecipient:
         ok, resp = restore_message_instance(json.loads(payload))
         return resp
 
-    def unsubscribe(self, binding_id: str) -> BusBindResponse:
-        request = BusUnsubscribeRequest(binding_id=binding_id, need_answer=True)
+    def unsubscribe(self, thread_id: str) -> BusBindResponse:
+        request = BusUnsubscribeRequest(thread_id=thread_id, need_answer=True)
         packed = pack_message(
             message=json.dumps(request),
             to_verkeys=[self._mediator_vk],
@@ -217,8 +217,8 @@ class DIDCommRecipient:
         else:
             return None
 
-    def publish(self, binding_id: str, payload: bytes) -> BusPublishResponse:
-        request = BusPublishRequest(binding_id=binding_id, payload=payload)
+    def publish(self, thread_id: str, payload: bytes) -> BusPublishResponse:
+        request = BusPublishRequest(thread_id=thread_id, payload=payload)
         packed = pack_message(
             message=json.dumps(request),
             to_verkeys=[self._mediator_vk],

@@ -39,12 +39,12 @@ class BasicMessageProblemReport(AriesProblemReport, metaclass=RegisterMessage):
 
 
 async def protocol_listener(
-        topic: str, binding_id: str, ws: WebSocket, on: asyncio.Event,
+        topic: str, thread_id: str, ws: WebSocket, on: asyncio.Event,
         p2p: sirius_sdk.Pairwise = None, pickup: PickUpStateMachine = None, parent_thread_id: str = None
 ):
     bus = Bus()
     async for payload in bus.listen(topic, on=on):
-        event = BusEvent(payload=payload, binding_id=binding_id)
+        event = BusEvent(payload=payload, thread_id=thread_id)
         if parent_thread_id:
             set_parent_thread_id(event, parent_thread_id)
         if p2p:
@@ -221,7 +221,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         if op.return_route != 'all' and use_queue_transport:
                             listener_kwargs['pickup'] = pickup
                         if op.cast.thid:
-                            binding_id = op.cast.thid
+                            thread_id = op.cast.thid
                         else:
                             if not op.cast.validate():
                                 await listener.response(
@@ -231,59 +231,57 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                         explain='Invalid cast field, check it'
                                     )
                                 )
-                            binding_id = json.dumps(op.cast.as_json(), sort_keys=True)
-                        if isinstance(binding_id, list):
-                            binding_id = [s for s in binding_id]
-                        else:
-                            binding_id = binding_id
-                        resp = BusBindResponse(binding_id=binding_id, active=True, parent_thread_id=op.parent_thread_id)
-                        for bid in ([binding_id] if isinstance(binding_id, str) else binding_id):
-                            topic = build_protocol_topic(their_did, bid)
-                            tsk = protocols_listeners.get(bid, None)
+                            thread_id = hashlib.md5(
+                                json.dumps(op.cast.as_json(), sort_keys=True).encode()
+                            ).hexdigest()
+                        resp = BusBindResponse(thread_id=thread_id, active=True, parent_thread_id=op.parent_thread_id)
+                        for thid in ([thread_id] if isinstance(thread_id, str) else thread_id):
+                            topic = build_protocol_topic(their_did, thid)
+                            tsk = protocols_listeners.get(thid, None)
                             if tsk and tsk.done():
                                 tsk = None
                             if not tsk:
                                 on = asyncio.Event()
                                 tsk = asyncio.create_task(
                                     protocol_listener(
-                                        topic=topic, binding_id=bid, ws=websocket,
+                                        topic=topic, thread_id=thid, ws=websocket,
                                         on=on, p2p=event.pairwise, **listener_kwargs
                                     )
                                 )
                                 tsk.thread_id = op.parent_thread_id
-                                protocols_listeners[bid] = tsk
+                                protocols_listeners[thid] = tsk
                                 await on.wait()
                         if protocols_listeners and group_id is None:
                             if inbound_listener and not inbound_listener.done():
                                 inbound_listener.cancel()
                         await listener.response(for_event=event, message=resp)
                     elif isinstance(op, BusUnsubscribeRequest):
-                        processed_binding_id = []
-                        binding_ids = [op.binding_id] if isinstance(op.binding_id, str) else op.binding_id
-                        if binding_ids is None:
-                            binding_ids = []
+                        processed_thread_id = []
+                        thread_ids = [op.thread_id] if isinstance(op.thread_id, str) else op.thread_id
+                        if thread_ids is None:
+                            thread_ids = []
                         if op.parent_thread_id:
-                            binding_ids.extend([bid for bid, tsk in protocols_listeners.items() if tsk.thread_id == op.parent_thread_id])
-                        if binding_ids:
-                            for bid in binding_ids:
-                                if bid in protocols_listeners:
-                                    tsk = protocols_listeners.get(bid, None)
+                            thread_ids.extend([bid for bid, tsk in protocols_listeners.items() if tsk.thread_id == op.parent_thread_id])
+                        if thread_ids:
+                            for thid in thread_ids:
+                                if thid in protocols_listeners:
+                                    tsk = protocols_listeners.get(thid, None)
                                     if tsk and not tsk.done():
                                         tsk.cancel()
-                                    del protocols_listeners[bid]
-                                    processed_binding_id.append(bid)
+                                    del protocols_listeners[thid]
+                                    processed_thread_id.append(thid)
                         else:
                             for tsk in protocols_listeners.values():
                                 if tsk and not tsk.done():
                                     tsk.cancel()
-                            processed_binding_id = list(protocols_listeners.keys())
+                            processed_thread_id = list(protocols_listeners.keys())
                             protocols_listeners.clear()
-                        if len(processed_binding_id) == 1:
-                            processed_binding_id = processed_binding_id[0]
+                        if len(processed_thread_id) == 1:
+                            processed_thread_id = processed_thread_id[0]
                         if op.need_answer is True or op.aborted is True:
                             logging.debug('Unsubscribe operation')
                             resp = BusBindResponse(
-                                binding_id=processed_binding_id, active=False,
+                                thread_id=processed_thread_id, active=False,
                                 aborted=op.aborted, parent_thread_id=op.parent_thread_id
                             )
                             was_sent_with_websocket = False
@@ -300,12 +298,12 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                 await listener.response(for_event=event, message=resp)
                     elif isinstance(op, BusPublishRequest):
                         topics = []
-                        if isinstance(op.binding_id, str):
-                            topic = build_protocol_topic(their_did, op.binding_id)
+                        if isinstance(op.thread_id, str):
+                            topic = build_protocol_topic(their_did, op.thread_id)
                             topics.append(topic)
                         else:
-                            for bid in op.binding_id:
-                                topic = build_protocol_topic(their_did, bid)
+                            for thid in op.thread_id:
+                                topic = build_protocol_topic(their_did, thid)
                                 topics.append(topic)
                         if topics:
                             payload = op.payload
@@ -315,7 +313,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                     for topic in topics:
                                         num = await protocols_bus.publish(topic, payload)
                                         recipients_num += num
-                                    resp = BusPublishResponse(binding_id=op.binding_id, recipients_num=recipients_num)
+                                    resp = BusPublishResponse(thread_id=op.thread_id, recipients_num=recipients_num)
                                 else:
                                     resp = BusProblemReport(
                                         problem_code='invalid_payload',
