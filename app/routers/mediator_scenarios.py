@@ -40,11 +40,13 @@ class BasicMessageProblemReport(AriesProblemReport, metaclass=RegisterMessage):
 
 async def protocol_listener(
         topic: str, binding_id: str, ws: WebSocket, on: asyncio.Event,
-        p2p: sirius_sdk.Pairwise = None, pickup: PickUpStateMachine = None
+        p2p: sirius_sdk.Pairwise = None, pickup: PickUpStateMachine = None, parent_thread_id: str = None
 ):
     bus = Bus()
     async for payload in bus.listen(topic, on=on):
         event = BusEvent(payload=payload, binding_id=binding_id)
+        if parent_thread_id:
+            set_parent_thread_id(event, parent_thread_id)
         if p2p:
             packed = await sirius_sdk.Crypto.pack_message(
                 message=json.dumps(event),
@@ -215,7 +217,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                     else:
                         their_did = '*'
                     if isinstance(op, BusSubscribeRequest):
-                        listener_kwargs = {}
+                        listener_kwargs = {'parent_thread_id': op.parent_thread_id}
                         if op.return_route != 'all' and use_queue_transport:
                             listener_kwargs['pickup'] = pickup
                         if op.cast.thid:
@@ -234,7 +236,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             binding_id = [s for s in binding_id]
                         else:
                             binding_id = binding_id
-                        resp = BusBindResponse(binding_id=binding_id, active=True, client_id=op.client_id)
+                        resp = BusBindResponse(binding_id=binding_id, active=True, parent_thread_id=op.parent_thread_id)
                         for bid in ([binding_id] if isinstance(binding_id, str) else binding_id):
                             topic = build_protocol_topic(their_did, bid)
                             tsk = protocols_listeners.get(bid, None)
@@ -248,7 +250,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                         on=on, p2p=event.pairwise, **listener_kwargs
                                     )
                                 )
-                                tsk.client_id = op.client_id
+                                tsk.thread_id = op.parent_thread_id
                                 protocols_listeners[bid] = tsk
                                 await on.wait()
                         if protocols_listeners and group_id is None:
@@ -260,8 +262,8 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         binding_ids = [op.binding_id] if isinstance(op.binding_id, str) else op.binding_id
                         if binding_ids is None:
                             binding_ids = []
-                        if op.client_id:
-                            binding_ids.extend([bid for bid, tsk in protocols_listeners.items() if tsk.client_id == op.client_id])
+                        if op.parent_thread_id:
+                            binding_ids.extend([bid for bid, tsk in protocols_listeners.items() if tsk.thread_id == op.parent_thread_id])
                         if binding_ids:
                             for bid in binding_ids:
                                 if bid in protocols_listeners:
@@ -282,7 +284,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             logging.debug('Unsubscribe operation')
                             resp = BusBindResponse(
                                 binding_id=processed_binding_id, active=False,
-                                aborted=op.aborted, client_id=op.client_id
+                                aborted=op.aborted, parent_thread_id=op.parent_thread_id
                             )
                             was_sent_with_websocket = False
                             if op.aborted is True:

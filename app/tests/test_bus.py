@@ -333,12 +333,12 @@ def test_bus_rfc_aborting(test_database: Database, random_me: (str, str, str)):
             # 2. Subscribe to thread
             sub_thid = 'some-thread-id-' + uuid.uuid4().hex
             bind = cli.subscribe(thid=sub_thid)
-            assert bind.client_id is not None
+            assert bind.parent_thread_id is not None
             cli.abort(wait_answer=False)
             unbind = cli.pickup_batch(5)
             assert unbind.aborted is True
             assert unbind.active is False
-            assert unbind.client_id is not None
+            assert unbind.parent_thread_id is not None
             
         finally:
             websocket.close()

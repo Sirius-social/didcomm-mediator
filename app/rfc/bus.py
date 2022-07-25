@@ -4,6 +4,8 @@ from typing import Union, Optional, List, Any
 
 from sirius_sdk.agent.aries_rfc.base import AriesProtocolMessage, RegisterMessage, VALID_DOC_URI, AriesProblemReport
 
+from rfc.decorators import get_parent_thread_id, set_parent_thread_id
+
 
 class BusOperation(AriesProtocolMessage, metaclass=RegisterMessage):
     """Aries concept 0478 Messages implementation
@@ -52,13 +54,13 @@ class BusOperation(AriesProtocolMessage, metaclass=RegisterMessage):
 class BusSubscribeRequest(BusOperation, metaclass=RegisterMessage):
     NAME = 'subscribe'
 
-    def __init__(self, cast: Union[BusOperation.Cast, dict] = None, client_id: str = None, *args, **kwargs):
+    def __init__(self, cast: Union[BusOperation.Cast, dict] = None, parent_thread_id: str = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if isinstance(cast, dict):
             cast = BusOperation.Cast(**cast)
         self.__store_cast(cast)
-        if client_id:
-            self['client_id'] = client_id
+        if parent_thread_id:
+            set_parent_thread_id(self, parent_thread_id)
 
     @property
     def return_route(self) -> Optional[str]:
@@ -76,8 +78,8 @@ class BusSubscribeRequest(BusOperation, metaclass=RegisterMessage):
         return self.Cast(**kwargs)
 
     @property
-    def client_id(self) -> Optional[str]:
-        return self.get('client_id', None)
+    def parent_thread_id(self) -> Optional[str]:
+        return get_parent_thread_id(self)
 
     def __store_cast(self, value: BusOperation.Cast = None):
         js = {}
@@ -94,15 +96,15 @@ class BusBindResponse(BusOperation, metaclass=RegisterMessage):
 
     def __init__(
             self, binding_id: Union[str, List[str]] = None,
-            active: bool = None, client_id: str = None, aborted: bool = None, *args, **kwargs
+            active: bool = None, parent_thread_id: str = None, aborted: bool = None, *args, **kwargs
     ):
         super().__init__(*args, **kwargs)
         if binding_id:
             self['binding_id'] = binding_id
         if active is not None:
             self['active'] = active
-        if client_id:
-            self['client_id'] = client_id
+        if parent_thread_id:
+            set_parent_thread_id(self, parent_thread_id)
         if aborted is not None:
             self['aborted'] = aborted
 
@@ -119,8 +121,8 @@ class BusBindResponse(BusOperation, metaclass=RegisterMessage):
         return self.get('binding_id', None)
 
     @property
-    def client_id(self) -> Optional[str]:
-        return self.get('client_id', None)
+    def parent_thread_id(self) -> Optional[str]:
+        return get_parent_thread_id(self)
 
 
 class BusUnsubscribeRequest(BusBindResponse, metaclass=RegisterMessage):
@@ -128,13 +130,13 @@ class BusUnsubscribeRequest(BusBindResponse, metaclass=RegisterMessage):
 
     def __init__(
             self, binding_id: Union[str, List[str]] = None,
-            need_answer: bool = None, client_id: str = None, aborted: bool = None, *args, **kwargs
+            need_answer: bool = None, parent_thread_id: str = None, aborted: bool = None, *args, **kwargs
     ):
         super().__init__(binding_id, *args, **kwargs)
         if need_answer is not None:
             self['need_answer'] = need_answer
-        if client_id:
-            self['client_id'] = client_id
+        if parent_thread_id:
+            set_parent_thread_id(self, parent_thread_id)
         if aborted is not None:
             self['aborted'] = aborted
 
@@ -151,8 +153,8 @@ class BusUnsubscribeRequest(BusBindResponse, metaclass=RegisterMessage):
         return self.get('aborted', None)
 
     @property
-    def client_id(self) -> Optional[str]:
-        return self.get('client_id', None)
+    def parent_thread_id(self) -> Optional[str]:
+        return get_parent_thread_id(self)
 
 
 class BusPublishRequest(BusBindResponse, metaclass=RegisterMessage):

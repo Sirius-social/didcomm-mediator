@@ -136,7 +136,7 @@ class DIDCommRecipient:
         return grant
 
     def subscribe(self, **cast) -> BusBindResponse:
-        request = BusSubscribeRequest(cast=BusOperation.Cast(**cast), client_id=str(id(self)))
+        request = BusSubscribeRequest(cast=BusOperation.Cast(**cast), parent_thread_id=str(id(self)))
         packed = pack_message(
             message=json.dumps(request),
             to_verkeys=[self._mediator_vk],
@@ -198,7 +198,7 @@ class DIDCommRecipient:
             return resp
 
     def abort(self, wait_answer: bool = True) -> Optional[BusBindResponse]:
-        request = BusUnsubscribeRequest(client_id=str(id(self)), need_answer=wait_answer, aborted=True)
+        request = BusUnsubscribeRequest(parent_thread_id=str(id(self)), need_answer=wait_answer, aborted=True)
         packed = pack_message(
             message=json.dumps(request),
             to_verkeys=[self._mediator_vk],

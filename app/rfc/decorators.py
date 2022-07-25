@@ -21,9 +21,19 @@ def get_thread_id(message: dict) -> Optional[str]:
     return message.get(THREAD_DECORATOR, {}).get('thid', None)
 
 
+def get_parent_thread_id(message: dict) -> Optional[str]:
+    return message.get(THREAD_DECORATOR, {}).get('pthid', None)
+
+
 def set_thread_id(message: dict, thid: str):
     thread_decorator = message.get(THREAD_DECORATOR, {})
-    thread_decorator[thid] = thid
+    thread_decorator['thid'] = thid
+    message[THREAD_DECORATOR] = thread_decorator
+
+
+def set_parent_thread_id(message: dict, thid: str):
+    thread_decorator = message.get(THREAD_DECORATOR, {})
+    thread_decorator['pthid'] = thid
     message[THREAD_DECORATOR] = thread_decorator
 
 
