@@ -280,7 +280,6 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             processed_binding_id = processed_binding_id[0]
                         if op.need_answer is True or op.aborted is True:
                             logging.debug('Unsubscribe operation')
-                            logging.debug(json.dumps(op, indent=True, sort_keys=True))
                             resp = BusBindResponse(
                                 binding_id=processed_binding_id, active=False,
                                 aborted=op.aborted, client_id=op.client_id
@@ -327,9 +326,16 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
 
                         await listener.response(for_event=event, message=resp)
                 elif isinstance(event.message, BasePickUpMessage):
+                    logging.debug('Pickup request...')
                     request: BasePickUpMessage = event.message
-                    resp = await pickup.process(request)
-                    await listener.response(for_event=event, message=resp)
+
+                    async def __process_delayed__():
+                        resp_ = await pickup.process(request)
+                        logging.debug('Pickup response')
+                        logging.debug(json.dumps(resp_, indent=2, sort_keys=True))
+                        await listener.response(for_event=event, message=resp_)
+
+                    asyncio.ensure_future(__process_delayed__())
                 else:
                     typ = event.message.get('@type')
                     raise RuntimeError(f'Unknown protocol message with @type: "{typ}"')
