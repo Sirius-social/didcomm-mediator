@@ -249,7 +249,10 @@ class PickUpStateMachine:
             while request.batch_size > self.__message_count:
                 if until_stamp is not None:
                     delta = until_stamp - datetime.datetime.now()
-                    wait_timeout = max(0.0, delta.total_seconds())
+                    if delta.total_seconds() >= 0:
+                        wait_timeout = delta.total_seconds()
+                    else:
+                        raise asyncio.TimeoutError
                 else:
                     wait_timeout = None
                 try:
