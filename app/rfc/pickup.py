@@ -252,7 +252,7 @@ class PickUpStateMachine:
                     if delta.total_seconds() >= 0:
                         wait_timeout = delta.total_seconds()
                     else:
-                        raise asyncio.TimeoutError
+                        break
                 else:
                     wait_timeout = None
                 try:
