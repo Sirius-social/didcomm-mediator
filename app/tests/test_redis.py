@@ -124,6 +124,95 @@ async def test_load_balancing_redis_group():
 
 
 @pytest.mark.asyncio
+async def test_timeouts_redis_group():
+    address = 'redis://redis1/%s' % uuid.uuid4().hex
+    group_id = 'group_id_' + uuid.uuid4().hex
+    ch_under_test = AsyncRedisGroup(address, group_id=group_id)
+
+    async def __write_delayed__(addr_, data_, delay_):
+        ch = AsyncRedisGroup(addr_)
+        await asyncio.sleep(delay_)
+        print('@')
+        await ch.write(data_)
+
+    # check-1
+    print('@')
+    with pytest.raises(ReadWriteTimeoutError):
+        await ch_under_test.read(timeout=3)
+    # check-2
+    delay = 3
+    data = {'marker': uuid.uuid4().hex}
+    asyncio.ensure_future(__write_delayed__(address, data, delay))
+    stamp1 = datetime.datetime.now()
+    ok, rcv = await ch_under_test.read(timeout=None)
+    assert ok is True
+    assert rcv == data
+    stamp2 = datetime.datetime.now()
+    await_delta = stamp2 - stamp1
+    assert delay <= await_delta.total_seconds() < delay+0.1
+
+
+@pytest.mark.asyncio
+async def test_clean_redis_group_on_close():
+    address = 'redis://redis1/%s' % uuid.uuid4().hex
+    group_id = 'group_id_' + uuid.uuid4().hex
+    ch_under_test = AsyncRedisGroup(address, group_id=group_id)
+
+    async def __write_delayed__(addr_, data_):
+        await asyncio.sleep(1)
+        ch = AsyncRedisGroup(addr_)
+        print('@')
+        await ch.write(data_)
+
+    # Activate async-reader task
+    asyncio.ensure_future(__write_delayed__(address, {'marker': uuid.uuid4().hex}))
+    ok, rcv = await ch_under_test.read(timeout=3)
+    assert ok
+
+    # Check meta-info
+    ch_infos = AsyncRedisGroup(address, group_id=group_id)
+    infos1 = await ch_infos.info_consumers()
+    assert len(infos1) == 1
+    assert infos1[0][b'name'] == ch_under_test.self_id.encode()
+
+    # Close Channel-Under-Test and re-check again
+    await ch_under_test.close()
+    await asyncio.sleep(1)
+    infos2 = await ch_infos.info_consumers()
+    assert len(infos2) == 0
+
+
+@pytest.mark.asyncio
+async def test_clean_redis_group_infinite_timeout():
+    address = 'redis://redis1/%s' % uuid.uuid4().hex
+    group_id = 'group_id_' + uuid.uuid4().hex
+    ch_under_test = AsyncRedisGroup(address, group_id=group_id)
+
+    async def __write_delayed__(addr_, data_):
+        await asyncio.sleep(1)
+        ch = AsyncRedisGroup(addr_)
+        print('@')
+        await ch.write(data_)
+
+    # Activate async-reader task
+    asyncio.ensure_future(__write_delayed__(address, {'marker': uuid.uuid4().hex}))
+    ok, rcv = await ch_under_test.read(timeout=None)
+    assert ok
+
+    # Check meta-info
+    ch_infos = AsyncRedisGroup(address, group_id=group_id)
+    infos1 = await ch_infos.info_consumers()
+    assert len(infos1) == 1
+    assert infos1[0][b'name'] == ch_under_test.self_id.encode()
+
+    # Close Channel-Under-Test and re-check again
+    await ch_under_test.close()
+    await asyncio.sleep(1)
+    infos2 = await ch_infos.info_consumers()
+    assert len(infos2) == 0
+
+
+@pytest.mark.asyncio
 async def test_push(test_database: Database, ):
 
     forward_channel_addr = 'redis://redis1/%s' % uuid.uuid4().hex

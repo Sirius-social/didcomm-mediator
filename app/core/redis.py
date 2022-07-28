@@ -1,11 +1,11 @@
 import uuid
+import math
 import json
 import random
 import asyncio
 import datetime
 import hashlib
 import logging
-import threading
 from typing import Any, Optional, Dict
 from contextlib import asynccontextmanager
 
@@ -191,11 +191,11 @@ class AsyncRedisGroup:
         self.__group_id = group_id or '*'
         self.__address = address.replace(f'/{self.__name}', '')
         self.__aio_redis = None
-        self.__queue = asyncio.Queue()
         self.__mkstream = False
         self.__self_id = str(id(self))
         self.__loop = loop or asyncio.get_event_loop()
         self.__read_count = read_count or 1
+        self.__queue = asyncio.Queue()
 
     def __del__(self):
         if self.__aio_redis and self.__loop.is_running():
@@ -208,6 +208,10 @@ class AsyncRedisGroup:
     @property
     def group_id(self) -> Optional[str]:
         return self.__group_id
+
+    @property
+    def self_id(self) -> str:
+        return self.__self_id
 
     @asynccontextmanager
     async def connection(self):
@@ -235,20 +239,22 @@ class AsyncRedisGroup:
                 async with self.connection() as redis:
                     try:
                         logging.debug(f'.... #2')
-                        if self.__group_id and not self.__mkstream:
-                            self.__mkstream = await self.__ensure_group_exists(redis)
+                        if timeout is None:
+                            await asyncio.wait_for(self.__async_reader_infinite(redis), timeout=None)
+                        else:
+                            await asyncio.wait_for(self.__async_reader(redis, timeout), timeout=timeout)
+                        if self.__queue.empty():
+                            raise ReadWriteTimeoutError
+                        else:
+                            data = self.__queue.get_nowait()
                         logging.debug(f'.... #3')
-                        while True:
-                            logging.debug(f'.... #4')
-                            await asyncio.wait_for(self.__async_reader(redis), timeout=timeout)
-                            logging.debug(f'.... #5')
-                            data = await self.__queue.get()
-                            return True, data
+                        return True, data
                     except asyncio.TimeoutError:
                         raise ReadWriteTimeoutError
             return False, None
         except Exception as e:
             logging.exception(f'.... Exception in AsyncRedisGroup.read address: {self.__address}')
+            raise
 
     async def write(self, data) -> bool:
         """Send data to recipients
@@ -268,17 +274,26 @@ class AsyncRedisGroup:
                 raise RedisConnectionError()
             return True
 
-    async def close(self):
+    async def close(self, later: bool = False):
         if self.__aio_redis is not None:
             try:
                 try:
                     redis = self.__aio_redis
                     if self.group_id:
-                        redis.xgroup_delconsumer(
-                            stream=self.__name,
-                            group_name=self.group_id,
-                            consumer_name=self.__self_id
-                        )
+                        try:
+                            coro = redis.xgroup_delconsumer(
+                                stream=self.__name,
+                                group_name=self.group_id,
+                                consumer_name=self.__self_id
+                            )
+                            if later:
+                                if self.__loop and self.__loop.is_running():
+                                    asyncio.ensure_future(coro, loop=self.__loop)
+                            else:
+                                num = await coro
+                                logging.debug(f'xgroup_delconsumer returned: {num}')
+                        except Exception as e:
+                            logging.exception('Error in xgroup_delconsumer')
                     self.__aio_redis.close()
                 finally:
                     self.__aio_redis = None
@@ -298,17 +313,25 @@ class AsyncRedisGroup:
         except Exception as e:
             return False
 
-    async def __async_reader(self, redis: aioredis.Redis):
+    async def info_consumers(self) -> Any:
+        async with self.connection() as redis:
+            info = await redis.xinfo_consumers(stream=self.__name, group_name=self.__group_id)
+            return info
+
+    async def __async_reader(self, redis: aioredis.Redis, read_timeout: float = None):
         latest_ids = ['>']
+        if self.__group_id and not self.__mkstream:
+            self.__mkstream = await self.__ensure_group_exists(redis)
         try:
             logging.debug(f'.... start to redis.xread_group group_name: {self.__group_id} consumer_name: {self.__self_id} streams: {[self.__name]}')
+            read_timeout_milliseconds = math.floor(read_timeout * 1000) if read_timeout is not None else 0
             messages = await redis.xread_group(
                 group_name=self.__group_id,
                 consumer_name=self.__self_id,
                 streams=[self.__name],
                 latest_ids=latest_ids,
-                # no_ack=True,
-                count=self.__read_count
+                count=self.__read_count,
+                timeout=read_timeout_milliseconds
             )
             logging.debug(f'.... stop to redis.xread_group  len(messages) = {len(messages)} group_name: {self.__group_id} consumer_name: {self.__self_id} streams: {[self.__name]}')
             for partition, msg_id, fields in messages:
@@ -316,6 +339,8 @@ class AsyncRedisGroup:
                 if payload:
                     msg = json.loads(payload.decode())
                     await self.__queue.put(msg)
+            if len(messages) > 0:
+                return
         except Exception as e:
             logging.exception(f'Exception [{self.__address}]')
             if isinstance(e, aioredis.errors.RedisError):
@@ -324,6 +349,11 @@ class AsyncRedisGroup:
                 return
             else:
                 raise
+
+    async def __async_reader_infinite(self, redis: aioredis.Redis):
+        read_timeout_sec = 1
+        while self.__queue.empty():
+            await self.__async_reader(redis, read_timeout_sec)
 
     async def __terminate(self):
         if self.__aio_redis:

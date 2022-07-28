@@ -394,3 +394,41 @@ def test_load_balancing_with_group_id(test_database: Database, random_me: (str, 
             assert enc_msg == content_json
             enc_msg = websocket2.receive_json()
             assert enc_msg == content_json
+
+
+def test_delivery_via_websocket_with_multiple_group_id(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, didcomm_envelope_enc_content: bytes):
+
+    """Regression test: losing messages if working with > 1 groups
+    """
+    content_type = 'application/ssi-agent-wire'
+
+    agent_did, agent_verkey, agent_secret = random_me
+    redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
+    msg1 = {"message": "Some-Content-1"}
+    msg2 = {"message": "Some-Content-2"}
+    msg3 = {"message": "Some-Content-3"}
+    group1 = 'group1-' + uuid.uuid4().hex
+    group2 = 'group2-' + uuid.uuid4().hex
+
+    asyncio.get_event_loop().run_until_complete(ensure_endpoint_exists(
+        db=test_database, uid=random_endpoint_uid, redis_pub_sub=redis_pub_sub,
+        agent_id=agent_did, verkey=agent_verkey
+    ))
+
+    for msg, group in [(msg1, group1), (msg2, group2), (msg3, group1)]:
+        print('\nMessage:')
+        print(json.dumps(msg, indent=2, sort_keys=True))
+        print(f'\nGroup-ID: {group}')
+        with client.websocket_connect(f"/{WS_PATH_PREFIX}?endpoint={random_endpoint_uid}&group_id={group1}") as ws:
+            sleep(1)  # give websocket timeout to accept connection
+            response = client.post(
+                build_endpoint_url(random_endpoint_uid),
+                headers={"Content-Type": content_type},
+                data=json.dumps(msg).encode(),
+            )
+            assert response.status_code == 202
+            rcv_msg = ws.receive_json()
+            assert rcv_msg == msg
+            # Close websocket
+            ws.close()
+        print('DONE')
