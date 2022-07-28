@@ -21,7 +21,8 @@ from app.routers.mediator_scenarios import URI_QUEUE_TRANSPORT
 
 from .helpers import override_get_db, override_sirius_sdk
 from .emulators import DIDCommRecipient as ClientEmulator
-from app.utils import build_invitation
+from app.utils import build_invitation, make_group_id_mangled
+from core.redis import AsyncRedisGroup
 
 
 client = TestClient(app)
@@ -265,7 +266,8 @@ def test_delivery_with_queue_route_if_group_empty(random_me: (str, str, str), di
                 headers={"Content-Type": content_type},
                 data=didcomm_envelope_enc_content
             )
-            assert response.status_code == 202
+            # Inbound listener run only if set group_id explicitly
+            assert response.status_code == 410
             event = cli.pickup_batch(5)
             assert event
         finally:
@@ -396,7 +398,7 @@ def test_load_balancing_with_group_id(test_database: Database, random_me: (str, 
             assert enc_msg == content_json
 
 
-def test_delivery_via_websocket_with_multiple_group_id(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, didcomm_envelope_enc_content: bytes):
+def test_delivery_via_websocket_with_multiple_group_id(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str):
 
     """Regression test: losing messages if working with > 1 groups
     """
@@ -432,3 +434,35 @@ def test_delivery_via_websocket_with_multiple_group_id(test_database: Database, 
             # Close websocket
             ws.close()
         print('DONE')
+
+
+def test_clean_redis_connection_on_endpoint_disconnect(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, didcomm_envelope_enc_content: bytes):
+
+    agent_did, agent_verkey, agent_secret = random_me
+    redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
+    group_id = 'group_id_' + uuid.uuid4().hex
+
+    asyncio.get_event_loop().run_until_complete(ensure_endpoint_exists(
+        db=test_database, uid=random_endpoint_uid, redis_pub_sub=redis_pub_sub,
+        agent_id=agent_did, verkey=agent_verkey
+    ))
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}?endpoint={random_endpoint_uid}&group_id={group_id}") as ws:
+        sleep(1)  # give websocket timeout to accept connection
+        # Send data
+        response = client.post(
+            build_endpoint_url(random_endpoint_uid),
+            headers={"Content-Type": 'application/ssi-agent-wire'},
+            data=didcomm_envelope_enc_content,
+        )
+        assert response.status_code == 202
+
+        group_id_mangled = make_group_id_mangled(group_id, random_endpoint_uid)
+        ch_infos = AsyncRedisGroup(redis_pub_sub, group_id=group_id_mangled)
+        infos1 = asyncio.get_event_loop().run_until_complete(ch_infos.info_consumers())
+        assert len(infos1) == 1
+
+        ws.close()
+        sleep(1)
+        ch_infos = AsyncRedisGroup(redis_pub_sub, group_id=group_id_mangled)
+        infos2 = asyncio.get_event_loop().run_until_complete(ch_infos.info_consumers())
+        assert len(infos2) == 0

@@ -141,12 +141,12 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             if inbound_listener and not inbound_listener.done():
                                 # terminate all task
                                 inbound_listener.cancel()
-                            group_id_ = DEFAULT_QUEUE_GROUP_ID if group_id is None else group_id
-                            inbound_listener = asyncio.ensure_future(
-                                endpoint_processor(
-                                    websocket, endpoint_uid, repo, False, group_id=group_id_, pickup=pickup
+                            if group_id is not None:
+                                inbound_listener = asyncio.ensure_future(
+                                    endpoint_processor(
+                                        websocket, endpoint_uid, repo, False, group_id=group_id, pickup=pickup
+                                    )
                                 )
-                            )
                         else:
                             if inbound_listener and not inbound_listener.done():
                                 inbound_listener.cancel()
