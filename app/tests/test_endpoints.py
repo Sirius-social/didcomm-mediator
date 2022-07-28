@@ -274,6 +274,42 @@ def test_delivery_with_queue_route_if_group_empty(random_me: (str, str, str), di
             websocket.close()
 
 
+def test_delivery_with_queue_route_if_group_set_off(random_me: (str, str, str), didcomm_envelope_enc_content: bytes):
+    """Check delivery with Queue-Route DIDComm extension
+
+        - details: https://github.com/decentralized-identity/didcomm-messaging/blob/master/extensions/return_route/main.md#queue-transport
+    """
+    content_type = 'application/didcomm-envelope-enc'
+
+    override_sirius_sdk()
+
+    agent_did, agent_verkey, agent_secret = random_me
+
+    with client.websocket_connect(f"/{WS_PATH_PREFIX}") as websocket:
+        try:
+            sleep(3)  # give websocket timeout to accept connection
+            cli = ClientEmulator(
+                transport=websocket, mediator_invitation=build_invitation(),
+                agent_did=agent_did, agent_verkey=agent_verkey, agent_secret=agent_secret,
+                ####################
+                group_id='off'
+                ###################
+            )
+            # 1. Establish connection with Mediator
+            mediator_did_doc = cli.connect(endpoint=URI_QUEUE_TRANSPORT)
+            # 2. Allocate endpoint
+            mediate_grant = cli.mediate_grant()
+            # 3. Post wired via endpoint
+            response = client.post(
+                mediate_grant['endpoint'],
+                headers={"Content-Type": content_type},
+                data=didcomm_envelope_enc_content
+            )
+            assert response.status_code == 410
+        finally:
+            websocket.close()
+
+
 def test_delivery_when_redis_server_fail(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, didcomm_envelope_enc_content: bytes):
     """Check Push service will reconfigure endpoint to new redis instance if old address is unreachable
     """
