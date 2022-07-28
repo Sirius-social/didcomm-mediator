@@ -267,7 +267,9 @@ def test_delivery_with_queue_route_if_group_empty(random_me: (str, str, str), di
                 data=didcomm_envelope_enc_content
             )
             # Inbound listener run only if set group_id explicitly
-            assert response.status_code == 410
+            assert response.status_code == 202
+            event = cli.pickup_batch(5)
+            assert event
         finally:
             websocket.close()
 
