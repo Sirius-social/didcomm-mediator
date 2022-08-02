@@ -43,26 +43,30 @@ async def protocol_listener(
         p2p: sirius_sdk.Pairwise = None, pickup: PickUpStateMachine = None, parent_thread_id: str = None
 ):
     bus = Bus()
-    async for payload in bus.listen(topic, on=on):
-        event = BusEvent(payload=payload, thread_id=thread_id)
-        if parent_thread_id:
-            set_parent_thread_id(event, parent_thread_id)
-        if p2p:
-            packed = await sirius_sdk.Crypto.pack_message(
-                message=json.dumps(event),
-                recipient_verkeys=[p2p.their.verkey],
-                sender_verkey=p2p.me.verkey
-            )
-            if pickup:
-                await pickup.put(event, msg_id=event.id)
+    logging.debug(f'Start protocol_listener topic: {topic} thread_id: {thread_id}')
+    try:
+        async for payload in bus.listen(topic, on=on):
+            event = BusEvent(payload=payload, thread_id=thread_id)
+            if parent_thread_id:
+                set_parent_thread_id(event, parent_thread_id)
+            if p2p:
+                packed = await sirius_sdk.Crypto.pack_message(
+                    message=json.dumps(event),
+                    recipient_verkeys=[p2p.their.verkey],
+                    sender_verkey=p2p.me.verkey
+                )
+                if pickup:
+                    await pickup.put(event, msg_id=event.id)
+                else:
+                    await ws.send_bytes(packed)
             else:
-                await ws.send_bytes(packed)
-        else:
-            if pickup:
-                await pickup.put(event, msg_id=event.id)
-            else:
-                payload = json.dumps(event).encode()
-                await ws.send_bytes(payload)
+                if pickup:
+                    await pickup.put(event, msg_id=event.id)
+                else:
+                    payload = json.dumps(event).encode()
+                    await ws.send_bytes(payload)
+    finally:
+        logging.debug(f'Stop protocol_listener topic: {topic} thread_id: {thread_id}')
 
 
 async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
@@ -333,10 +337,13 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                     async def __process_delayed__():
                         resp_ = await pickup.process(request)
                         logging.debug('Pickup response')
-                        logging.debug(json.dumps(resp_, indent=2, sort_keys=True))
                         await listener.response(for_event=event, message=resp_)
 
-                    asyncio.ensure_future(__process_delayed__())
+                    if pickup.message_count > 0:
+                        resp = await pickup.process(request)
+                        await listener.response(for_event=event, message=resp)
+                    else:
+                        asyncio.ensure_future(__process_delayed__())
                 else:
                     typ = event.message.get('@type')
                     raise RuntimeError(f'Unknown protocol message with @type: "{typ}"')

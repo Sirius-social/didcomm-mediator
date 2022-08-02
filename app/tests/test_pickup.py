@@ -103,6 +103,32 @@ async def test_noop():
 
 
 @pytest.mark.asyncio
+async def test_noop_cpu_utilize():
+    state_machine = PickUpStateMachine(max_queue_size=1)
+    msg_count = 20
+    messages = []
+    for n in range(msg_count):
+        msg = {'@id': uuid.uuid4().hex, 'content': f'Content-{n}'}
+        messages.append(msg)
+
+    async def __put__():
+        for m in messages:
+            await state_machine.put(m)
+            print('#')
+            await asyncio.sleep(0.1)
+            print('#')
+
+    fut = asyncio.ensure_future(__put__())
+
+    request = PickUpNoop()
+    await asyncio.sleep(1)
+
+    for expected_msg in messages:
+        response = await state_machine.process(request)
+        assert response == expected_msg
+
+
+@pytest.mark.asyncio
 async def test_max_queue_size():
     state_machine = PickUpStateMachine(max_queue_size=1)
     msg_count = 2

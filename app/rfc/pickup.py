@@ -210,6 +210,10 @@ class PickUpStateMachine:
         self.__last_added_time = None
         self.__message_count = 0
 
+    @property
+    def message_count(self) -> int:
+        return self.__message_count
+
     async def put(self, message: Union[dict, str], msg_id: str = None):
         await self.__ready_to_put.wait()
         if isinstance(message, dict):
@@ -300,6 +304,8 @@ class PickUpStateMachine:
     def __prepare_response(self, request: BasePickUpMessage, response: BasePickUpMessage):
         if request.return_route == 'thread':
             response['~thread'] = {'thid': request.id}
+        if self.__message_count == 0:
+            self.__filled.clear()
         if self.__max_queue_size is not None:
             if self.__message_count < self.__max_queue_size:
                 self.__ready_to_put.set()
