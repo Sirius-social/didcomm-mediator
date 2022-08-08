@@ -199,6 +199,7 @@ class PickUpProblemReport(AriesProblemReport, metaclass=RegisterMessage):
 class PickUpStateMachine:
 
     PROBLEM_CODE_TIMEOUT = 'timeout_occurred'
+    PROBLEM_CODE_EMPTY = 'empty_queue'
     PROBLEM_CODE_INVALID_REQ = 'invalid_request'
 
     @dataclass
@@ -290,15 +291,20 @@ class PickUpStateMachine:
             self.__prepare_response(request=request, response=response)
             return response
         elif isinstance(request, PickUpNoop):
-            batch = PickUpBatchRequest(batch_size=1, delay_timeout=request.delay_timeout)
-            batched = await self.process(batch)
-            assert isinstance(batched, PickUpBatchResponse)
-            if batched.messages:
-                response = batched.messages[0].message
-            else:
+            if request.delay_timeout is None and self.__message_count == 0:
                 response = PickUpProblemReport(
-                    problem_code=self.PROBLEM_CODE_TIMEOUT, explain='Message queue is empty, timeout occurred'
+                    problem_code=self.PROBLEM_CODE_EMPTY, explain='Message queue is empty'
                 )
+            else:
+                batch = PickUpBatchRequest(batch_size=1, delay_timeout=request.delay_timeout)
+                batched = await self.process(batch)
+                assert isinstance(batched, PickUpBatchResponse)
+                if batched.messages:
+                    response = batched.messages[0].message
+                else:
+                    response = PickUpProblemReport(
+                        problem_code=self.PROBLEM_CODE_TIMEOUT, explain='Message queue is empty, timeout occurred'
+                    )
             self.__prepare_response(request=request, response=response)
             return response
         else:

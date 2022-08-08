@@ -120,7 +120,7 @@ async def test_noop_cpu_utilize():
 
     fut = asyncio.ensure_future(__put__())
 
-    request = PickUpNoop()
+    request = PickUpNoop(delay_timeout=1)
     await asyncio.sleep(1)
 
     for expected_msg in messages:
