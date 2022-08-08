@@ -73,7 +73,7 @@ async def test_batch_request():
     assert len(response.messages) == 2
     assert list([item.msg_id for item in response.messages]) == list([msg['@id'] for msg in chunk2])
     # Step-3
-    request = PickUpBatchRequest(batch_size=1, pending_timeout=1)
+    request = PickUpBatchRequest(batch_size=1, delay_timeout=1)
     for n in range(2):
         stamp1 = datetime.datetime.now()
         response = await state_machine.process(request)
@@ -146,10 +146,10 @@ async def test_max_queue_size():
     try:
         for expected_msg in messages:
             print('')
-            rcv_msg = await state_machine.process(request=PickUpNoop(pending_timeout=3))
+            rcv_msg = await state_machine.process(request=PickUpNoop(delay_timeout=3))
             assert expected_msg == rcv_msg
     finally:
         fut.cancel()
 
-    rcv_msg = await state_machine.process(request=PickUpNoop(pending_timeout=1))
+    rcv_msg = await state_machine.process(request=PickUpNoop(delay_timeout=1))
     assert isinstance(rcv_msg, PickUpProblemReport)

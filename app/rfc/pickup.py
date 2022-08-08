@@ -1,5 +1,6 @@
 import json
 import uuid
+import math
 import asyncio
 import datetime
 from collections import OrderedDict
@@ -87,20 +88,22 @@ class PickUpStatusResponse(BasePickUpMessage):
 class PickUpBatchRequest(BasePickUpMessage):
     NAME = 'batch-pickup'
 
-    def __init__(self, batch_size: int = None, pending_timeout: int = None, *args, **kwargs):
+    def __init__(self, batch_size: int = None, delay_timeout: float = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if batch_size is not None:
             self['batch_size'] = batch_size
-        if pending_timeout != 0:
-            self['pending_timeout'] = pending_timeout
+        if delay_timeout is not None:
+            self['~timing'] = {'delay_milli': math.ceil(delay_timeout*1000)}
 
     @property
     def batch_size(self) -> Optional[str]:
         return self.get('batch_size', None)
 
     @property
-    def pending_timeout(self) -> Optional[int]:
-        return self.get('pending_timeout', 0)
+    def delay_timeout(self) -> Optional[float]:
+        delay_milli = self.get('~timing', {}).get('delay_milli', None)
+        if delay_milli is not None:
+            return delay_milli/1000
 
 
 class PickUpBatchResponse(BasePickUpMessage):
@@ -176,14 +179,16 @@ class PickUpListResponse(BasePickUpMessage):
 class PickUpNoop(BasePickUpMessage):
     NAME = 'noop'
 
-    def __init__(self, pending_timeout: int = None, *args, **kwargs):
+    def __init__(self, delay_timeout: float = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if pending_timeout != 0:
-            self['pending_timeout'] = pending_timeout
+        if delay_timeout is not None:
+            self['~timing'] = {'delay_milli': math.ceil(delay_timeout*1000)}
 
     @property
-    def pending_timeout(self) -> Optional[int]:
-        return self.get('pending_timeout', 0)
+    def delay_timeout(self) -> Optional[float]:
+        delay_milli = self.get('~timing', {}).get('delay_milli', None)
+        if delay_milli is not None:
+            return delay_milli / 1000
 
 
 class PickUpProblemReport(AriesProblemReport, metaclass=RegisterMessage):
@@ -193,7 +198,7 @@ class PickUpProblemReport(AriesProblemReport, metaclass=RegisterMessage):
 
 class PickUpStateMachine:
 
-    PROBLEM_CODE_EMPTY = 'empty_queue'
+    PROBLEM_CODE_TIMEOUT = 'timeout_occurred'
     PROBLEM_CODE_INVALID_REQ = 'invalid_request'
 
     @dataclass
@@ -248,8 +253,8 @@ class PickUpStateMachine:
             return response
         elif isinstance(request, PickUpBatchRequest):
             until_stamp = None
-            if request.pending_timeout is not None and request.pending_timeout >= 0:
-                until_stamp = datetime.datetime.now() + datetime.timedelta(seconds=request.pending_timeout)
+            if request.delay_timeout is not None and request.delay_timeout >= 0:
+                until_stamp = datetime.datetime.now() + datetime.timedelta(seconds=request.delay_timeout)
             while request.batch_size > self.__message_count:
                 if until_stamp is not None:
                     delta = until_stamp - datetime.datetime.now()
@@ -285,14 +290,14 @@ class PickUpStateMachine:
             self.__prepare_response(request=request, response=response)
             return response
         elif isinstance(request, PickUpNoop):
-            batch = PickUpBatchRequest(batch_size=1, pending_timeout=request.pending_timeout)
+            batch = PickUpBatchRequest(batch_size=1, delay_timeout=request.delay_timeout)
             batched = await self.process(batch)
             assert isinstance(batched, PickUpBatchResponse)
             if batched.messages:
                 response = batched.messages[0].message
             else:
                 response = PickUpProblemReport(
-                    problem_code=self.PROBLEM_CODE_EMPTY, explain='Message queue is empty, pending_timeout occured'
+                    problem_code=self.PROBLEM_CODE_TIMEOUT, explain='Message queue is empty, timeout occurred'
                 )
             self.__prepare_response(request=request, response=response)
             return response

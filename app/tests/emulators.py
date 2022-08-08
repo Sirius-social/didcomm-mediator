@@ -170,7 +170,7 @@ class DIDCommRecipient:
         return resp
 
     def pickup_batch(self, timeout: int = None, batch_size: int = 1) -> Any:
-        request = PickUpBatchRequest(batch_size=batch_size, pending_timeout=timeout)
+        request = PickUpBatchRequest(batch_size=batch_size, delay_timeout=timeout)
         packed = pack_message(
             message=json.dumps(request),
             to_verkeys=[self._mediator_vk],
