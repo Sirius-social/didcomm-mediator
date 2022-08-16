@@ -189,6 +189,8 @@ class PickUpNoop(BasePickUpMessage):
         delay_milli = self.get('~timing', {}).get('delay_milli', None)
         if delay_milli is not None:
             return delay_milli / 1000
+        else:
+            return None
 
 
 class PickUpProblemReport(AriesProblemReport, metaclass=RegisterMessage):
