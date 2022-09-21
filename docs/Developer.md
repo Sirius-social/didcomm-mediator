@@ -1,6 +1,12 @@
 # Developer Guide
 
 ## INTRO
+  Before set up developer environment, you should done next requirement steps:
+
+   1. Enter ```alembic upgrade head``` command to initialize database
+   2. Type ```python manage.py create_superuser``` to create admin account
+
+## FAQ
 This document describes how to start develop mobile applications that acts as 
 Edge Agent in DIDComm decentralized environment with self-service. Details on mediate flow you may find in the [Mediation.md](/docs/Mediation.md) doc.
 
