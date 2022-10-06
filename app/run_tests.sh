@@ -12,3 +12,4 @@ pytest tests/test_redis.py
 pytest tests/test_repo.py
 pytest tests/test_bus.py
 pytest tests/test_pickup.py
+pytest tests/test_storage.py
