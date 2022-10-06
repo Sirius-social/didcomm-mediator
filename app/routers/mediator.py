@@ -79,9 +79,13 @@ async def post_to_device(payload, endpoint_fields: dict, db: Database):
     pushes = RedisPush(db, memcached=GlobalMemcachedClient.get(), channels_cache=GlobalRedisChannelsCache.get())
     p2p: Optional[sirius_sdk.Pairwise] = None
     endpoint_uid = endpoint_fields['uid']
-    agent = await repo.load_endpoint(endpoint_fields['uid'])
-    if agent and 'verkey' in agent:
-        p2p = await sirius_sdk.PairwiseList.load_for_verkey(agent['verkey'])
+
+    try:
+        agent = await repo.load_endpoint(endpoint_fields['uid'])
+        if agent and 'verkey' in agent:
+            p2p = await sirius_sdk.PairwiseList.load_for_verkey(agent['verkey'])
+    except:
+        pass
     ############
     info_p2p_event(p2p, '#1 Post to device', endpoint_uid=endpoint_uid, metadata=endpoint_fields)
     ############
