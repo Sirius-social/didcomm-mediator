@@ -84,3 +84,4 @@ redis instances as comma separated list of redis addresses with **MSG_DELIVERY_S
     make able route traffic to mobile devices even OS **Power-Save** mode suspend Agent application on device.
   - **CERT_FILE**, **CERT_KEY_FILE**: SSL **certificate** and **cert private key** files  
   - **ACME_DIR**: directory for Lets Encrypt ```certbot``` [utility](https://certbot.eff.org/docs/using.html?highlight=webroot#webroot)
+  - **ELK**: set to `on` if you desire json formatted logs
