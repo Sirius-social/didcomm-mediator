@@ -390,6 +390,7 @@ def _build_pairwise_sql_cond(filters: dict):
         cond = None
     return cond
 
+
 def _restore_agent_from_row(row) -> dict:
     return {
         'id': row['id'],

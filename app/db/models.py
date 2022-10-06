@@ -72,3 +72,13 @@ backups = sqlalchemy.Table(
     sqlalchemy.Column("description", sqlalchemy.String, index=True),
     sqlalchemy.Column("context", sqlalchemy.JSON, nullable=True),
 )
+
+
+key_value_storage = sqlalchemy.Table(
+    'key_value_storage',
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.INTEGER, primary_key=True, autoincrement=True),
+    sqlalchemy.Column("namespace", sqlalchemy.String, index=True),
+    sqlalchemy.Column("key", sqlalchemy.String, index=True),
+    sqlalchemy.Column("value", sqlalchemy.String, nullable=True),
+)
