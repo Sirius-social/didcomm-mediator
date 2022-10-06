@@ -15,6 +15,7 @@ class MediatorPairwiseList(AbstractPairwiseList):
         self._db: Database = db
         self._did = MediatorDID(db)
         self._cached_metadata: Dict[str, dict] = {}
+        self._cached: Dict[str, Pairwise] = {}
 
     async def create(self, pairwise: Pairwise):
         async with self.get_db_connection_lazy() as db:
@@ -39,6 +40,8 @@ class MediatorPairwiseList(AbstractPairwiseList):
         metadata_cached = self._cached_metadata.get(pairwise.their.did, None)
         if metadata_cached == metadata:
             return
+        if pairwise.their.verkey in self._cached:
+            del self._cached[pairwise.their.did]
         async with self.get_db_connection_lazy() as db:
             sql = pairwises.update().where(pairwises.c.their_did == pairwise.their.did)
             values = {
@@ -75,6 +78,8 @@ class MediatorPairwiseList(AbstractPairwiseList):
                 return None
 
     async def load_for_verkey(self, their_verkey: str) -> Optional[Pairwise]:
+        if their_verkey in self._cached:
+            return self._cached[their_verkey]
         async with self.get_db_connection_lazy() as db:
             sql = pairwises.select().where(pairwises.c.their_verkey == their_verkey)
             row = await db.fetch_one(query=sql)

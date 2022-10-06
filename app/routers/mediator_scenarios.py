@@ -16,6 +16,7 @@ from sirius_sdk.agent.aries_rfc.feature_0095_basic_message.messages import Messa
 import settings
 from app.core.coprotocols import ClientWebSocketCoProtocol
 from app.core.repo import Repo
+from app.core.utils import info_p2p_event
 from app.core.global_config import GlobalConfig
 from app.core.redis import RedisPull, AsyncRedisChannel, AsyncRedisGroup
 from app.core.rfc import extract_key as rfc_extract_key, ensure_is_key as rfc_ensure_is_key
@@ -87,6 +88,7 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
     protocols_listeners: Dict[str, asyncio.Task] = {}
     pickup = PickUpStateMachine(max_queue_size=1)
     use_queue_transport = False
+    p2p_session: Optional[sirius_sdk.Pairwise] = None
     try:
         async for event in listener:
             try:
@@ -99,10 +101,15 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
 
                 if isinstance(event.message, sirius_sdk.aries_rfc.Ping):
                     # Agent sent Ping to check connection
+                    info_p2p_event(p2p_session, message='Ping received', request=event.message)
+                    #
                     ping: sirius_sdk.aries_rfc.Ping = event.message
                     if ping.response_requested:
                         pong = sirius_sdk.aries_rfc.Pong(ping_id=ping.id)
                         await listener.response(for_event=event, message=pong)
+                        ###############
+                        info_p2p_event(p2p_session, message='Pong sent', response=pong)
+                        ###############
                 elif isinstance(event.message, sirius_sdk.aries_rfc.ConnRequest):
                     # Agent was start p2p establish
                     request: sirius_sdk.aries_rfc.ConnRequest = event.message
@@ -136,6 +143,21 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         # If all OK, store p2p and metadata info to database
                         await sirius_sdk.PairwiseList.ensure_exists(p2p)
                         await post_create_pairwise(repo, p2p, endpoint_uid)
+                        p2p_session = p2p
+                        ###############
+                        info_p2p_event(
+                            p2p, message='P2P was established',
+                            metadata=p2p.metadata,
+                            websocket={
+                                'headers': websocket.headers,
+                                'cookies': str(websocket.cookies),
+                                'path_params': str(websocket.path_params),
+                                'query_params': str(websocket.query_params),
+                                'host': websocket.client.host,
+                                'port': websocket.client.port
+                            }
+                        )
+                        ###############
 
                         # If recipient supports Queue Transport then it can receive inbound
                         # via same websocket connection
@@ -170,6 +192,9 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                             publish the endpoint as a mediator.
                             
                         Details: https://github.com/hyperledger/aries-rfcs/tree/master/features/0211-route-coordination#mediation-request'''
+                        ###############
+                        info_p2p_event(p2p_session, message='Mediate request', request=event.message)
+                        ###############
                         webroot = await cfg.get_webroot()
                         keys = await repo.list_routing_key(router_endpoint['uid'])
                         if keys:
@@ -184,8 +209,14 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                 routing_keys=[]
                             )
                         await listener.response(for_event=event, message=resp)
+                        ###############
+                        info_p2p_event(p2p_session, message='Mediate response was sent', response=resp)
+                        ###############
                     elif isinstance(event.message, KeylistUpdate):
                         req: KeylistUpdate = event.message
+                        ###############
+                        info_p2p_event(p2p_session, message='KeyList update request', request=req)
+                        ###############
                         updated = []
                         for upd in req['updates']:
                             if upd['action'] == 'add':
@@ -200,8 +231,14 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                                 raise RuntimeError(f"Unexpected action: {upd['action']}")
                         resp = KeylistUpdateResponce(updated=updated)
                         await listener.response(for_event=event, message=resp)
+                        ###############
+                        info_p2p_event(p2p_session, message='KeyList response sent', response=resp)
+                        ###############
                     elif isinstance(event.message, KeylistQuery):
                         req: KeylistQuery = event.message
+                        ###############
+                        info_p2p_event(p2p_session, message='KeyList query', request=req)
+                        ###############
                         offset = req.get('paginate', {}).get('offset', None) or 0
                         limit = req.get('paginate', {}).get('limit', None) or 1000000
                         keys = await repo.list_routing_key(router_endpoint['uid'])
@@ -215,6 +252,9 @@ async def onboard(websocket: WebSocket, repo: Repo, cfg: GlobalConfig):
                         )
                         resp['keys'] = [{'recipient_key': f'did:key:{k}'} for k in paged_keys]
                         await listener.response(for_event=event, message=resp)
+                        ###############
+                        info_p2p_event(p2p_session, message='KeyList response sent', response=resp)
+                        ###############
                 elif isinstance(event.message, BusOperation):
                     op: BusOperation = event.message
                     if event.pairwise:
@@ -365,6 +405,8 @@ async def endpoint_processor(
         exit_on_disconnect: bool = True, group_id: str = None, pickup: PickUpStateMachine = None
 ):
 
+    p2p: Optional[sirius_sdk.Pairwise] = None
+
     async def redis_listener(redis_pub_sub: str):
         # Read from redis channel in infinite loop
         pulls = RedisPull()
@@ -376,12 +418,34 @@ async def endpoint_processor(
                 logging.debug(f'++++++++++++ not_closed: {not_closed}')
                 if not_closed:
                     req: RedisPull.Request = request
+                    ###############
+                    info_p2p_event(
+                        p2p, 'Websocket endpoint listener event',
+                        endpoint_uid=endpoint_uid,
+                        group_id=group_id,
+                        event={
+                            'message': req.message
+                        }
+                    )
+                    ###############
                     if pickup:
                         logging.debug('++++++++++++ send message via pickup ')
                         await pickup.put(request.message)
+                        ###############
+                        info_p2p_event(
+                            p2p, 'Websocket endpoint listener event -> sent via pickup protocol',
+                            endpoint_uid=endpoint_uid, group_id=group_id
+                        )
+                        ###############
                     else:
                         logging.debug('++++++++++++ send message via websocket ')
                         await websocket.send_json(request.message)
+                        ###############
+                        info_p2p_event(
+                            p2p, 'Websocket endpoint listener event -> sent via websocket',
+                            endpoint_uid=endpoint_uid, group_id=group_id
+                        )
+                        ###############
                     logging.debug('+++++++++++ message was sent via websocket ')
                     await req.ack()
                     logging.debug('++++++++++ message acked ')
@@ -396,6 +460,15 @@ async def endpoint_processor(
     logging.debug('++++++++++++++++++++++++++++++++++++++++++++++++++')
     data = await repo.load_endpoint(endpoint_uid)
     logging.debug('websocket endpoint data: ' + repr(data))
+    logging.info(repr(data))
+    if data and 'verkey' in data:
+        p2p = await sirius_sdk.PairwiseList.load_for_verkey(data['verkey'])
+        ###############
+        info_p2p_event(
+            p2p, 'Websocket endpoint processor is running',
+            metadata=data, endpoint_uid=endpoint_uid, group_id=group_id
+        )
+        ###############
     if data and data.get('redis_pub_sub'):
         coro = redis_listener(data['redis_pub_sub'])
         if exit_on_disconnect:
@@ -405,7 +478,12 @@ async def endpoint_processor(
                     while True:
                         await websocket.receive_bytes()
                 except WebSocketDisconnect:
-                    pass
+                    ###############
+                    info_p2p_event(
+                        p2p, 'Websocket endpoint was disconnected',
+                        endpoint_uid=endpoint_uid, group_id=group_id
+                    )
+                    ###############
             finally:
                 # websocket disconnected
                 fut.cancel()

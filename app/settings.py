@@ -18,6 +18,16 @@ if log_level:
     logging.getLogger("asyncio").setLevel(log_level)
 
 
+if os.getenv('ELK', None) == 'on':
+    from app.elk import ElkJsonFormatter
+    logger = logging.getLogger()
+    logHandler = logging.StreamHandler()
+    formatter = ElkJsonFormatter()
+    logHandler.setFormatter(formatter)
+    logger.handlers.clear()
+    logger.addHandler(logHandler)
+
+
 templates = Jinja2Templates(directory="templates")
 
 PORT = int(os.getenv('PORT'))

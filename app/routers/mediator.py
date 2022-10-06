@@ -1,7 +1,7 @@
 import json
 import logging
 
-from typing import List
+from typing import List, Optional
 
 from databases import Database
 from sirius_sdk.encryption import unpack_message
@@ -9,6 +9,8 @@ from sse_starlette.sse import EventSourceResponse
 from fastapi import APIRouter, Request, Depends, HTTPException, WebSocket
 
 import settings
+import sirius_sdk
+from core.utils import info_p2p_event
 from app.core.repo import Repo
 from app.core.global_config import GlobalConfig
 from app.core.singletons import GlobalMemcachedClient, GlobalRedisChannelsCache
@@ -75,14 +77,29 @@ async def post_to_device(payload, endpoint_fields: dict, db: Database):
 
     repo = Repo(db=db, memcached=GlobalMemcachedClient.get())
     pushes = RedisPush(db, memcached=GlobalMemcachedClient.get(), channels_cache=GlobalRedisChannelsCache.get())
+    p2p: Optional[sirius_sdk.Pairwise] = None
+    endpoint_uid = endpoint_fields['uid']
+    agent = await repo.load_endpoint(endpoint_fields['uid'])
+    if agent and 'verkey' in agent:
+        p2p = await sirius_sdk.PairwiseList.load_for_verkey(agent['verkey'])
+    ############
+    info_p2p_event(p2p, '#1 Post to device', endpoint_uid=endpoint_uid, metadata=endpoint_fields)
+    ############
 
     message = json.loads(payload.decode())
     try:
         logging.debug('push message to websocket connection')
+        ###############
+        info_p2p_event(p2p, '#2 Post to device: try to send via websocket', endpoint_uid=endpoint_uid)
+        ###############
         success = await pushes.push(endpoint_fields['uid'], message, ttl=settings.DEVICE_ACK_TIMEOUT)
+        ###############
+        info_p2p_event(p2p, '#3 Post to device: SUCCESS!', endpoint_uid=endpoint_uid)
+        ###############
         logging.debug(f'push operation returned success: {success}')
     except RedisConnectionError as e:
         success = False
+        info_p2p_event(p2p, '#4 Post to device: Error to send via websocket', endpoint_uid=endpoint_uid)
         logging.exception('Error while push message via redis')
         # Try select other redis server
         try:
@@ -91,15 +108,35 @@ async def post_to_device(payload, endpoint_fields: dict, db: Database):
             new_redis_pub_sub = change_redis_server(unreachable_redis_pub_sub, redis_server)
             endpoint_fields['redis_pub_sub'] = new_redis_pub_sub
             await repo.ensure_endpoint_exists(**endpoint_fields)
+            ###############
+            info_p2p_event(
+                p2p, '#5 Post to device: Refreshed redis address',
+                endpoint_uid=endpoint_uid, metadata=endpoint_fields
+            )
+            ###############
         except Exception as e:
             logging.exception('Error while reselect redis server')
+            ###############
+            info_p2p_event(
+                p2p, '#6 Post to device: Exception',
+                printable=repr(e)
+            )
             pass  # mute any exception
     if success:
+        ###############
+        info_p2p_event(p2p, '#10 Post to device: HTTP OK', endpoint_uid=endpoint_uid)
+        ###############
         return
     else:
         fcm_device_id = endpoint_fields.get('fcm_device_id')
         logging.debug(f'fcm_device_id: {fcm_device_id}')
         if fcm_device_id:
+            ###############
+            info_p2p_event(
+                p2p, '#7 Post to device: Try to send with Firebase',
+                endpoint_uid=endpoint_uid, fcm_device_id=fcm_device_id
+            )
+            ###############
             firebase = FirebaseMessages(db=db)
             fcm_enabled = await firebase.enabled()
             if fcm_enabled:
@@ -107,18 +144,42 @@ async def post_to_device(payload, endpoint_fields: dict, db: Database):
                 logging.debug('push message via FCM')
                 try:
                     success = await firebase.send(device_id=fcm_device_id, msg=message)
+                    ###############
+                    info_p2p_event(
+                        p2p, '#8 Post to device: Send with Firebase SUCCESS!',
+                        endpoint_uid=endpoint_uid, fcm_device_id=fcm_device_id
+                    )
+                    ###############
                 except Exception:
                     success = False
                     logging.exception('FCM Error!')
+                    ###############
+                    info_p2p_event(
+                        p2p, '#9 Post to device: Error while send with Firebase',
+                        endpoint_uid=endpoint_uid, fcm_device_id=fcm_device_id
+                    )
+                    ###############
                 logging.debug(f'push operation returned success: {success}')
                 if success:
+                    ###############
+                    info_p2p_event(p2p, '#10 Post to device: HTTP OK', endpoint_uid=endpoint_uid)
+                    ###############
                     return
                 else:
+                    ###############
+                    info_p2p_event(p2p, f'#10 Post to device: HTTP 410 Status', endpoint_uid=endpoint_uid)
+                    ###############
                     raise HTTPException(status_code=410,
                                         detail='Recipient is registered but is not active with Firebase')
             else:
+                ###############
+                info_p2p_event(p2p, f'#10 Post to device: HTTP 421 Status', endpoint_uid=endpoint_uid)
+                ###############
                 raise HTTPException(status_code=421, detail='Firebase cloud messaging is not configured on server-side')
         else:
+            ###############
+            info_p2p_event(p2p, f'#11 Post to device: HTTP 410 Status', endpoint_uid=endpoint_uid)
+            ###############
             raise HTTPException(status_code=410, detail='Recipient is registered but is not active')
 
 
