@@ -3,12 +3,12 @@ import json
 from typing import Any, Optional
 
 import sirius_sdk
-from sirius_sdk.agent.wallet.abstract.crypto import AbstractCrypto
+from sirius_sdk.abstract.api import APICrypto
 from sirius_sdk.encryption import sign_message, verify_signed_message, pack_message, \
     unpack_message, b58_to_bytes, bytes_to_b58, create_keypair
 
 
-class LocalCrypto(AbstractCrypto):
+class LocalCrypto(APICrypto):
 
     """Crypto module on device side, for example Indy-Wallet or HSM or smth else
 

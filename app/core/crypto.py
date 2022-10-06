@@ -1,12 +1,12 @@
 import json
 from typing import Any, Optional
 
-from sirius_sdk.agent.wallet.abstract.crypto import AbstractCrypto
+from sirius_sdk.abstract.api import APICrypto
 from sirius_sdk.encryption import sign_message, verify_signed_message, pack_message, \
     unpack_message, b58_to_bytes, bytes_to_b58
 
 
-class MediatorCrypto(AbstractCrypto):
+class MediatorCrypto(APICrypto):
 
     def __init__(self, verkey: str, secret: str):
         self.__verkey: bytes = b58_to_bytes(verkey)
