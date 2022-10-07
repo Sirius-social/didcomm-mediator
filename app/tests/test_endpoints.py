@@ -35,6 +35,8 @@ def test_delivery_via_websocket(test_database: Database, random_me: (str, str, s
     """
     content_type = 'application/ssi-agent-wire'
 
+    override_sirius_sdk()
+
     agent_did, agent_verkey, agent_secret = random_me
     redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
 
@@ -72,6 +74,8 @@ def test_delivery_json_via_websocket(test_database: Database, random_me: (str, s
     content_json = {'key1': 'value', 'key2': 123}
     content = json.dumps(content_json).encode()
     content_type = 'application/json'
+
+    override_sirius_sdk()
 
     agent_did, agent_verkey, agent_secret = random_me
     redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
@@ -117,6 +121,8 @@ async def test_delivery_via_fcm(test_database: Database, random_me: (str, str, s
     """Check unsupported content-type will raise http error status"""
     content_type = 'application/ssi-agent-wire'
 
+    override_sirius_sdk()
+
     agent_did, agent_verkey, agent_secret = random_me
     fcm_device_id = 'redis://redis1/%s' % uuid.uuid4().hex
 
@@ -157,6 +163,8 @@ async def test_delivery_via_fcm(test_database: Database, random_me: (str, str, s
 async def test_delivery_via_long_polling(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, didcomm_envelope_enc_content: bytes):
     """Check long polling delivery mechanism"""
     content_type = 'application/ssi-agent-wire'
+
+    override_sirius_sdk()
 
     agent_did, agent_verkey, agent_secret = random_me
     redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
@@ -315,6 +323,8 @@ def test_delivery_when_redis_server_fail(test_database: Database, random_me: (st
     """
     content_type = 'application/ssi-agent-wire'
 
+    override_sirius_sdk()
+
     agent_did, agent_verkey, agent_secret = random_me
     unreachable_redis_pub_sub = 'redis://unreachable/%s' % uuid.uuid4().hex
 
@@ -338,6 +348,8 @@ def test_delivery_when_redis_server_fail(test_database: Database, random_me: (st
 def test_forward_msg(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, random_keys: (str, str)):
     expected_msg = {'message': 'Hello!'}
     content_type = 'application/didcomm-envelope-enc'
+
+    override_sirius_sdk()
 
     agent_did, agent_verkey, agent_secret = random_me
     redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
@@ -411,6 +423,8 @@ def test_load_balancing_with_group_id(test_database: Database, random_me: (str, 
     content = json.dumps(content_json).encode()
     content_type = 'application/json'
 
+    override_sirius_sdk()
+
     agent_did, agent_verkey, agent_secret = random_me
     redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
 
@@ -439,6 +453,8 @@ def test_delivery_via_websocket_with_multiple_group_id(test_database: Database, 
     """Regression test: losing messages if working with > 1 groups
     """
     content_type = 'application/ssi-agent-wire'
+
+    override_sirius_sdk()
 
     agent_did, agent_verkey, agent_secret = random_me
     redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
@@ -477,6 +493,8 @@ def test_clean_redis_connection_on_endpoint_disconnect(test_database: Database, 
     agent_did, agent_verkey, agent_secret = random_me
     redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex
     group_id = 'group_id_' + uuid.uuid4().hex
+
+    override_sirius_sdk()
 
     asyncio.get_event_loop().run_until_complete(ensure_endpoint_exists(
         db=test_database, uid=random_endpoint_uid, redis_pub_sub=redis_pub_sub,
