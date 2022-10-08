@@ -121,8 +121,6 @@ async def test_delivery_via_fcm(test_database: Database, random_me: (str, str, s
     """Check unsupported content-type will raise http error status"""
     content_type = 'application/ssi-agent-wire'
 
-    override_sirius_sdk()
-
     agent_did, agent_verkey, agent_secret = random_me
     fcm_device_id = 'redis://redis1/%s' % uuid.uuid4().hex
 
@@ -163,8 +161,6 @@ async def test_delivery_via_fcm(test_database: Database, random_me: (str, str, s
 async def test_delivery_via_long_polling(test_database: Database, random_me: (str, str, str), random_endpoint_uid: str, didcomm_envelope_enc_content: bytes):
     """Check long polling delivery mechanism"""
     content_type = 'application/ssi-agent-wire'
-
-    override_sirius_sdk()
 
     agent_did, agent_verkey, agent_secret = random_me
     redis_pub_sub = 'redis://redis1/%s' % uuid.uuid4().hex

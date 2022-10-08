@@ -462,7 +462,10 @@ async def endpoint_processor(
     logging.debug('websocket endpoint data: ' + repr(data))
     logging.info(repr(data))
     if data and 'verkey' in data:
-        p2p = await sirius_sdk.PairwiseList.load_for_verkey(data['verkey'])
+        try:
+            p2p = await sirius_sdk.PairwiseList.load_for_verkey(data['verkey'])
+        except:
+            pass
         ###############
         info_p2p_event(
             p2p, 'Websocket endpoint processor is running',

@@ -13,8 +13,9 @@ from app.core.pairwise import MediatorPairwiseList
 from app.settings import KEYPAIR, TEST_SQLALCHEMY_DATABASE_URL
 
 
-def override_sirius_sdk():
-    db = Database(TEST_SQLALCHEMY_DATABASE_URL)
+def override_sirius_sdk(db: Database = None):
+    if db is None:
+        db = Database(TEST_SQLALCHEMY_DATABASE_URL)
     sirius_sdk.init(
         crypto=MediatorCrypto(*KEYPAIR),
         did=MediatorDID(db=db),
